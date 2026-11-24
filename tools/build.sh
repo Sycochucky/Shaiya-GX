@@ -11,5 +11,5 @@ for c in shaiya shaiyacli assets; do
 done
 mkdir -p "build/GX Studio"
 go build -trimpath -o "build/GX Studio/GX Studio" ./cmd/gx_studio
-./server/tools/build.sh
+./server/tools/build.sh --gui
 go test -vet=off ./...

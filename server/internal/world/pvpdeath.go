@@ -158,10 +158,11 @@ func (s *Session) killPCToCount(count uint32) {
 	if ch.Kills >= pvpKillCap {
 		return
 	}
-	added := min(count, pvpKillCap-ch.Kills)
+	remaining := pvpKillCap - ch.Kills
+	added := uint32(min(uint64(count)*uint64(rewardRates.PvPKills), uint64(remaining)))
 	ch.Kills += added
 	s.persist()
-	addKillCountBatch(s.faction, added, s.log) // CWorld::AddKillCount for the killer's country
+	addKillCountBatch(s.faction, min(count, remaining), s.log) // Actual kills for the killer's country.
 	s.send(buildKillCountUpdate(0, ch.Kills), "0x020E kills")
 	w := packet.New(0x0522)
 	w.U32(ch.ID)

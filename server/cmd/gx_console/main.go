@@ -1,61 +1,67 @@
-// Command gx_console starts and stops gx_login and gx_world
-// from a plain terminal prompt: "start server" and "shutdown server".
+// Command gx_console controls the detached GX services from a terminal.
 package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
-	"github.com/Spelunkern/Shaiya-GX/server/internal/admin"
 	"os"
 	"strings"
 
+	"github.com/Spelunkern/Shaiya-GX/server/internal/admin"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/control"
 )
 
-func short(name string) string { return strings.TrimPrefix(name, "rapture_") }
-
-func status() {
-	state := func(name string) string {
-		if control.Running(name) {
-			return "ON"
-		}
-		return "OFF"
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	fmt.Printf("login: %s | world: %s\n", state("gx_login"), state("gx_world"))
 }
 
-func main() {
+func run() error {
 	if len(os.Args) > 1 {
-		if err := admin.Run(os.Args[1:]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		return admin.Run(os.Args[1:])
+	}
+	manager, err := control.Installation()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	show := func() {
+		status := manager.Snapshot(ctx)
+		for _, service := range control.Services() {
+			info := status[service]
+			fmt.Printf("%s: %s", service.Label(), info.State)
+			if info.Detail != "" {
+				fmt.Printf(" (%s)", info.Detail)
+			}
+			fmt.Println()
 		}
-		return
+	}
+	commands := map[string]control.Action{
+		"start server":    control.Start,
+		"shutdown server": control.Stop,
+		"restart server":  control.Restart,
 	}
 	fmt.Println("GX Server Console")
-	status()
-	fmt.Println(`Commands: "start server" | "shutdown server"`)
+	fmt.Println(`Commands: "status" | "start server" | "shutdown server" | "restart server"`)
+	show()
 	input := bufio.NewScanner(os.Stdin)
-	for {
-		fmt.Print("> ")
-		if !input.Scan() {
-			return
-		}
-		switch strings.ToLower(strings.TrimSpace(input.Text())) {
-		case "start server":
-			if err := control.StartAll(); err != nil {
-				fmt.Printf("error -- %v\n", err)
-			} else {
-				fmt.Println("server started")
+	for fmt.Print("> "); input.Scan(); fmt.Print("> ") {
+		command := strings.ToLower(strings.TrimSpace(input.Text()))
+		action, ok := commands[command]
+		switch {
+		case ok:
+			if err := manager.Apply(ctx, action, control.Services(), nil); err != nil {
+				fmt.Fprintln(os.Stderr, err)
 			}
-			status()
-		case "shutdown server":
-			control.StopAll()
-			fmt.Println("server stopped")
-			status()
-		case "":
-		default:
-			fmt.Println(`unknown command. Use "start server" or "shutdown server".`)
+			show()
+		case command == "status":
+			show()
+		case command != "":
+			fmt.Println("Unknown command.")
 		}
 	}
+	return input.Err()
 }

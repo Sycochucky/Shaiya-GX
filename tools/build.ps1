@@ -16,7 +16,7 @@ go build -trimpath -ldflags "-H windowsgui" -o "build/GX Studio/GX Studio.exe" .
 Check-Go
 Push-Location .
 try {
-    & ./server/tools/build.ps1
+    & ./server/tools/build.ps1 -Gui
     Check-Go
 } finally {
     Pop-Location

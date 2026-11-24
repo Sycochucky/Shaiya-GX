@@ -32,7 +32,12 @@ with the included database.
 
 ## Run a package
 
-Keep the directory structure intact in a writable folder. Open `build/gx_console[.exe]` in a terminal or use the `Start GX Server` launcher. Enter `start server` / `shutdown server`. Closing the console leaves servers running. First start copies the seed to `runtime/rapture.sqlite`; existing runtimes are preserved.
+Keep the directory structure intact in a writable folder. If supplied, open
+`build/gx_server_control[.exe]` for the desktop dashboard. For terminal control,
+open `build/gx_console[.exe]` or use the `Start GX Server` launcher and enter
+`start server` or `shutdown server`. Closing either controller leaves services
+running. First start copies the seed to `runtime/rapture.sqlite`; existing runtimes
+are preserved.
 
 The headless server and console need no Go, Python, Docker, SQL Server or separate SQLite library. Python 3 is optional for administration tools in `tools/`.
 

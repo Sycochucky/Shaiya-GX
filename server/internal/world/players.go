@@ -592,6 +592,17 @@ func PlayersNearExcluding(mapID uint16, characterID uint32, x, z, radius float32
 	})
 }
 
+// PlayerCount reports characters registered in the world.
+func PlayerCount() int {
+	realm.registryMu.Lock()
+	defer realm.registryMu.Unlock()
+	count := 0
+	for _, players := range realm.registry {
+		count += len(players)
+	}
+	return count
+}
+
 func AllPlayers() []*ConnectedPlayer {
 	realm.registryMu.Lock()
 	defer realm.registryMu.Unlock()

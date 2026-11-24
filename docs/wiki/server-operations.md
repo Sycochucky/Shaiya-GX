@@ -2,9 +2,13 @@
 
 GX Server is part of GX under `server/`. In a source checkout, server paths in this guide are relative to `server/`; in a portable archive they are relative to the extracted top-level folder. The former standalone Rapture repository is retired after migration.
 
-## Terminal console
+## Desktop and terminal controls
 
-Run `build/gx_console[.exe]` in a terminal, or use `Start GX Server.sh` / `.bat`. Enter `start server` or `shutdown server`. Closing the console leaves login/world detached. Use one console per installation at a time.
+Run `build/gx_server_control[.exe]` for the standalone desktop controller with
+service readiness, live logs and [reward-rate settings](../server.md#gx-server-control).
+On headless installs, run `build/gx_console[.exe]` or the terminal launcher and
+enter `status`, `start server`, `shutdown server` or `restart server`.
+Closing either controller leaves Login and World running.
 
 Alternatively run `build/gx_login[.exe]` and `build/gx_world[.exe]` directly and manage those process lifetimes yourself. Each binary finds `data/` relative to its executable when no data/database overrides are provided, so launching from another working directory works. Do not mix binaries from different versions.
 
@@ -138,7 +142,7 @@ restart the world server to opt out. See [the complete fall rules](../fall-damag
 
 ## Modernized runtime and administration
 
-Both controllers use authenticated loopback shutdown before platform fallback.
+Both controllers use authenticated loopback shutdown and verify process exit.
 The world owns a cancellable scheduler and a database ownership lease. JSON logs
 rotate; loopback metrics expose storage/queue/tick pressure. Configure local
 accounts and passwords using `build/gx_console account create NAME [--admin]`

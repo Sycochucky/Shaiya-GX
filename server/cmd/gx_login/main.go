@@ -67,12 +67,14 @@ func run() error {
 	loginByAccount = netx.NewRateLimiter(8192, policy.AccountAttempts, time.Minute)
 	listener, err := transport.Listen(config.LoginListen())
 	if err != nil {
-		logger.Printf("GX Server Login failed to bind %s: %v", config.LoginListen(), err)
+		logger.Errorf("GX Server Login failed to bind %s: %v", config.LoginListen(), err)
 		return err
 	}
 	logger.Printf("GX Server Login listening on %s", config.LoginListen())
 
-	admin, err := controlplane.Start(ctx, "gx_login", os.Getenv("RAPTURE_LOGIN_DIAGNOSTICS"), stop, db.Observe)
+	admin, err := controlplane.Start(ctx, "gx_login", os.Getenv("RAPTURE_LOGIN_DIAGNOSTICS"), stop, func() controlplane.ServiceStatus {
+		return controlplane.ServiceStatus{Endpoint: listener.Addr().String()}
+	}, db.Observe)
 	if err != nil {
 		listener.Close()
 		logger.Printf("local control startup failed: %v", err)

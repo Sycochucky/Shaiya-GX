@@ -41,19 +41,23 @@ func LoadRuntimeEnv() error {
 	return LoadRuntimeEnvFrom(".")
 }
 
-// LoadRuntimeEnvFrom is LoadRuntimeEnv for the checkout at root.
-func LoadRuntimeEnvFrom(root string) error {
-	file, err := os.Open(filepath.Join(root, ".local", "runtime.env"))
+// ReadRuntimeEnv validates a runtime.env without changing the process environment.
+func ReadRuntimeEnv(root string) (map[string]string, error) {
+	file, err := os.Open(RuntimeEnvPath(root))
 	if os.IsNotExist(err) {
-		resolvePaths(root)
-		return nil
+		return nil, nil
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer file.Close()
+	return parseRuntimeEnv(bufio.NewScanner(file))
+}
+
+func RuntimeEnvPath(root string) string { return filepath.Join(root, ".local", "runtime.env") }
+
+func parseRuntimeEnv(scanner *bufio.Scanner) (map[string]string, error) {
 	assignments := map[string]string{}
-	scanner := bufio.NewScanner(file)
 	line := 0
 	for scanner.Scan() {
 		line++
@@ -71,11 +75,20 @@ func LoadRuntimeEnvFrom(root string) error {
 			}
 		}
 		if !valid {
-			return fmt.Errorf("invalid runtime.env assignment at line %d", line)
+			return nil, fmt.Errorf("invalid runtime.env assignment at line %d", line)
 		}
 		assignments[key] = value
 	}
 	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return assignments, nil
+}
+
+// LoadRuntimeEnvFrom is LoadRuntimeEnv for the checkout at root.
+func LoadRuntimeEnvFrom(root string) error {
+	assignments, err := ReadRuntimeEnv(root)
+	if err != nil {
 		return err
 	}
 	for key, value := range assignments {

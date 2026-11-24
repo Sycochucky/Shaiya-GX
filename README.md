@@ -50,7 +50,7 @@ Snapshot: November 17, 2026 (gx-v0.1.12). Counts come from the [server parity ta
 |---|---|
 | Portable clients | Native Linux and Windows builds; shared adjacent `data/`, including external fonts |
 | Media migration | OGG audio, PNG interface and seven PNG cursors |
-| Integrated server | Terminal-only GX Server, login/world and embedded development DB |
+| Integrated server | Headless Login and World, desktop and terminal control, and embedded development DB |
 | Functional flows | Account entry, movement/combat, inventory/services and gatekeeper travel; scope and evidence in the progress guide |
 
 | Data role | Accepted format |
@@ -72,7 +72,7 @@ For separate OS-specific client/server packages and binary-only updates, use
 [Verify downloads](docs/quickstart.md#verify-a-download) and review the
 [portable guide](docs/client-portable.md) before upgrading an existing installation.
 
-The portable server includes login, world, a terminal console, seed database, maps and configuration. Running the server needs no graphics libraries, Go, Docker, SQL Server, Python or external SQLite installation. Linux runtime packages and Windows build prerequisites are documented in [building](docs/building.md).
+The portable server includes login, world, a terminal console, seed database, maps and configuration. With GX Server Control included, use the standalone dashboard for service controls, live logs and reward-rate settings. The headless services need no graphics libraries, Go, Docker, SQL Server, Python or external SQLite installation. See [build and runtime requirements](docs/building.md).
 
 Closing the console leaves login/world running. Use `shutdown server` before moving an installation or its database. [Operating and updating](docs/server.md) covers persistence, LAN connections, logs and backups.
 
@@ -82,7 +82,7 @@ This is a development project. Linux and Windows amd64 are supported build targe
 
 The client implements login, character creation/selection, world rendering, movement, combat, skills, inventory/equipment, NPC shops, loot, chat, party/raid, quests, trade, guilds, storage, blacksmith services, portals and social interfaces. Graphics include fog, water, actor shadows, effects and original UI artwork read from the data directory. Remaining limitations include visual/service variants, collision/navigation and some options. See [interface status](docs/interface.md).
 
-GX Server retains Rapture's gameplay and protocol behavior. Its programs are `gx_login`, `gx_world` and `gx_console`; the advertised server name is **GX Server**. Existing `RAPTURE_*` environment keys and `rapture.sqlite` filenames remain compatible to avoid changing operation or storage semantics.
+GX Server retains Rapture's gameplay and protocol behavior. Its programs are `gx_login`, `gx_world`, `gx_console` and the optional desktop `gx_server_control`. The advertised server name is **GX Server**. Existing `RAPTURE_*` environment keys and `rapture.sqlite` filenames remain compatible.
 
 ## Guides
 

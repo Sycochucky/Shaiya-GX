@@ -73,4 +73,17 @@ func TestBlessingPvPRelicDatabaseAndResetLifecycle(t *testing.T) {
 	if kcWorld[0].count != 0 {
 		t.Fatal("kill cap credited country")
 	}
+	oldRates := rewardRates
+	t.Cleanup(func() { rewardRates = oldRates })
+	rewardRates.PvPKills = 4
+	s.char.Kills = 0
+	s.killPCToCount(2)
+	if s.char.Kills != 8 || kcWorld[0].count != 2 {
+		t.Fatalf("rank multiplier changed actual faction kills: rank %d, faction %d", s.char.Kills, kcWorld[0].count)
+	}
+	s.char.Kills = pvpKillCap - 1
+	s.killPCTo()
+	if s.char.Kills != pvpKillCap || kcWorld[0].count != 3 {
+		t.Fatalf("rank multiplier escaped the cap: rank %d, faction %d", s.char.Kills, kcWorld[0].count)
+	}
 }

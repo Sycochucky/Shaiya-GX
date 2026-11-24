@@ -1073,7 +1073,7 @@ Declarations: [proto.GXEnchantRules](../../internal/proto/enchant_rules.go#L9), 
 
 Source notes: GXEnchantRules publishes server enchant bonuses for authoritative tooltips.
 
-**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L224)
+**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L226)
 
 **S→C serializers:** [sendEnchantRules (server/internal/world/enchant_rules.go)](../../server/internal/world/enchant_rules.go#L80)
 
@@ -1709,7 +1709,7 @@ Source notes: GXKillNotice tells a user that it killed another player: the victi
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
-**S→C serializers:** [notifyKill (server/internal/world/pvpdeath.go)](../../server/internal/world/pvpdeath.go#L240)
+**S→C serializers:** [notifyKill (server/internal/world/pvpdeath.go)](../../server/internal/world/pvpdeath.go#L241)
 
 **Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L830)
 
@@ -1719,7 +1719,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>notifyKill — server/internal/world/pvpdeath.go</summary>
 
-[Source definition](../../server/internal/world/pvpdeath.go#L240)
+[Source definition](../../server/internal/world/pvpdeath.go#L241)
 
 ```go
 func (s *Session) notifyKill(killer *ConnectedPlayer) {

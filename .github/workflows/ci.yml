@@ -122,7 +122,7 @@ jobs:
           python tools/check_publication.py --history
       - name: Build portable and verify native startup
         shell: bash
-        run: python server/tools/package.py --platform '${{ matrix.platform }}' --output out/portable
+        run: python server/tools/package.py --platform '${{ matrix.platform }}' --gui --output out/portable
       - uses: actions/upload-artifact@v4
         with:
           name: gx-server-${{ matrix.platform }}

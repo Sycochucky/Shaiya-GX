@@ -24,6 +24,7 @@ from tools.fetch_server_geometry import validate as validate_geometry
 from tools.release_geometry import verify_sources
 
 PROGRAMS = ("gx_login", "gx_world", "gx_console")
+GUI_PROGRAM = "gx_server_control"
 GAME_DATA = (
     "GuildHouse.ini", "Obelisk.ini", "ItemEnchant.ini", "MobAIMessages.ini",
     "KillStatus.ini", "WorldDrops.ini", "ItemBoxes.ini", "Map.ini",
@@ -209,7 +210,7 @@ def copy_runtime_data(source, target):
             shutil.copy2(geometry / name, target / "geometry" / name)
 
 
-def build_package(platform, output, go, *, require_pin):
+def build_package(platform, output, go, *, require_pin, gui=False):
     system, architecture = platform.split("-", 1)
     suffix = ".exe" if system == "windows" else ""
     name = "gx-server-" + platform
@@ -220,6 +221,11 @@ def build_package(platform, output, go, *, require_pin):
         for program in PROGRAMS:
             subprocess.run([go, "build", "-trimpath", "-ldflags=-s -w", "-o", str(root / "build" / (program + suffix)),
                             "./cmd/" + program], cwd=ROOT, env=environment, check=True)
+        if gui:
+            flags = "-s -w -H windowsgui" if system == "windows" else "-s -w"
+            subprocess.run([go, "build", "-trimpath", "-ldflags=" + flags, "-o",
+                            str(root / "build" / (GUI_PROGRAM + suffix)), "./cmd/" + GUI_PROGRAM],
+                           cwd=ROOT, env=dict(environment, CGO_ENABLED="1"), check=True)
         copy_runtime_data(ROOT / "data", root / "data")
         # Editable policies accompany the same embedded default catalog.
         ai = root / "ai"
@@ -270,6 +276,8 @@ def main():
     parser.add_argument("--output", type=Path, default=ROOT / "out/portable")
     parser.add_argument("--custom-geometry", action="store_true",
                         help="Package a custom generation for a private server")
+    parser.add_argument("--gui", action="store_true",
+                        help="Include GX Server Control (requires the target's graphics build prerequisites)")
     args = parser.parse_args()
     go = shutil.which("go")
     if go is None:
@@ -281,7 +289,7 @@ def main():
     check_seed(ROOT, require_pin=require_pin)
     output = args.output.expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
-    archives = [build_package(platform, output, go, require_pin=require_pin)
+    archives = [build_package(platform, output, go, require_pin=require_pin, gui=args.gui)
                 for platform in (args.platform or ("linux-amd64", "windows-amd64"))]
     staged = output / ".SHA256SUMS.next"
     staged.write_text("".join(checksum(path) + "  " + path.name + "\n" for path in archives))

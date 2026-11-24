@@ -7,6 +7,7 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/internal/attackspeed"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"github.com/Spelunkern/Shaiya-GX/internal/skilltiming"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/packet"
 )
@@ -604,8 +605,8 @@ func rewardKill(killer *ConnectedPlayer, killerID uint32, mapID uint16, m *MapMo
 	}
 	for _, reward := range rewards {
 		reward.member.QueueQuestKill(m.MobID)
-		if reward.exp > 0 {
-			reward.member.QueueExp(reward.exp, perfect)
+		if amount := config.ScaleEXP(reward.exp, rewardRates.MobEXPPercent); amount > 0 {
+			reward.member.QueueExp(amount, perfect)
 		}
 	}
 }
@@ -673,7 +674,7 @@ func grantOfflineKillExp(characterID uint32, mobID, mobLevel uint16, mobExp uint
 		return
 	}
 	scaled := uint32(float64(mobExperience(mobLevel, uint16(min(mobExp, 65535)), ch.Level)) * 1.2)
-	levels, credited := applyExpGain(&ch, scaled)
+	levels, credited := applyExpGain(&ch, config.ScaleEXP(scaled, rewardRates.MobEXPPercent))
 	if credited == 0 && levels == 0 {
 		return
 	}

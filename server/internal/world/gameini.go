@@ -123,8 +123,14 @@ func buildMapProperties(c maprules.Catalog) (MapConfig, error) {
 	return config, nil
 }
 
+var rewardRates = config.DefaultRewardRates()
+
 // LoadGameConfig loads the original PS_Game ini files from data/game/.
 func LoadGameConfig(log *logx.Logger) error {
+	rates, err := config.ReadRewardRates(nil)
+	if err != nil {
+		return err
+	}
 	first, second, err := config.CombatDEXThresholds()
 	if err != nil {
 		return err
@@ -165,6 +171,9 @@ func LoadGameConfig(log *logx.Logger) error {
 		return fmt.Errorf("goddess blessing: %w", err)
 	}
 	combatDEXFirst, combatDEXSecond = first, second
+	rewardRates = rates
+	log.Printf("GX Server World reward rates: monster EXP %d%%, quest EXP %d%%, PvP rank kills %dx",
+		rates.MobEXPPercent, rates.QuestEXPPercent, rates.PvPKills)
 	log.Printf("GX Server World combat DEX thresholds: %d, %d", first, second)
 	return nil
 }

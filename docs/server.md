@@ -2,9 +2,32 @@
 
 GX Server is part of GX under `server/`. In a source checkout, server paths in this guide are relative to `server/`; in a portable archive they are relative to the extracted top-level folder. The former standalone Rapture repository is retired after migration.
 
+## GX Server Control
+
+Open `build/gx_server_control[.exe]` inside the server folder. Login and World
+show their readiness, listening endpoints and available actions. The World
+status provides the in-game player count. Start All starts missing services.
+Stop and Restart request authenticated shutdown and wait for the process to
+exit. Keep matching versions of all server executables in the same folder.
+
+Live Logs follows the existing rotating Login and World JSON logs. Filter by
+service or severity, pause auto-scroll, and select an entry for its full
+message. Closing the GUI leaves both services running.
+
+Open **Settings** to edit reward rates. Save writes the three settings to
+`.local/runtime.env`, preserving other entries. Restart World to apply the
+changes. Inherited environment overrides are displayed and cannot be edited
+from the GUI.
+
+| Setting | Runtime key | Default and valid values |
+| --- | --- | --- |
+| Monster EXP | `RAPTURE_MOB_EXP_PERCENT` | 100%. Whole percentages from 0 to 10,000, applied to solo, party, raid and offline monster kill EXP. |
+| Quest EXP | `RAPTURE_QUEST_EXP_PERCENT` | 100%. Whole percentages from 0 to 10,000, applied to quest completion EXP. |
+| PvP rank kills | `RAPTURE_PVP_KILL_MULTIPLIER` | 1×. Whole multipliers from 1 to 100 for eligible rank credit, subject to the existing rank cap. PvP quest and faction blessing credit count actual qualifying kills. |
+
 ## Terminal console
 
-Run `build/gx_console[.exe]` in a terminal, or use `Start GX Server.sh` / `.bat`. Enter `start server` or `shutdown server`. Closing the console leaves login/world detached. Use one console per installation at a time.
+Run `build/gx_console[.exe]` in a terminal, or use `Start GX Server.sh` / `.bat`. Enter `status`, `start server`, `shutdown server` or `restart server`. Closing the console leaves login/world detached. The GUI and console serialize operations per installation.
 
 Alternatively run `build/gx_login[.exe]` and `build/gx_world[.exe]` directly and manage those process lifetimes yourself. Each binary finds `data/` relative to its executable when no data/database overrides are provided, so launching from another working directory works. Do not mix binaries from different versions.
 

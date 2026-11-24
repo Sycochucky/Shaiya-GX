@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Spelunkern/Shaiya-GX/internal/npcquest"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/packet"
 )
@@ -715,13 +716,13 @@ func (s *Session) handleQuestAbandon(p []byte) {
 	}
 }
 
-// awardQuest sends the authored EXP, gold and item through 0x0903.
+// awardQuest sends the credited EXP, authored gold and item through 0x0903.
 func (s *Session) awardQuest(q *activeQuest, variant uint8, ctx uint32) {
 	if s.char == nil || q == nil || s.findQuest(q.ID) != q || variant >= 3 {
 		return
 	}
 	res := q.def.Results[variant]
-	exp := res.Exp
+	exp := config.ScaleEXP(res.Exp, rewardRates.QuestEXPPercent)
 	change := db.CharacterChange{Before: *s.char, After: *s.char, ItemsBefore: s.items, ItemsAfter: append([]db.Item(nil), s.items...)}
 	var packets [][]byte
 	if q.def.EndType == 1 {

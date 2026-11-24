@@ -37,12 +37,18 @@ type Server struct {
 	once       sync.Once
 }
 
+// ServiceStatus contains the operational data exposed to the local controller.
+type ServiceStatus struct {
+	Endpoint string `json:"endpoint"`
+	Players  int    `json:"players"`
+}
+
 func loopback(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	ip := net.ParseIP(host)
 	return err == nil && ip != nil && ip.IsLoopback()
 }
-func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, observe ...func()) (*Server, error) {
+func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, observe ...func()) (*Server, error) {
 	if addr == "" {
 		addr = "127.0.0.1:0"
 	}
@@ -84,6 +90,18 @@ func Start(ctx context.Context, service, addr string, cancel context.CancelFunc,
 			sample()
 		}
 		telemetry.WritePrometheus(w)
+	})
+	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) {
+		if !authorize(r) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if ctx.Err() != nil {
+			http.Error(w, "stopping", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(status())
 	})
 	mux.HandleFunc("POST /shutdown", func(w http.ResponseWriter, r *http.Request) {
 		if !authorize(r) {
@@ -159,16 +177,14 @@ func (s *Server) Close() {
 	})
 }
 
-// RequestStop validates the PID and executable selected by the controller before
-// sending its private token. It never targets another installation by image name.
-func RequestStop(root, service string, pid int, executable string) error {
+func localRequest(ctx context.Context, root, service string, pid int, executable, method, path string) (*http.Response, error) {
 	data, err := os.ReadFile(filepath.Join(root, "runtime", "control", service+".json"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var d descriptor
 	if err = json.Unmarshal(data, &d); err != nil {
-		return err
+		return nil, err
 	}
 	expected, _ := filepath.Abs(executable)
 	if resolved, e := filepath.EvalSymlinks(expected); e == nil {
@@ -179,15 +195,40 @@ func RequestStop(root, service string, pid int, executable string) error {
 		sameExecutable = strings.EqualFold(filepath.Clean(expected), filepath.Clean(d.Executable))
 	}
 	if d.PID != pid || !sameExecutable || !loopback(d.Address) || len(d.Token) != 64 {
-		return errors.New("local control identity mismatch")
+		return nil, errors.New("local control identity mismatch")
 	}
-	req, err := http.NewRequest(http.MethodPost, "http://"+d.Address+"/shutdown", nil)
+	req, err := http.NewRequestWithContext(ctx, method, "http://"+d.Address+path, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+d.Token)
-	client := http.Client{Timeout: 2 * time.Second, Transport: &http.Transport{Proxy: nil, DisableKeepAlives: true}}
-	resp, err := client.Do(req)
+	return localClient.Do(req)
+}
+
+var localClient = &http.Client{
+	Timeout:       2 * time.Second,
+	Transport:     &http.Transport{Proxy: nil, DisableKeepAlives: true},
+	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+}
+
+// ReadStatus validates the descriptor against the running installation.
+func ReadStatus(ctx context.Context, root, service string, pid int, executable string) (ServiceStatus, error) {
+	resp, err := localRequest(ctx, root, service, pid, executable, http.MethodGet, "/status")
+	if err != nil {
+		return ServiceStatus{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ServiceStatus{}, fmt.Errorf("status unavailable: HTTP %d", resp.StatusCode)
+	}
+	var status ServiceStatus
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	return status, err
+}
+
+// RequestStop validates the PID and executable before sending the private token.
+func RequestStop(ctx context.Context, root, service string, pid int, executable string) error {
+	resp, err := localRequest(ctx, root, service, pid, executable, http.MethodPost, "/shutdown")
 	if err != nil {
 		return err
 	}

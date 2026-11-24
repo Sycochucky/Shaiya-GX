@@ -12,9 +12,9 @@ Client codecs operate on opcode + body; server packet.Writer emits length + opco
 
 Declarations: [packet.LoginHandshake](../../server/internal/packet/packet.go#L211), [proto.LoginHandshake](../../internal/proto/opcodes.go#L199).
 
-**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L198)
+**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L200)
 
-**S→C serializers:** [handshake (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L101)
+**S→C serializers:** [handshake (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L103)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -24,7 +24,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>handshake — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L101)
+[Source definition](../../server/cmd/gx_login/main.go#L103)
 
 ```go
 func handshake() []byte {
@@ -65,9 +65,9 @@ func KeyReply(block []byte) ([]byte, error) {
 
 Declarations: [packet.LoginRequest](../../server/internal/packet/packet.go#L212), [proto.LoginRequest](../../internal/proto/opcodes.go#L200).
 
-**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L224)
+**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L226)
 
-**S→C serializers:** [loginReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L112)
+**S→C serializers:** [loginReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L114)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -77,7 +77,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>loginReply — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L112)
+[Source definition](../../server/cmd/gx_login/main.go#L114)
 
 ```go
 func loginReply(result uint8, userUID uint32, permission uint8, identity [16]byte) []byte {
@@ -133,7 +133,7 @@ Declarations: [packet.ServerList](../../server/internal/packet/packet.go#L213), 
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
-**S→C serializers:** [serverList (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L123)
+**S→C serializers:** [serverList (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L125)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -143,7 +143,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>serverList — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L123)
+[Source definition](../../server/cmd/gx_login/main.go#L125)
 
 ```go
 func serverList() []byte {
@@ -166,9 +166,9 @@ func serverList() []byte {
 
 Declarations: [packet.SelectServer](../../server/internal/packet/packet.go#L214), [proto.SelectServer](../../internal/proto/opcodes.go#L202).
 
-**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L273)
+**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L275)
 
-**S→C serializers:** [selectServerReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L134)
+**S→C serializers:** [selectServerReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L136)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -178,7 +178,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>selectServerReply — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L134)
+[Source definition](../../server/cmd/gx_login/main.go#L136)
 
 ```go
 func selectServerReply(status uint8) []byte {

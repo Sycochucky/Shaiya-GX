@@ -91,14 +91,16 @@ func run() error {
 
 	listener, err := transport.Listen(config.WorldListen())
 	if err != nil {
-		logger.Printf("GX Server World failed to bind %s: %v", config.WorldListen(), err)
+		logger.Errorf("GX Server World failed to bind %s: %v", config.WorldListen(), err)
 		return err
 	}
 	logger.Printf("GX Server World listening on %s", config.WorldListen())
 
 	engine := world.StartSweeps(ctx, logger, stop)
 	defer engine.Close()
-	admin, err := controlplane.Start(ctx, "gx_world", os.Getenv("RAPTURE_WORLD_DIAGNOSTICS"), stop, db.Observe)
+	admin, err := controlplane.Start(ctx, "gx_world", os.Getenv("RAPTURE_WORLD_DIAGNOSTICS"), stop, func() controlplane.ServiceStatus {
+		return controlplane.ServiceStatus{Endpoint: listener.Addr().String(), Players: world.PlayerCount()}
+	}, db.Observe)
 	if err != nil {
 		listener.Close()
 		logger.Printf("local control startup failed: %v", err)

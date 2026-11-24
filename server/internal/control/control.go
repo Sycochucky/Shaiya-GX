@@ -1,185 +1,329 @@
-// Package control starts and stops this checkout's gx_login and
-// gx_world binaries (build/). Servers run detached, so whatever
-// starts them can exit without taking them down.
+// Package control manages the detached Login and World processes for a single GX installation.
 package control
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"github.com/Spelunkern/Shaiya-GX/server/internal/controlplane"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/controlplane"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/filelock"
 )
 
-// Servers are started in this order and stopped together.
-var Servers = []string{"gx_login", "gx_world"}
+type Service string
 
-func exeName(name string) string {
+const (
+	Login Service = "gx_login"
+	World Service = "gx_world"
+)
+
+func Services() []Service { return []Service{Login, World} }
+
+func (s Service) Label() string {
+	if s == World {
+		return "World"
+	}
+	return "Login"
+}
+
+type State string
+
+const (
+	Stopped  State = "Stopped"
+	Starting State = "Starting"
+	Ready    State = "Ready"
+	Stopping State = "Stopping"
+	Failed   State = "Failed"
+	Unknown  State = "Unknown"
+)
+
+type Status struct {
+	State    State
+	PID      int
+	Endpoint string
+	Players  int
+	Detail   string
+}
+
+type Action string
+
+const (
+	Start   Action = "Start"
+	Stop    Action = "Stop"
+	Restart Action = "Restart"
+)
+
+type Manager struct {
+	root    string
+	mu      sync.Mutex
+	failure map[Service]string
+}
+
+func New(root string) *Manager {
+	return &Manager{root: root, failure: make(map[Service]string)}
+}
+
+// Installation opens the portable root containing the controller's build directory.
+func Installation() (*Manager, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
+	}
+	return New(filepath.Dir(filepath.Dir(exe))), nil
+}
+
+func (m *Manager) Root() string { return m.root }
+
+func exeName(service Service) string {
+	name := string(service)
 	if runtime.GOOS == "windows" {
 		return name + ".exe"
 	}
 	return name
 }
 
-// RepoRoot is the parent of the build/ directory holding the running
-// executable.
-func RepoRoot() string {
-	exe, err := os.Executable()
+func (m *Manager) binary(service Service) string {
+	return filepath.Join(m.root, "build", exeName(service))
+}
+
+func (m *Manager) lock(ctx context.Context) (func(), error) {
+	directory := filepath.Join(m.root, "runtime", "control")
+	if err := os.MkdirAll(directory, 0700); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	return filelock.Acquire(ctx, filepath.Join(directory, "operations.lock"))
+}
+
+func (m *Manager) current(ctx context.Context, service Service, found []int) Status {
+	switch len(found) {
+	case 0:
+		m.mu.Lock()
+		detail := m.failure[service]
+		m.mu.Unlock()
+		if detail != "" {
+			return Status{State: Failed, Detail: detail}
+		}
+		return Status{State: Stopped}
+	case 1:
+		pid := found[0]
+		status, err := controlplane.ReadStatus(ctx, m.root, string(service), pid, m.binary(service))
+		if err != nil || status.Endpoint == "" {
+			return Status{State: Unknown, PID: pid, Detail: "Process is running. Readiness is unavailable."}
+		}
+		return Status{State: Ready, PID: pid, Endpoint: status.Endpoint, Players: status.Players}
+	default:
+		return Status{State: Unknown, Detail: "Multiple processes match this installation."}
+	}
+}
+
+func (m *Manager) Snapshot(ctx context.Context) map[Service]Status {
+	result := make(map[Service]Status, 2)
+	configured, configErr := config.ReadRuntimeEnv(m.root)
+	processes, processErr := m.processes()
+	for _, service := range Services() {
+		status := Status{State: Unknown}
+		if processErr == nil {
+			status = m.current(ctx, service, processes[service])
+		} else {
+			status.Detail = processErr.Error()
+		}
+		if status.Endpoint == "" && configErr == nil {
+			key, fallback := "RAPTURE_LOGIN_LISTEN", "127.0.0.1:30800"
+			if service == World {
+				key, fallback = "RAPTURE_WORLD_LISTEN", "127.0.0.1:30810"
+			}
+			status.Endpoint = config.RuntimeValue(configured, key)
+			if status.Endpoint == "" {
+				status.Endpoint = fallback
+			}
+		}
+		result[service] = status
+	}
+	return result
+}
+
+// Apply serializes GUI and CLI changes to this installation. Restart starts
+// only services whose old processes were verified stopped.
+func (m *Manager) Apply(ctx context.Context, action Action, targets []Service, progress func(Service, Status)) error {
+	if action != Start && action != Stop && action != Restart {
+		return fmt.Errorf("unknown action %q", action)
+	}
+	selected := make(map[Service]bool, len(targets))
+	for _, service := range targets {
+		if service != Login && service != World {
+			return fmt.Errorf("unknown GX service %q", service)
+		}
+		selected[service] = true
+	}
+	release, err := m.lock(ctx)
 	if err != nil {
-		return "."
+		return fmt.Errorf("acquire installation control: %w", err)
 	}
-	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
-		exe = resolved
-	}
-	return filepath.Dir(filepath.Dir(exe))
-}
-
-func binPath(name string) string { return filepath.Join(RepoRoot(), "build", exeName(name)) }
-
-// pids lists running processes started from this checkout's build/<name>.
-func pids(name string) []int {
-	if runtime.GOOS == "windows" {
-		// Match the executable path, so this instance cannot stop another
-		// portable installation that happens to use the same binary names.
-		path := strings.ReplaceAll(binPath(name), "'", "''")
-		script := "Get-CimInstance Win32_Process -Filter \"Name='" + exeName(name) + "'\" | " +
-			"Where-Object { $_.ExecutablePath -eq '" + path + "' } | ForEach-Object { $_.ProcessId }"
-		out, _ := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script).Output()
-		var found []int
-		for _, field := range strings.Fields(string(out)) {
-			if pid, err := strconv.Atoi(field); err == nil {
-				found = append(found, pid)
-			}
-		}
-		return found
-	}
-	want := binPath(name)
-	entries, _ := os.ReadDir("/proc")
-	var found []int
-	for _, entry := range entries {
-		pid, err := strconv.Atoi(entry.Name())
-		if err != nil {
-			continue
-		}
-		// A rebuild replaces the file under a running server, whose exe link
-		// then reads "<path> (deleted)"; it is still this checkout's server.
-		if target, err := os.Readlink(filepath.Join("/proc", entry.Name(), "exe")); err == nil &&
-			(target == want || target == want+" (deleted)") {
-			found = append(found, pid)
-		}
-	}
-	return found
-}
-
-// Running reports whether the named server is running.
-func Running(name string) bool { return len(pids(name)) > 0 }
-
-// AllRunning reports whether every server is running.
-func AllRunning() bool {
-	for _, name := range Servers {
-		if !Running(name) {
-			return false
-		}
-	}
-	return true
-}
-
-// AnyRunning reports whether at least one server is running.
-func AnyRunning() bool {
-	for _, name := range Servers {
-		if Running(name) {
-			return true
-		}
-	}
-	return false
-}
-
-// Stop requests graceful shutdown before falling back to force termination.
-func Stop(name string) {
-	for _, pid := range pids(name) {
-		if controlplane.RequestStop(RepoRoot(), name, pid, binPath(name)) == nil {
-			deadline := time.Now().Add(30 * time.Second)
-			for time.Now().Before(deadline) {
-				found := false
-				for _, active := range pids(name) {
-					if active == pid {
-						found = true
-						break
-					}
-				}
-				if !found {
-					break
-				}
-				time.Sleep(50 * time.Millisecond)
-			}
-			stillRunning := false
-			for _, active := range pids(name) {
-				if active == pid {
-					stillRunning = true
-				}
-			}
-			if !stillRunning {
+	defer release()
+	var failures []error
+	if action != Start {
+		for _, service := range []Service{World, Login} {
+			if !selected[service] {
 				continue
 			}
-		}
-		if runtime.GOOS == "windows" {
-			exec.Command("taskkill", "/PID", strconv.Itoa(pid), "/F").Run()
-		} else if process, err := os.FindProcess(pid); err == nil {
-			gracefulStop(process)
+			if progress != nil {
+				progress(service, Status{State: Stopping})
+			}
+			if err := m.stop(ctx, service); err != nil {
+				failures = append(failures, fmt.Errorf("stop %s: %w", service.Label(), err))
+				delete(selected, service)
+			}
+			if progress != nil {
+				progress(service, m.Snapshot(ctx)[service])
+			}
 		}
 	}
+	if action != Stop {
+		for _, service := range Services() {
+			if !selected[service] {
+				continue
+			}
+			if progress != nil {
+				progress(service, Status{State: Starting})
+			}
+			err := m.start(ctx, service)
+			m.mu.Lock()
+			delete(m.failure, service)
+			if err != nil {
+				m.failure[service] = err.Error()
+				failures = append(failures, fmt.Errorf("start %s: %w", service.Label(), err))
+			}
+			m.mu.Unlock()
+			if progress != nil {
+				progress(service, m.Snapshot(ctx)[service])
+			}
+		}
+	}
+	return errors.Join(failures...)
 }
 
-// Start launches the named server detached, from the repository root.
-func Start(name string) error {
-	path := binPath(name)
-	if _, err := os.Stat(path); err != nil {
-		return fmt.Errorf("missing %s -- run tools/build.sh first", path)
-	}
-	cmd := exec.Command(path)
-	cmd.Dir = RepoRoot()
-	detach(cmd)
-	if err := cmd.Start(); err != nil {
+func (m *Manager) start(ctx context.Context, service Service) error {
+	processes, err := m.processes()
+	if err != nil {
 		return err
 	}
-	// Reap the child when it exits so it does not linger as a zombie.
-	go cmd.Wait()
-	return nil
-}
-
-// startupGrace is how long a fresh server gets to fail before it counts as up.
-const startupGrace = 3 * time.Second
-
-// StartAll starts the database, then (re)starts every server, stopping old
-// instances first. A server that exits during startupGrace is reported with
-// the last line of its log.
-func StartAll() error {
-	if err := EnsureDatabase(); err != nil {
-		return fmt.Errorf("database: %w", err)
+	if found := processes[service]; len(found) > 0 {
+		status := m.current(ctx, service, found)
+		if status.State == Ready {
+			return nil
+		}
+		return errors.New(status.Detail)
 	}
-	for _, name := range Servers {
-		Stop(name)
-		if err := Start(name); err != nil {
-			return fmt.Errorf("%s: %w", name, err)
+	if _, err := config.ReadRuntimeEnv(m.root); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	path := m.binary(service)
+	errorPath := filepath.Join(m.root, "runtime", "control", string(service)+".stderr")
+	stderr, err := os.OpenFile(errorPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(path)
+	cmd.Dir, cmd.Stderr = m.root, stderr
+	detach(cmd)
+	err = cmd.Start()
+	stderr.Close()
+	if err != nil {
+		return err
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+	deadline, cancel := context.WithTimeout(ctx, 40*time.Second)
+	defer cancel()
+	tick := time.NewTicker(200 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case err := <-exited:
+			if line := lastStderr(errorPath); line != "" {
+				return errors.New(line)
+			}
+			if err != nil {
+				return err
+			}
+			return errors.New("process exited before reporting readiness")
+		case <-deadline.Done():
+			return fmt.Errorf("service did not report ready: %w", deadline.Err())
+		case <-tick.C:
+			if status, err := controlplane.ReadStatus(deadline, m.root, string(service), cmd.Process.Pid, path); err == nil && status.Endpoint != "" {
+				return nil
+			}
 		}
 	}
-	time.Sleep(startupGrace)
-	for _, name := range Servers {
-		if !Running(name) {
-			return fmt.Errorf("%s exited: %s", name, lastLogLine(name))
-		}
-	}
-	return nil
 }
 
-// StopAll stops every server and then the database.
-func StopAll() {
-	for _, name := range Servers {
-		Stop(name)
+func (m *Manager) stop(ctx context.Context, service Service) error {
+	processes, err := m.processes()
+	if err != nil {
+		return err
 	}
-	StopDatabase()
+	found := processes[service]
+	if len(found) == 0 {
+		return nil
+	}
+	if len(found) != 1 {
+		return errors.New("multiple matching processes")
+	}
+	pid := found[0]
+	if err := controlplane.RequestStop(ctx, m.root, string(service), pid, m.binary(service)); err != nil {
+		return err
+	}
+	deadline, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	tick := time.NewTicker(250 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline.Done():
+			return fmt.Errorf("could not verify process exit: %w", deadline.Err())
+		case <-tick.C:
+			processes, err := m.processes()
+			if err != nil {
+				return err
+			}
+			if len(processes[service]) == 0 {
+				return nil
+			}
+		}
+	}
+}
+
+func lastStderr(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return ""
+	}
+	data := make([]byte, min(info.Size(), 4096))
+	n, _ := f.ReadAt(data, info.Size()-int64(len(data)))
+	last := strings.TrimSpace(string(data[:n]))
+	if index := strings.LastIndexByte(last, '\n'); index >= 0 {
+		last = last[index+1:]
+	}
+	return strings.TrimSpace(last)
 }

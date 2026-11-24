@@ -93,16 +93,14 @@ Terminal start/shutdown controls plus local account and TLS administration comma
 
 [server/cmd/gx_console/main.go](../../server/cmd/gx_console/main.go#L1)
 
-Command gx_console starts and stops gx_login and gx_world
-from a plain terminal prompt: "start server" and "shutdown server".
+Command gx_console controls the detached GX services from a terminal.
 
 Direct GX dependencies: `server/internal/admin`, `server/internal/control`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`short`](../../server/cmd/gx_console/main.go#L15)<br>`func short(name string) string` | See the source definition and the subsystem ownership contract. |
-| [`status`](../../server/cmd/gx_console/main.go#L17)<br>`func status()` | See the source definition and the subsystem ownership contract. |
-| [`main`](../../server/cmd/gx_console/main.go#L27)<br>`func main()` | See the source definition and the subsystem ownership contract. |
+| [`main`](../../server/cmd/gx_console/main.go#L15)<br>`func main()` | See the source definition and the subsystem ownership contract. |
+| [`run`](../../server/cmd/gx_console/main.go#L22)<br>`func run() error` | See the source definition and the subsystem ownership contract. |
 
 ## server/cmd/gx_export_catalogs
 
@@ -147,14 +145,14 @@ Direct GX dependencies: `internal/authwire`, `internal/itemstack`, `internal/tra
 | [`loginByAccount`](../../server/cmd/gx_login/main.go#L33)<br>`var loginByAccount` | See the source definition and the subsystem ownership contract. |
 | [`main`](../../server/cmd/gx_login/main.go#L35)<br>`func main()` | See the source definition and the subsystem ownership contract. |
 | [`run`](../../server/cmd/gx_login/main.go#L41)<br>`func run() error` | See the source definition and the subsystem ownership contract. |
-| [`handshake`](../../server/cmd/gx_login/main.go#L101)<br>`func handshake() []byte` | See the source definition and the subsystem ownership contract. |
-| [`loginReply`](../../server/cmd/gx_login/main.go#L112)<br>`func loginReply(result uint8, userUID uint32, permission uint8, identity [16]byte) []byte` | See the source definition and the subsystem ownership contract. |
-| [`serverList`](../../server/cmd/gx_login/main.go#L123)<br>`func serverList() []byte` | See the source definition and the subsystem ownership contract. |
-| [`selectServerReply`](../../server/cmd/gx_login/main.go#L134)<br>`func selectServerReply(status uint8) []byte` | See the source definition and the subsystem ownership contract. |
-| [`client`](../../server/cmd/gx_login/main.go#L145)<br>`type client` | See the source definition and the subsystem ownership contract. |
-| [`write`](../../server/cmd/gx_login/main.go#L155)<br>`func (c *client) write(frame []byte, label string) error` | See the source definition and the subsystem ownership contract. |
-| [`handle`](../../server/cmd/gx_login/main.go#L168)<br>`func handle(conn net.Conn, log *logx.Tag) error` | See the source definition and the subsystem ownership contract. |
-| [`frame`](../../server/cmd/gx_login/main.go#L198)<br>`func (c *client) frame(frame []byte, remote string) error` | See the source definition and the subsystem ownership contract. |
+| [`handshake`](../../server/cmd/gx_login/main.go#L103)<br>`func handshake() []byte` | See the source definition and the subsystem ownership contract. |
+| [`loginReply`](../../server/cmd/gx_login/main.go#L114)<br>`func loginReply(result uint8, userUID uint32, permission uint8, identity [16]byte) []byte` | See the source definition and the subsystem ownership contract. |
+| [`serverList`](../../server/cmd/gx_login/main.go#L125)<br>`func serverList() []byte` | See the source definition and the subsystem ownership contract. |
+| [`selectServerReply`](../../server/cmd/gx_login/main.go#L136)<br>`func selectServerReply(status uint8) []byte` | See the source definition and the subsystem ownership contract. |
+| [`client`](../../server/cmd/gx_login/main.go#L147)<br>`type client` | See the source definition and the subsystem ownership contract. |
+| [`write`](../../server/cmd/gx_login/main.go#L157)<br>`func (c *client) write(frame []byte, label string) error` | See the source definition and the subsystem ownership contract. |
+| [`handle`](../../server/cmd/gx_login/main.go#L170)<br>`func handle(conn net.Conn, log *logx.Tag) error` | See the source definition and the subsystem ownership contract. |
+| [`frame`](../../server/cmd/gx_login/main.go#L200)<br>`func (c *client) frame(frame []byte, remote string) error` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -187,6 +185,143 @@ Direct GX dependencies: `internal/data/archive`, `internal/data/world`, `interna
 | Declaration | Responsibility / source comment |
 |---|---|
 | [`main`](../../server/cmd/gx_mapbuild/main.go#L23)<br>`func main()` | See the source definition and the subsystem ownership contract. |
+
+## server/cmd/gx_server_control
+
+Standalone desktop service controls, live logs and reward-rate settings.
+
+### logs.go
+
+[server/cmd/gx_server_control/logs.go](../../server/cmd/gx_server_control/logs.go#L1)
+
+Direct GX dependencies: `server/internal/control`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`logHistory`](../../server/cmd/gx_server_control/logs.go#L18)<br>`const logHistory = 1000` | See the source definition and the subsystem ownership contract. |
+| [`logView`](../../server/cmd/gx_server_control/logs.go#L20)<br>`type logView` | See the source definition and the subsystem ownership contract. |
+| [`newLogView`](../../server/cmd/gx_server_control/logs.go#L29)<br>`func newLogView(window fyne.Window, ctx context.Context, root string) *logView` | See the source definition and the subsystem ownership contract. |
+| [`poll`](../../server/cmd/gx_server_control/logs.go#L79)<br>`func (v *logView) poll(ctx context.Context, reader *control.LogReader)` | See the source definition and the subsystem ownership contract. |
+| [`refresh`](../../server/cmd/gx_server_control/logs.go#L115)<br>`func (v *logView) refresh()` | See the source definition and the subsystem ownership contract. |
+| [`follow`](../../server/cmd/gx_server_control/logs.go#L151)<br>`func (v *logView) follow()` | See the source definition and the subsystem ownership contract. |
+| [`newLogRow`](../../server/cmd/gx_server_control/logs.go#L157)<br>`func newLogRow() fyne.CanvasObject` | See the source definition and the subsystem ownership contract. |
+| [`renderRow`](../../server/cmd/gx_server_control/logs.go#L168)<br>`func (v *logView) renderRow(id widget.ListItemID, object fyne.CanvasObject)` | See the source definition and the subsystem ownership contract. |
+| [`logColumns`](../../server/cmd/gx_server_control/logs.go#L190)<br>`type logColumns` | See the source definition and the subsystem ownership contract. |
+| [`logWidths`](../../server/cmd/gx_server_control/logs.go#L192)<br>`var logWidths` | See the source definition and the subsystem ownership contract. |
+| [`Layout`](../../server/cmd/gx_server_control/logs.go#L194)<br>`func (*logColumns) Layout(objects []fyne.CanvasObject, size fyne.Size)` | See the source definition and the subsystem ownership contract. |
+| [`MinSize`](../../server/cmd/gx_server_control/logs.go#L205)<br>`func (*logColumns) MinSize(objects []fyne.CanvasObject) fyne.Size` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type logView struct {
+	content                   fyne.CanvasObject
+	list                      *widget.List
+	footer, empty             *widget.Label
+	service, level, readError string
+	all, visible              []control.LogEntry
+	paused                    bool
+}
+```
+
+```go
+type logColumns struct{}
+```
+
+</details>
+
+### main.go
+
+[server/cmd/gx_server_control/main.go](../../server/cmd/gx_server_control/main.go#L1)
+
+Command gx_server_control is the standalone local GX Server Control desktop app.
+
+Direct GX dependencies: `server/internal/control`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`serviceRow`](../../server/cmd/gx_server_control/main.go#L22)<br>`type serviceRow` | See the source definition and the subsystem ownership contract. |
+| [`dashboard`](../../server/cmd/gx_server_control/main.go#L28)<br>`type dashboard` | See the source definition and the subsystem ownership contract. |
+| [`main`](../../server/cmd/gx_server_control/main.go#L42)<br>`func main()` | See the source definition and the subsystem ownership contract. |
+| [`build`](../../server/cmd/gx_server_control/main.go#L68)<br>`func (d *dashboard) build()` | See the source definition and the subsystem ownership contract. |
+| [`strong`](../../server/cmd/gx_server_control/main.go#L116)<br>`func strong(text string) *widget.Label` | See the source definition and the subsystem ownership contract. |
+| [`statusCell`](../../server/cmd/gx_server_control/main.go#L120)<br>`func statusCell(dot *canvas.Circle, label *widget.Label) fyne.CanvasObject` | See the source definition and the subsystem ownership contract. |
+| [`poll`](../../server/cmd/gx_server_control/main.go#L124)<br>`func (d *dashboard) poll()` | See the source definition and the subsystem ownership contract. |
+| [`refresh`](../../server/cmd/gx_server_control/main.go#L148)<br>`func (d *dashboard) refresh()` | See the source definition and the subsystem ownership contract. |
+| [`setEnabled`](../../server/cmd/gx_server_control/main.go#L222)<br>`func setEnabled(button *widget.Button, enabled bool)` | See the source definition and the subsystem ownership contract. |
+| [`run`](../../server/cmd/gx_server_control/main.go#L230)<br>`func (d *dashboard) run(action control.Action, targets []control.Service)` | See the source definition and the subsystem ownership contract. |
+| [`apply`](../../server/cmd/gx_server_control/main.go#L260)<br>`func (d *dashboard) apply(action control.Action, targets []control.Service)` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type serviceRow struct {
+	status, endpoint     *widget.Label
+	dot                  *canvas.Circle
+	start, stop, restart *widget.Button
+}
+```
+
+```go
+type dashboard struct {
+	window                         fyne.Window
+	manager                        *control.Manager
+	ctx                            context.Context
+	rows                           map[control.Service]serviceRow
+	status                         map[control.Service]control.Status
+	overall, players, notice       *widget.Label
+	overallDot                     *canvas.Circle
+	start, stop, restart, settings *widget.Button
+	busy                           bool
+	checked                        bool
+	revision                       atomic.Uint64
+}
+```
+
+</details>
+
+### settings.go
+
+[server/cmd/gx_server_control/settings.go](../../server/cmd/gx_server_control/settings.go#L1)
+
+Direct GX dependencies: `server/internal/config`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`openSettings`](../../server/cmd/gx_server_control/settings.go#L14)<br>`func (d *dashboard) openSettings()` | See the source definition and the subsystem ownership contract. |
+
+### theme.go
+
+[server/cmd/gx_server_control/theme.go](../../server/cmd/gx_server_control/theme.go#L1)
+
+Direct GX dependencies: `server/internal/control`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`controlTheme`](../../server/cmd/gx_server_control/theme.go#L14)<br>`type controlTheme` | See the source definition and the subsystem ownership contract. |
+| [`base`](../../server/cmd/gx_server_control/theme.go#L17)<br>`var base` | See the source definition and the subsystem ownership contract. |
+| [`surface`](../../server/cmd/gx_server_control/theme.go#L18)<br>`var surface` | See the source definition and the subsystem ownership contract. |
+| [`border`](../../server/cmd/gx_server_control/theme.go#L19)<br>`var border` | See the source definition and the subsystem ownership contract. |
+| [`ink`](../../server/cmd/gx_server_control/theme.go#L20)<br>`var ink` | See the source definition and the subsystem ownership contract. |
+| [`quiet`](../../server/cmd/gx_server_control/theme.go#L21)<br>`var quiet` | See the source definition and the subsystem ownership contract. |
+| [`teal`](../../server/cmd/gx_server_control/theme.go#L22)<br>`var teal` | See the source definition and the subsystem ownership contract. |
+| [`healthy`](../../server/cmd/gx_server_control/theme.go#L23)<br>`var healthy` | See the source definition and the subsystem ownership contract. |
+| [`warning`](../../server/cmd/gx_server_control/theme.go#L24)<br>`var warning` | See the source definition and the subsystem ownership contract. |
+| [`fault`](../../server/cmd/gx_server_control/theme.go#L25)<br>`var fault` | See the source definition and the subsystem ownership contract. |
+| [`faultSurface`](../../server/cmd/gx_server_control/theme.go#L26)<br>`var faultSurface` | See the source definition and the subsystem ownership contract. |
+| [`rgb`](../../server/cmd/gx_server_control/theme.go#L29)<br>`func rgb(r, g, b uint8) color.NRGBA` | See the source definition and the subsystem ownership contract. |
+| [`colors`](../../server/cmd/gx_server_control/theme.go#L31)<br>`var colors` | See the source definition and the subsystem ownership contract. |
+| [`Color`](../../server/cmd/gx_server_control/theme.go#L48)<br>`func (t controlTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color` | See the source definition and the subsystem ownership contract. |
+| [`statusColor`](../../server/cmd/gx_server_control/theme.go#L55)<br>`func statusColor(state control.State) color.Color` | See the source definition and the subsystem ownership contract. |
+| [`panel`](../../server/cmd/gx_server_control/theme.go#L68)<br>`func panel(body fyne.CanvasObject) fyne.CanvasObject` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type controlTheme struct{ fyne.Theme }
+```
+
+</details>
 
 ## server/cmd/gx_world
 
@@ -241,7 +376,7 @@ Direct GX dependencies: `server/internal/config`, `server/internal/db`.
 
 Validated environment policy, optional atomic runtime.env parsing, paths and SQLite DSN.
 
-Tests: [config_test.go](../../server/internal/config/config_test.go).
+Tests: [config_test.go](../../server/internal/config/config_test.go), [rates_test.go](../../server/internal/config/rates_test.go).
 
 ### config.go
 
@@ -254,23 +389,26 @@ back to .local/runtime.env for local overrides. SQLite needs no credentials.
 |---|---|
 | [`ServerID`](../../server/internal/config/config.go#L15)<br>`const ServerID = 1` | See the source definition and the subsystem ownership contract. |
 | [`LoadRuntimeEnv`](../../server/internal/config/config.go#L19)<br>`func LoadRuntimeEnv() error` | LoadRuntimeEnv reads KEY=VALUE lines from .local/runtime.env into the process environment without overriding variables that are already set. |
-| [`LoadRuntimeEnvFrom`](../../server/internal/config/config.go#L45)<br>`func LoadRuntimeEnvFrom(root string) error` | LoadRuntimeEnvFrom is LoadRuntimeEnv for the checkout at root. |
-| [`env`](../../server/internal/config/config.go#L92)<br>`func env(key, fallback string) string` | See the source definition and the subsystem ownership contract. |
-| [`DatabasePath`](../../server/internal/config/config.go#L100)<br>`func DatabasePath() string` | DatabasePath is the mutable runtime copy, never the versioned seed. |
-| [`DatabaseSeed`](../../server/internal/config/config.go#L101)<br>`func DatabaseSeed() string` | See the source definition and the subsystem ownership contract. |
-| [`DSN`](../../server/internal/config/config.go#L104)<br>`func DSN(_ string) (string, error)` | DSN applies connection settings to every connection, including both servers. |
-| [`ReadDSN`](../../server/internal/config/config.go#L109)<br>`func ReadDSN() (string, error)` | ReadDSN opens a WAL reader that cannot mutate gameplay data. |
-| [`sqliteDSN`](../../server/internal/config/config.go#L111)<br>`func sqliteDSN(readOnly bool) (string, error)` | See the source definition and the subsystem ownership contract. |
-| [`DataDir`](../../server/internal/config/config.go#L135)<br>`func DataDir() string` | DataDir holds map data (data/maps/*.svmap). |
-| [`PublicIP`](../../server/internal/config/config.go#L138)<br>`func PublicIP() string` | PublicIP is the world address sent to clients after server selection. |
-| [`LoginListen`](../../server/internal/config/config.go#L140)<br>`func LoginListen() string` | See the source definition and the subsystem ownership contract. |
-| [`WorldListen`](../../server/internal/config/config.go#L141)<br>`func WorldListen() string` | See the source definition and the subsystem ownership contract. |
-| [`DefaultCombatDEXFirst`](../../server/internal/config/config.go#L144)<br>`const DefaultCombatDEXFirst = 500` | See the source definition and the subsystem ownership contract. |
-| [`DefaultCombatDEXSecond`](../../server/internal/config/config.go#L145)<br>`const DefaultCombatDEXSecond = 800` | See the source definition and the subsystem ownership contract. |
-| [`CombatDEXThresholds`](../../server/internal/config/config.go#L149)<br>`func CombatDEXThresholds() (uint32, uint32, error)` | CombatDEXThresholds reads the two points where DEX gains change rate. |
-| [`resolvePaths`](../../server/internal/config/config.go#L164)<br>`func resolvePaths(root string)` | Launchers and direct binaries resolve storage/data against their checkout. |
-| [`sqliteURIPath`](../../server/internal/config/config.go#L176)<br>`func sqliteURIPath(path string) string` | A Windows drive is part of the URI path, never its authority. Without the leading slash net/url emits file://C:/..., which SQLite rejects. |
-| [`FallDamageEnabled`](../../server/internal/config/config.go#L184)<br>`func FallDamageEnabled() bool` | FallDamageEnabled defaults to the GX landing rule; an explicit false opts out. |
+| [`ReadRuntimeEnv`](../../server/internal/config/config.go#L45)<br>`func ReadRuntimeEnv(root string) (map[string]string, error)` | ReadRuntimeEnv validates a runtime.env without changing the process environment. |
+| [`RuntimeEnvPath`](../../server/internal/config/config.go#L57)<br>`func RuntimeEnvPath(root string) string` | See the source definition and the subsystem ownership contract. |
+| [`parseRuntimeEnv`](../../server/internal/config/config.go#L59)<br>`func parseRuntimeEnv(scanner *bufio.Scanner) (map[string]string, error)` | See the source definition and the subsystem ownership contract. |
+| [`LoadRuntimeEnvFrom`](../../server/internal/config/config.go#L89)<br>`func LoadRuntimeEnvFrom(root string) error` | LoadRuntimeEnvFrom is LoadRuntimeEnv for the checkout at root. |
+| [`env`](../../server/internal/config/config.go#L105)<br>`func env(key, fallback string) string` | See the source definition and the subsystem ownership contract. |
+| [`DatabasePath`](../../server/internal/config/config.go#L113)<br>`func DatabasePath() string` | DatabasePath is the mutable runtime copy, never the versioned seed. |
+| [`DatabaseSeed`](../../server/internal/config/config.go#L114)<br>`func DatabaseSeed() string` | See the source definition and the subsystem ownership contract. |
+| [`DSN`](../../server/internal/config/config.go#L117)<br>`func DSN(_ string) (string, error)` | DSN applies connection settings to every connection, including both servers. |
+| [`ReadDSN`](../../server/internal/config/config.go#L122)<br>`func ReadDSN() (string, error)` | ReadDSN opens a WAL reader that cannot mutate gameplay data. |
+| [`sqliteDSN`](../../server/internal/config/config.go#L124)<br>`func sqliteDSN(readOnly bool) (string, error)` | See the source definition and the subsystem ownership contract. |
+| [`DataDir`](../../server/internal/config/config.go#L148)<br>`func DataDir() string` | DataDir holds map data (data/maps/*.svmap). |
+| [`PublicIP`](../../server/internal/config/config.go#L151)<br>`func PublicIP() string` | PublicIP is the world address sent to clients after server selection. |
+| [`LoginListen`](../../server/internal/config/config.go#L153)<br>`func LoginListen() string` | See the source definition and the subsystem ownership contract. |
+| [`WorldListen`](../../server/internal/config/config.go#L154)<br>`func WorldListen() string` | See the source definition and the subsystem ownership contract. |
+| [`DefaultCombatDEXFirst`](../../server/internal/config/config.go#L157)<br>`const DefaultCombatDEXFirst = 500` | See the source definition and the subsystem ownership contract. |
+| [`DefaultCombatDEXSecond`](../../server/internal/config/config.go#L158)<br>`const DefaultCombatDEXSecond = 800` | See the source definition and the subsystem ownership contract. |
+| [`CombatDEXThresholds`](../../server/internal/config/config.go#L162)<br>`func CombatDEXThresholds() (uint32, uint32, error)` | CombatDEXThresholds reads the two points where DEX gains change rate. |
+| [`resolvePaths`](../../server/internal/config/config.go#L177)<br>`func resolvePaths(root string)` | Launchers and direct binaries resolve storage/data against their checkout. |
+| [`sqliteURIPath`](../../server/internal/config/config.go#L189)<br>`func sqliteURIPath(path string) string` | A Windows drive is part of the URI path, never its authority. Without the leading slash net/url emits file://C:/..., which SQLite rejects. |
+| [`FallDamageEnabled`](../../server/internal/config/config.go#L197)<br>`func FallDamageEnabled() bool` | FallDamageEnabled defaults to the GX landing rule; an explicit false opts out. |
 
 ### gameini.go
 
@@ -311,50 +449,114 @@ type NetworkPolicy struct {
 
 </details>
 
+### rates.go
+
+[server/internal/config/rates.go](../../server/internal/config/rates.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`MobEXPKey`](../../server/internal/config/rates.go#L11)<br>`const MobEXPKey = "RAPTURE_MOB_EXP_PERCENT"` | See the source definition and the subsystem ownership contract. |
+| [`QuestEXPKey`](../../server/internal/config/rates.go#L12)<br>`const QuestEXPKey = "RAPTURE_QUEST_EXP_PERCENT"` | See the source definition and the subsystem ownership contract. |
+| [`PvPKillKey`](../../server/internal/config/rates.go#L13)<br>`const PvPKillKey = "RAPTURE_PVP_KILL_MULTIPLIER"` | See the source definition and the subsystem ownership contract. |
+| [`RewardRates`](../../server/internal/config/rates.go#L16)<br>`type RewardRates` | See the source definition and the subsystem ownership contract. |
+| [`DefaultRewardRates`](../../server/internal/config/rates.go#L22)<br>`func DefaultRewardRates() RewardRates` | See the source definition and the subsystem ownership contract. |
+| [`RuntimeValue`](../../server/internal/config/rates.go#L27)<br>`func RuntimeValue(settings map[string]string, key string) string` | RuntimeValue gives explicitly inherited values precedence over the local file. |
+| [`ParseRewardRates`](../../server/internal/config/rates.go#L35)<br>`func ParseRewardRates(mob, quest, kills string) (RewardRates, error)` | ParseRewardRates accepts whole percentages (100 = 1×) and whole PvP multipliers. |
+| [`ReadRewardRates`](../../server/internal/config/rates.go#L58)<br>`func ReadRewardRates(settings map[string]string) (RewardRates, error)` | See the source definition and the subsystem ownership contract. |
+| [`ScaleEXP`](../../server/internal/config/rates.go#L63)<br>`func ScaleEXP(amount, percent uint32) uint32` | ScaleEXP applies a percentage after native reward rounding, with saturation. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type RewardRates struct {
+	MobEXPPercent   uint32
+	QuestEXPPercent uint32
+	PvPKills        uint32
+}
+```
+
+</details>
+
 ## server/internal/control
 
-Terminal process lifecycle, executable-scoped status/stop, detached launch and safe database initialization.
+Shared desktop and terminal lifecycle, executable-scoped status and shutdown, detached launch, reward settings and log tailing.
 
-Tests: [stop_unix_test.go](../../server/internal/control/stop_unix_test.go).
+Tests: [logs_test.go](../../server/internal/control/logs_test.go), [settings_test.go](../../server/internal/control/settings_test.go).
 
 ### control.go
 
 [server/internal/control/control.go](../../server/internal/control/control.go#L1)
 
-Package control starts and stops this checkout's gx_login and
-gx_world binaries (build/). Servers run detached, so whatever
-starts them can exit without taking them down.
+Package control manages the detached Login and World processes for a single GX installation.
 
-Direct GX dependencies: `server/internal/controlplane`.
+Direct GX dependencies: `server/internal/config`, `server/internal/controlplane`, `server/internal/filelock`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`Servers`](../../server/internal/control/control.go#L19)<br>`var Servers` | Servers are started in this order and stopped together. |
-| [`exeName`](../../server/internal/control/control.go#L21)<br>`func exeName(name string) string` | See the source definition and the subsystem ownership contract. |
-| [`RepoRoot`](../../server/internal/control/control.go#L30)<br>`func RepoRoot() string` | RepoRoot is the parent of the build/ directory holding the running executable. |
-| [`binPath`](../../server/internal/control/control.go#L41)<br>`func binPath(name string) string` | See the source definition and the subsystem ownership contract. |
-| [`pids`](../../server/internal/control/control.go#L44)<br>`func pids(name string) []int` | pids lists running processes started from this checkout's build/<name>. |
-| [`Running`](../../server/internal/control/control.go#L79)<br>`func Running(name string) bool` | Running reports whether the named server is running. |
-| [`AllRunning`](../../server/internal/control/control.go#L82)<br>`func AllRunning() bool` | AllRunning reports whether every server is running. |
-| [`AnyRunning`](../../server/internal/control/control.go#L92)<br>`func AnyRunning() bool` | AnyRunning reports whether at least one server is running. |
-| [`Stop`](../../server/internal/control/control.go#L102)<br>`func Stop(name string)` | Stop requests graceful shutdown before falling back to force termination. |
-| [`Start`](../../server/internal/control/control.go#L138)<br>`func Start(name string) error` | Start launches the named server detached, from the repository root. |
-| [`startupGrace`](../../server/internal/control/control.go#L155)<br>`const startupGrace = 3 * time.Second` | startupGrace is how long a fresh server gets to fail before it counts as up. |
-| [`StartAll`](../../server/internal/control/control.go#L160)<br>`func StartAll() error` | StartAll starts the database, then (re)starts every server, stopping old instances first. A server that exits during startupGrace is reported with the last line of its log. |
-| [`StopAll`](../../server/internal/control/control.go#L180)<br>`func StopAll()` | StopAll stops every server and then the database. |
+| [`Service`](../../server/internal/control/control.go#L21)<br>`type Service` | See the source definition and the subsystem ownership contract. |
+| [`Login`](../../server/internal/control/control.go#L24)<br>`const Login = "gx_login"` | See the source definition and the subsystem ownership contract. |
+| [`World`](../../server/internal/control/control.go#L25)<br>`const World = "gx_world"` | See the source definition and the subsystem ownership contract. |
+| [`Services`](../../server/internal/control/control.go#L28)<br>`func Services() []Service` | See the source definition and the subsystem ownership contract. |
+| [`Label`](../../server/internal/control/control.go#L30)<br>`func (s Service) Label() string` | See the source definition and the subsystem ownership contract. |
+| [`State`](../../server/internal/control/control.go#L37)<br>`type State` | See the source definition and the subsystem ownership contract. |
+| [`Stopped`](../../server/internal/control/control.go#L40)<br>`const Stopped = "Stopped"` | See the source definition and the subsystem ownership contract. |
+| [`Starting`](../../server/internal/control/control.go#L41)<br>`const Starting = "Starting"` | See the source definition and the subsystem ownership contract. |
+| [`Ready`](../../server/internal/control/control.go#L42)<br>`const Ready = "Ready"` | See the source definition and the subsystem ownership contract. |
+| [`Stopping`](../../server/internal/control/control.go#L43)<br>`const Stopping = "Stopping"` | See the source definition and the subsystem ownership contract. |
+| [`Failed`](../../server/internal/control/control.go#L44)<br>`const Failed = "Failed"` | See the source definition and the subsystem ownership contract. |
+| [`Unknown`](../../server/internal/control/control.go#L45)<br>`const Unknown = "Unknown"` | See the source definition and the subsystem ownership contract. |
+| [`Status`](../../server/internal/control/control.go#L48)<br>`type Status` | See the source definition and the subsystem ownership contract. |
+| [`Action`](../../server/internal/control/control.go#L56)<br>`type Action` | See the source definition and the subsystem ownership contract. |
+| [`Start`](../../server/internal/control/control.go#L59)<br>`const Start = "Start"` | See the source definition and the subsystem ownership contract. |
+| [`Stop`](../../server/internal/control/control.go#L60)<br>`const Stop = "Stop"` | See the source definition and the subsystem ownership contract. |
+| [`Restart`](../../server/internal/control/control.go#L61)<br>`const Restart = "Restart"` | See the source definition and the subsystem ownership contract. |
+| [`Manager`](../../server/internal/control/control.go#L64)<br>`type Manager` | See the source definition and the subsystem ownership contract. |
+| [`New`](../../server/internal/control/control.go#L70)<br>`func New(root string) *Manager` | See the source definition and the subsystem ownership contract. |
+| [`Installation`](../../server/internal/control/control.go#L75)<br>`func Installation() (*Manager, error)` | Installation opens the portable root containing the controller's build directory. |
+| [`Root`](../../server/internal/control/control.go#L86)<br>`func (m *Manager) Root() string` | See the source definition and the subsystem ownership contract. |
+| [`exeName`](../../server/internal/control/control.go#L88)<br>`func exeName(service Service) string` | See the source definition and the subsystem ownership contract. |
+| [`binary`](../../server/internal/control/control.go#L96)<br>`func (m *Manager) binary(service Service) string` | See the source definition and the subsystem ownership contract. |
+| [`lock`](../../server/internal/control/control.go#L100)<br>`func (m *Manager) lock(ctx context.Context) (func(), error)` | See the source definition and the subsystem ownership contract. |
+| [`current`](../../server/internal/control/control.go#L110)<br>`func (m *Manager) current(ctx context.Context, service Service, found []int) Status` | See the source definition and the subsystem ownership contract. |
+| [`Snapshot`](../../server/internal/control/control.go#L132)<br>`func (m *Manager) Snapshot(ctx context.Context) map[Service]Status` | See the source definition and the subsystem ownership contract. |
+| [`Apply`](../../server/internal/control/control.go#L160)<br>`func (m *Manager) Apply(ctx context.Context, action Action, targets []Service, progress func(Service, Status)) error` | Apply serializes GUI and CLI changes to this installation. Restart starts only services whose old processes were verified stopped. |
+| [`start`](../../server/internal/control/control.go#L218)<br>`func (m *Manager) start(ctx context.Context, service Service) error` | See the source definition and the subsystem ownership contract. |
+| [`stop`](../../server/internal/control/control.go#L276)<br>`func (m *Manager) stop(ctx context.Context, service Service) error` | See the source definition and the subsystem ownership contract. |
+| [`lastStderr`](../../server/internal/control/control.go#L312)<br>`func lastStderr(path string) string` | See the source definition and the subsystem ownership contract. |
 
-### database.go
+<details><summary>Type definitions and owned fields</summary>
 
-[server/internal/control/database.go](../../server/internal/control/database.go#L1)
+```go
+type Service string
+```
 
-Direct GX dependencies: `server/internal/config`, `server/internal/db`.
+```go
+type State string
+```
 
-| Declaration | Responsibility / source comment |
-|---|---|
-| [`DatabaseRunning`](../../server/internal/control/database.go#L12)<br>`func DatabaseRunning() bool` | SQLite is embedded; database availability follows the runtime file. |
-| [`EnsureDatabase`](../../server/internal/control/database.go#L20)<br>`func EnsureDatabase() error` | See the source definition and the subsystem ownership contract. |
-| [`StopDatabase`](../../server/internal/control/database.go#L28)<br>`func StopDatabase()` | No external database process needs to be stopped. |
-| [`lastLogLine`](../../server/internal/control/database.go#L31)<br>`func lastLogLine(name string) string` | lastLogLine returns the last non-empty line of logs/<name>.log. |
+```go
+type Status struct {
+	State    State
+	PID      int
+	Endpoint string
+	Players  int
+	Detail   string
+}
+```
+
+```go
+type Action string
+```
+
+```go
+type Manager struct {
+	root    string
+	mu      sync.Mutex
+	failure map[Service]string
+}
+```
+
+</details>
 
 ### detach_other.go
 
@@ -373,25 +575,79 @@ Direct GX dependencies: `server/internal/config`, `server/internal/db`.
 | [`createNoWindow`](../../server/internal/control/detach_windows.go#L10)<br>`const createNoWindow = 0x08000000` | See the source definition and the subsystem ownership contract. |
 | [`detach`](../../server/internal/control/detach_windows.go#L13)<br>`func detach(cmd *exec.Cmd)` | detach starts the server without opening a console window. |
 
-### stop_unix.go
+### logs.go
 
-[server/internal/control/stop_unix.go](../../server/internal/control/stop_unix.go#L1)
-
-| Declaration | Responsibility / source comment |
-|---|---|
-| [`gracefulStop`](../../server/internal/control/stop_unix.go#L11)<br>`func gracefulStop(process *os.Process)` | See the source definition and the subsystem ownership contract. |
-
-### stop_windows.go
-
-[server/internal/control/stop_windows.go](../../server/internal/control/stop_windows.go#L1)
+[server/internal/control/logs.go](../../server/internal/control/logs.go#L1)
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`gracefulStop`](../../server/internal/control/stop_windows.go#L6)<br>`func gracefulStop(process *os.Process)` | Windows detached processes currently use taskkill in Stop. |
+| [`logReadLimit`](../../server/internal/control/logs.go#L15)<br>`const logReadLimit = 256 << 10` | See the source definition and the subsystem ownership contract. |
+| [`LogEntry`](../../server/internal/control/logs.go#L17)<br>`type LogEntry` | See the source definition and the subsystem ownership contract. |
+| [`logPosition`](../../server/internal/control/logs.go#L24)<br>`type logPosition` | See the source definition and the subsystem ownership contract. |
+| [`LogReader`](../../server/internal/control/logs.go#L31)<br>`type LogReader` | LogReader tracks complete JSON records without holding files open between polls, so the Windows services can rotate their logs. |
+| [`NewLogReader`](../../server/internal/control/logs.go#L36)<br>`func NewLogReader(root string) *LogReader` | See the source definition and the subsystem ownership contract. |
+| [`Poll`](../../server/internal/control/logs.go#L40)<br>`func (r *LogReader) Poll() ([]LogEntry, error)` | See the source definition and the subsystem ownership contract. |
+| [`readLog`](../../server/internal/control/logs.go#L57)<br>`func readLog(path string, service Service, pos logPosition) (logPosition, []LogEntry, error)` | See the source definition and the subsystem ownership contract. |
+| [`readLogRecords`](../../server/internal/control/logs.go#L91)<br>`func readLogRecords(f *os.File, service Service, size, offset int64) (int64, []LogEntry, error)` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type LogEntry struct {
+	Time    time.Time
+	Level   string
+	Service Service
+	Message string
+}
+```
+
+```go
+type logPosition struct {
+	file   os.FileInfo
+	offset int64
+}
+```
+
+```go
+type LogReader struct {
+	root      string
+	positions map[Service]logPosition
+}
+```
+
+</details>
+
+### process_linux.go
+
+[server/internal/control/process_linux.go](../../server/internal/control/process_linux.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`processes`](../../server/internal/control/process_linux.go#L9)<br>`func (m *Manager) processes() (map[Service][]int, error)` | See the source definition and the subsystem ownership contract. |
+
+### process_windows.go
+
+[server/internal/control/process_windows.go](../../server/internal/control/process_windows.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`processes`](../../server/internal/control/process_windows.go#L12)<br>`func (m *Manager) processes() (map[Service][]int, error)` | See the source definition and the subsystem ownership contract. |
+
+### settings.go
+
+[server/internal/control/settings.go](../../server/internal/control/settings.go#L1)
+
+Direct GX dependencies: `server/internal/config`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`RewardSettings`](../../server/internal/control/settings.go#L16)<br>`func (m *Manager) RewardSettings() (map[string]string, map[string]bool, error)` | RewardSettings returns the editable local values and tracks inherited overrides. |
+| [`SaveRewardSettings`](../../server/internal/control/settings.go#L36)<br>`func (m *Manager) SaveRewardSettings(ctx context.Context, mob, quest, kills string) error` | See the source definition and the subsystem ownership contract. |
+| [`replaceSetting`](../../server/internal/control/settings.go#L94)<br>`func replaceSetting(content, key, value, eol string) string` | Update the last assignment, which is the one the runtime parser uses. |
 
 ## server/internal/controlplane
 
-Loopback health/metrics, authenticated shutdown, optional protected profiling and private PID/executable descriptors.
+Loopback health/metrics, authenticated readiness and shutdown, optional protected profiling and private PID/executable descriptors.
 
 Tests: [controlplane_test.go](../../server/internal/controlplane/controlplane_test.go).
 
@@ -407,11 +663,15 @@ Direct GX dependencies: `server/internal/telemetry`.
 |---|---|
 | [`descriptor`](../../server/internal/controlplane/controlplane.go#L25)<br>`type descriptor` | See the source definition and the subsystem ownership contract. |
 | [`Server`](../../server/internal/controlplane/controlplane.go#L31)<br>`type Server` | See the source definition and the subsystem ownership contract. |
-| [`loopback`](../../server/internal/controlplane/controlplane.go#L40)<br>`func loopback(addr string) bool` | See the source definition and the subsystem ownership contract. |
-| [`Start`](../../server/internal/controlplane/controlplane.go#L45)<br>`func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, observe ...func()) (*Server, error)` | See the source definition and the subsystem ownership contract. |
-| [`Address`](../../server/internal/controlplane/controlplane.go#L144)<br>`func (s *Server) Address() string` | See the source definition and the subsystem ownership contract. |
-| [`Close`](../../server/internal/controlplane/controlplane.go#L145)<br>`func (s *Server) Close()` | See the source definition and the subsystem ownership contract. |
-| [`RequestStop`](../../server/internal/controlplane/controlplane.go#L164)<br>`func RequestStop(root, service string, pid int, executable string) error` | RequestStop validates the PID and executable selected by the controller before sending its private token. It never targets another installation by image name. |
+| [`ServiceStatus`](../../server/internal/controlplane/controlplane.go#L41)<br>`type ServiceStatus` | ServiceStatus contains the operational data exposed to the local controller. |
+| [`loopback`](../../server/internal/controlplane/controlplane.go#L46)<br>`func loopback(addr string) bool` | See the source definition and the subsystem ownership contract. |
+| [`Start`](../../server/internal/controlplane/controlplane.go#L51)<br>`func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, observe ...func()) (*Server, error)` | See the source definition and the subsystem ownership contract. |
+| [`Address`](../../server/internal/controlplane/controlplane.go#L162)<br>`func (s *Server) Address() string` | See the source definition and the subsystem ownership contract. |
+| [`Close`](../../server/internal/controlplane/controlplane.go#L163)<br>`func (s *Server) Close()` | See the source definition and the subsystem ownership contract. |
+| [`localRequest`](../../server/internal/controlplane/controlplane.go#L180)<br>`func localRequest(ctx context.Context, root, service string, pid int, executable, method, path string) (*http.Response, error)` | See the source definition and the subsystem ownership contract. |
+| [`localClient`](../../server/internal/controlplane/controlplane.go#L208)<br>`var localClient` | See the source definition and the subsystem ownership contract. |
+| [`ReadStatus`](../../server/internal/controlplane/controlplane.go#L215)<br>`func ReadStatus(ctx context.Context, root, service string, pid int, executable string) (ServiceStatus, error)` | ReadStatus validates the descriptor against the running installation. |
+| [`RequestStop`](../../server/internal/controlplane/controlplane.go#L230)<br>`func RequestStop(ctx context.Context, root, service string, pid int, executable string) error` | RequestStop validates the PID and executable before sending the private token. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -432,6 +692,13 @@ type Server struct {
 	path       string
 	descriptor descriptor
 	once       sync.Once
+}
+```
+
+```go
+type ServiceStatus struct {
+	Endpoint string `json:"endpoint"`
+	Players  int    `json:"players"`
 }
 ```
 

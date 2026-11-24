@@ -9,7 +9,7 @@ Open [GX releases](https://github.com/Spelunkern/Shaiya-GX/releases/latest). Dow
 - Windows: `gx-server-windows-amd64.zip` (Explorer → Extract All).
 - Linux: `gx-server-linux-amd64.tar.gz` (`tar -xzf gx-server-linux-amd64.tar.gz`).
 
-Choose a writable folder in your user directory, not Program Files or a protected system directory. Keep `build`, `data`, `docs` and the launchers together. No Go, Python, Docker or database server is needed for ordinary server use. The terminal-only server is built without CGO and needs no desktop graphics libraries; see [runtime requirements](building.md#portable-runtime-requirements).
+Choose a writable folder in your user directory, not Program Files or a protected system directory. Keep `build`, `data`, `docs` and the launchers together. No Go, Python, Docker or database server is needed for ordinary server use. The headless services and terminal console need no desktop graphics libraries. See [runtime requirements](building.md#portable-runtime-requirements).
 
 ### Verify a download
 
@@ -30,7 +30,10 @@ Each extracted package also contains `package.manifest.json` with per-file hashe
 
 ## Start and stop
 
-GX Server is terminal-only. Run `Start GX Server.bat` or `./Start\ GX\ Server.sh`. Enter:
+If your package includes GX Server Control, open `build/gx_server_control[.exe]`
+and choose **Start All**. Wait for both services to show **Ready**.
+
+For terminal use, run `Start GX Server.bat` or `./Start\ GX\ Server.sh`. Enter:
 
 ```text
 start server

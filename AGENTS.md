@@ -18,7 +18,7 @@ Keep game rules and persistence authoritative on the server. Preserve protocol f
 
 The playable client is `Shaiya GX` (`Shaiya GX.exe` on Windows), with loose `data/` beside it. Runtime uses the directory loader, Ogg Vorbis sounds and PNG interface images; SAH/SAF and WAV remain import tools only. Preserve `_dds.png` atlas distinctions, authored PNG mipmaps and legacy filename aliases; see `docs/data-formats.md`. Do not restore old archive packaging. By explicit user request, fonts are external resources under `data/fonts/`, with a coverage manifest and lazy Unicode/colour-emoji fallbacks. Do not embed game fonts or depend on OS font installations. Preserve the licenses and unmodified font metadata in the external resource pack; retain the source font license notices.
 
-**GX Server** is terminal-only: `server/cmd/gx_console` controls `gx_login` and `gx_world`. Do not restore a graphical server controller or its icon. Keep `RAPTURE_*` environment keys, `rapture.sqlite` and `Rapture_LoginLog` compatible unless explicitly migrating them with tests and documentation.
+**GX Server** runs headlessly. The terminal `server/cmd/gx_console` and standalone desktop `server/cmd/gx_server_control` share local control of `gx_login` and `gx_world`. Keep desktop dependencies out of the headless commands. Keep `RAPTURE_*` environment keys, `rapture.sqlite` and `Rapture_LoginLog` compatible unless explicitly migrating them with tests and documentation.
 
 SQLite is the primary production database. Keep storage behind `server/internal/db` and document SQLite operations, backups and deployment accurately. Do not describe it as a temporary backend or promise a replacement.
 
@@ -73,6 +73,6 @@ python3 -m unittest discover -s server/tools -p 'test_*.py'
 python3 tools/check_publication.py --history
 ```
 
-Use Go 1.27.4. Build Linux with `tools/build.sh`, Windows with `tools/build.ps1`; graphics require CGO and platform prerequisites. The private N2 probe uses local assets and a disposable server DB. Server portables: `python3 server/tools/package.py --output out/portable`. They must include the terminal console and login/world services, validate the seed and pass native relocated startup. Release assets belong to GX releases, never source-history binary blobs.
+Use Go 1.27.4. Build Linux with `tools/build.sh`, Windows with `tools/build.ps1`; graphics require CGO and platform prerequisites. The private N2 probe uses local assets and a disposable server DB. Server portables: `python3 server/tools/package.py --output out/portable`. They must include the terminal console and login/world services, validate the seed and pass native relocated startup. Add `--gui` to include GX Server Control. Release assets belong to GX releases, never source-history binary blobs.
 
 Run checks appropriate to changed behavior and report actual evidence. Windows cross-compilation or Wine is not native Windows validation. A CI build without game assets cannot establish full client visual parity. Update user-facing docs and local continuity when behavior/workflow changes. Avoid unnecessary architecture layers and keep rendering optimizations measured and visually comparable.
