@@ -75,10 +75,18 @@ jobs:
             ~/go/pkg/mod
       - name: Linux build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev libasound2-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libgl1-mesa-dev libgl1-mesa-dri xorg-dev libwayland-dev libxkbcommon-dev libasound2-dev xvfb xauth
       - name: Build and unit test (Linux)
         if: runner.os == 'Linux'
         run: ./tools/build.sh
+      - name: Check OpenGL startup and rendering with Mesa (Linux)
+        if: runner.os == 'Linux'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          SHAIYA_TEST_RENDER: '1'
+        run: |
+          xvfb-run -a './build/Shaiya GX' -gl-check -gldebug
+          xvfb-run -a go test -tags integration ./internal/render -count=1
       - name: Build and unit test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh

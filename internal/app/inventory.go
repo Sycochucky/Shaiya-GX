@@ -12,6 +12,7 @@ import (
 )
 
 type inventoryView struct {
+	servicePosition         ui.WindowPosition // temporary placement during a merchant or warehouse visit
 	open, selected, pending bool
 	bag                     uint8
 	hover                   [2]uint8
@@ -226,6 +227,28 @@ func (a *App) drawInventory(w, h int) {
 	}
 	left, top := max(0, x-304), min(y+260, max(0, h-110))
 	a.drawItemDetails(def, &it, it.Count, left, top, w, h, itemSellingPrice(def.SellPrice))
+	a.tooltipComparison = a.inventoryComparison(key[0], it.Type)
+}
+
+func (a *App) inventoryComparison(bag, typ uint8) tooltipContent {
+	if bag == 0 || typ == 42 {
+		return tooltipContent{}
+	}
+	slots := inventoryEquipSlots(typ)
+	if len(slots) == 0 {
+		return tooltipContent{}
+	}
+	// The original comparison uses the primary slot for the equipment family,
+	// including the first ring or bracelet slot for paired accessories.
+	equipped, ok := a.state.Inventory[[2]uint8{0, slots[0]}]
+	if !ok {
+		return tooltipContent{}
+	}
+	def := a.itemsItem(equipped.Type, equipped.TypeID)
+	if def == nil {
+		return tooltipContent{}
+	}
+	return a.itemTooltip(def, &equipped, equipped.Count, itemSellingPrice(def.SellPrice))
 }
 
 // Server validation decides whether an item can be used or equipped.

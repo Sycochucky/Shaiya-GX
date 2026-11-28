@@ -122,9 +122,11 @@ reach and skill requirements before sending the action. A new jump interrupts
 any attack sequence or spell preparation in progress. World checks the
 attacker's physical support. The victim's movement never grants immunity.
 
-Moving after the pause cancels the remaining attack animation and autoattack;
-it does not allow a running swing. Healing, buffs and self casts use the same movement pause. Client/server builds must be updated together for matching
-prediction and enforcement.
+Movement input cancels basic auto-repeat. The confirmed swing continues through
+its animation and contact cues during the movement pause. Held movement or a
+queued terrain destination resumes when the pause expires. The swing may finish
+blending into locomotion after movement resumes. Healing, buffs and self casts
+use the same movement pause.
 
 ## Spell reach and release
 

@@ -112,7 +112,8 @@ WHERE ServerID=@serverid AND UserUID=@useruid AND Del=@del`,
 	// DeleteDate, so the restore window is read directly.
 	pending, err := pool.QueryContext(c, `SELECT CharID, CharName, Slot, Family, Grow, Hair, Face, Size, Job, Sex,
 		Level, Str, Dex, Rec, [Int], Luc, Wis, HP, MP, SP, Map, RenameCnt FROM PS_GameData_Chars
-		WHERE ServerID = ?1 AND UserUID = ?2 AND Del = 1 AND DeleteDate >= datetime('now','-2 hours')`,
+		WHERE ServerID = ?1 AND UserUID = ?2 AND Del = 1 AND DeleteDate >= datetime('now','-2 hours')
+		ORDER BY DeleteDate DESC, CharID DESC`,
 		config.ServerID, int32(userUID))
 	if err != nil {
 		return nil, err
@@ -305,8 +306,8 @@ func CreateCharacterWithItems(account Account, nc NewCharacter, items []Item) (u
 	return uint32(id), nil
 }
 
-// DeleteCharacter runs usp_Delete_Char_E for a live character owned by
-// userUID (Del=1, DeleteDate, guild membership removed).
+// DeleteCharacter soft-deletes a character and removes its guild membership in
+// one transaction. A guild master must resolve the guild's leadership first.
 func DeleteCharacter(userUID, charID uint32) (bool, error) {
 	pool, err := Pool(GameData)
 	if err != nil {
@@ -314,26 +315,48 @@ func DeleteCharacter(userUID, charID uint32) (bool, error) {
 	}
 	c, cancel := ctx()
 	defer cancel()
-	var n int
-	if err := pool.QueryRowContext(c, `SELECT COUNT(*) FROM PS_GameData_Chars WHERE CharID=?1 AND UserUID=?2 AND Del=0`,
-		int32(charID), int32(userUID)).Scan(&n); err != nil || n == 0 {
-		return false, err
-	}
+	deleted := false
 	err = withTx(c, pool, func(tx *sql.Tx) error {
-		statements := []string{
-			`UPDATE PS_GameData_Guilds SET TotalCount=MAX(0,TotalCount-1) WHERE GuildID IN (SELECT GuildID FROM PS_GameData_GuildChars WHERE CharID=?1 AND Del=0)`,
-			`UPDATE PS_GameData_GuildChars SET Del=1,LeaveDate=CURRENT_TIMESTAMP WHERE CharID=?1 AND Del=0`,
-			`UPDATE PS_GameData_Chars SET Del=1,DeleteDate=CURRENT_TIMESTAMP WHERE CharID=?1`,
-			`INSERT INTO PS_GameData__DeletedChars(ServerID,CharID,DeleteDate) VALUES(1,?1,CURRENT_TIMESTAMP)`,
+		var guildMaster bool
+		err := tx.QueryRowContext(c, `SELECT EXISTS (
+			SELECT 1 FROM PS_GameData_Guilds WHERE MasterCharID=?1 AND Del=0)
+			FROM PS_GameData_Chars WHERE CharID=?1 AND UserUID=?2 AND ServerID=?3 AND Del=0`,
+			charID, userUID, config.ServerID).Scan(&guildMaster)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
 		}
-		for _, q := range statements {
-			if _, e := tx.ExecContext(c, q, int32(charID)); e != nil {
-				return e
+		if err != nil {
+			return err
+		}
+		if guildMaster {
+			return errors.New("character leads an active guild; transfer leadership or disband the guild first")
+		}
+		if _, err := tx.ExecContext(c, `UPDATE PS_GameData_Guilds SET TotalCount=MAX(0,TotalCount-1)
+			WHERE GuildID IN (SELECT GuildID FROM PS_GameData_GuildChars WHERE CharID=? AND Del=0)`, charID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(c, `UPDATE PS_UserData_CreatedGuilds AS mirror SET TotalCount=(
+			SELECT TotalCount FROM PS_GameData_Guilds WHERE GuildID=mirror.GuildID), UpdateDate=CURRENT_TIMESTAMP
+			WHERE ServerID=? AND GuildID IN (SELECT GuildID FROM PS_GameData_GuildChars WHERE CharID=? AND Del=0)
+				AND EXISTS (SELECT 1 FROM PS_GameData_Guilds WHERE GuildID=mirror.GuildID)`, config.ServerID, charID); err != nil {
+			return err
+		}
+		for _, statement := range []string{
+			`UPDATE PS_GameData_GuildChars SET Del=1,LeaveDate=CURRENT_TIMESTAMP WHERE CharID=? AND Del=0`,
+			`UPDATE PS_GameData_Chars SET Del=1,DeleteDate=CURRENT_TIMESTAMP WHERE CharID=?`,
+		} {
+			if _, err := tx.ExecContext(c, statement, charID); err != nil {
+				return err
 			}
 		}
+		if _, err := tx.ExecContext(c, `INSERT INTO PS_GameData__DeletedChars(ServerID,CharID,DeleteDate) VALUES(?,?,CURRENT_TIMESTAMP)`,
+			config.ServerID, charID); err != nil {
+			return err
+		}
+		deleted = true
 		return nil
 	})
-	return err == nil, err
+	return deleted && err == nil, err
 }
 
 // RestoreCharacter undoes a deletion within DeleteWindow. The EP4.5
@@ -347,12 +370,12 @@ func RestoreCharacter(userUID, charID uint32) (bool, error) {
 	c, cancel := ctx()
 	defer cancel()
 	res, err := pool.ExecContext(c, `UPDATE PS_GameData_Chars SET Del = 0, DeleteDate = NULL
-		WHERE CharID = ?1 AND UserUID = ?2 AND Del = 1 AND DeleteDate >= datetime('now','-2 hours')
+		WHERE CharID = ?1 AND UserUID = ?2 AND ServerID = ?3 AND Del = 1 AND DeleteDate >= datetime('now','-2 hours')
         AND NOT EXISTS (SELECT 1 FROM PS_GameData_Chars AS occupied
         WHERE occupied.UserUID=PS_GameData_Chars.UserUID
         AND occupied.ServerID=PS_GameData_Chars.ServerID
         AND occupied.Slot=PS_GameData_Chars.Slot AND occupied.Del=0)`,
-		int32(charID), int32(userUID))
+		charID, userUID, config.ServerID)
 	if err != nil {
 		return false, err
 	}

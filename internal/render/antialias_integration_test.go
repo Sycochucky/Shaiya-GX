@@ -45,11 +45,18 @@ func TestAntialiasWaterResolveGL(t *testing.T) {
 				defer ms.Delete()
 				ms.Begin()
 			}
-			scene.CaptureWaterBackground()
+			gl.ClearColor(1, 0, 1, 1)
+			gl.Clear(gl.COLOR_BUFFER_BIT)
+			scene.CaptureWaterBackgroundRegion(ScreenRegion{X0: .375, Y0: .375, X1: .625, Y1: .625})
 			if ms != nil {
 				ms.Resolve()
 			}
 		})
+		var center [4]byte
+		gl.GetTextureSubImage(scene.waterBackground.ID, 0, 64, 64, 0, 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, 4, gl.Ptr(&center[0]))
+		if center != [4]byte{255, 0, 255, 255} {
+			t.Fatalf("samples=%d cropped refraction pixel = %v", samples, center)
+		}
 		if code := gl.GetError(); code != gl.NO_ERROR {
 			t.Fatalf("samples=%d GL error %#x", samples, code)
 		}

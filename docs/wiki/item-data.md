@@ -4,7 +4,7 @@
 
 | Data | Authoritative source | Applying a change |
 |---|---|---|
-| Enchant cap, weapon/armor rates and stat bonuses | `data/game/ItemEnchant.ini` | Edit with GX Studio and restart world |
+| Enchant cap, weapon/armor rates and stat bonuses | `data/game/ItemEnchant.ini` | Edit the INI and restart GX World |
 | Native forge gold table | `lapisiaMoney` in `server/internal/world/crafting.go` | Rebuild and restart world |
 | Linking/extraction formulas | `server/internal/world/forge_quote.go` | Rebuild and restart world |
 | Item requirements, hammer ReqVg, stack limits | SQL `PS_GameDefs_Items` in the selected server DB | Restart world |
@@ -100,7 +100,7 @@ accepted by the client. Use a distinct output file, verify it, then install it
 atomically with the client stopped. Original archives and client assets are not
 part of the source repository.
 
-`tools/apply_forge_rules.py` applies only the specified SQL ReqVg and Count fields,
+`tools/apply_forge_rules.py` applies the specified SQL ReqVg and Count fields plus the names and Special values of the two Cash Mall GM hammers,
 creates SQLite backups in an explicit directory, updates a seed manifest when
 present and patches the matching stack counts in `Item.SData`. Stop the affected
 services first.

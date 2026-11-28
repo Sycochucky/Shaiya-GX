@@ -57,10 +57,6 @@ type GuildState struct {
 	DisbandMaster                                        uint32
 	DisbandVoteSerial                                    uint64
 	DisbandedSerial                                      uint64
-	InviteID                                             uint32
-	InviteSerial                                         uint64
-	LastReply                                            proto.PartyReply
-	ReplySerial                                          uint64
 }
 
 func (s *State) clearVisibleGuild(id uint32) {
@@ -360,20 +356,6 @@ func (s *State) applyGuild(p []byte) error {
 		if id == s.SelfID {
 			g.Rank = m.Rank
 		}
-	case proto.GuildInvite:
-		id, err := proto.DecodeU32(p)
-		if err != nil {
-			return err
-		}
-		g.InviteID = id
-		g.InviteSerial++
-	case proto.GuildInviteAnswer:
-		reply, err := proto.DecodePartyReply(p)
-		if err != nil {
-			return err
-		}
-		g.LastReply = reply
-		g.ReplySerial++
 	case proto.GuildJoinResult:
 		v, err := proto.DecodeGuildJoin(p)
 		if err != nil {
@@ -390,7 +372,6 @@ func (s *State) applyGuild(p []byte) error {
 			g.Bank = nil
 			g.Applicants = nil
 			s.Details.Guild = v.Name
-			g.InviteID = 0
 		}
 	case proto.GuildCreate:
 		v, remark, err := proto.DecodeGuildCreate(p)
@@ -405,7 +386,6 @@ func (s *State) applyGuild(p []byte) error {
 			g.Bank = nil
 			g.Applicants = nil
 			s.Details.Guild = v.Name
-			g.InviteID = 0
 		}
 	case proto.GuildCreateAgree:
 		vote, err := proto.DecodeGuildCreateVote(p)

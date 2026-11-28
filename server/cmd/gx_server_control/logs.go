@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -22,12 +23,13 @@ type logView struct {
 	list                      *widget.List
 	footer, empty             *widget.Label
 	service, level, readError string
-	all, visible              []control.LogEntry
+	all, events, visible      []control.LogEntry
+	category, search          string
 	paused                    bool
 }
 
 func newLogView(window fyne.Window, ctx context.Context, root string) *logView {
-	v := &logView{service: "All", level: "All levels", footer: widget.NewLabel("Following live")}
+	v := &logView{service: "All", level: "All levels", category: "All logs", footer: widget.NewLabel("Following live")}
 	v.list = widget.NewList(func() int { return len(v.visible) }, newLogRow, v.renderRow)
 	v.list.OnSelected = func(index widget.ListItemID) {
 		v.list.UnselectAll()
@@ -35,14 +37,14 @@ func newLogView(window fyne.Window, ctx context.Context, root string) *logView {
 			return
 		}
 		entry := v.visible[index]
-		message := widget.NewLabel(entry.Message)
+		message := widget.NewLabel(activityMessage(entry))
 		message.Wrapping = fyne.TextWrapWord
 		details := dialog.NewCustom(entry.Service.Label()+" · "+strings.ToUpper(entry.Level), "Close",
 			container.NewVScroll(message), window)
 		details.Resize(fyne.NewSize(620, 250))
 		details.Show()
 	}
-	filter := widget.NewRadioGroup([]string{"All", "Login", "World"}, func(service string) {
+	filter := widget.NewRadioGroup([]string{"All", "Login", "World", "Operator"}, func(service string) {
 		v.service = service
 		v.refresh()
 	})
@@ -66,9 +68,21 @@ func newLogView(window fyne.Window, ctx context.Context, root string) *logView {
 	}
 	header := container.New(&logColumns{}, strong("Time"), strong("Level"), strong("Service"), strong("Message"))
 	toolbar := container.NewBorder(nil, nil, filter, container.NewHBox(level, pause), nil)
+	category := widget.NewSelect([]string{"All logs", "Player sessions", "Staff audit", "Kill feed", "PvP kills", "Monster kills", "Loot and gold"}, func(value string) {
+		v.category = value
+		v.refresh()
+	})
+	category.SetSelected("All logs")
+	search := widget.NewEntry()
+	search.SetPlaceHolder("Search player, map, item or command")
+	search.OnChanged = func(value string) {
+		v.search = strings.ToLower(strings.TrimSpace(value))
+		v.refresh()
+	}
+	activityFilters := container.NewBorder(nil, nil, category, nil, search)
 	v.empty = widget.NewLabel("Waiting for service logs.")
 	v.content = panel(container.NewBorder(
-		container.NewVBox(strong("Live Logs"), toolbar, widget.NewSeparator(), header, widget.NewSeparator()),
+		container.NewVBox(activityFilters, toolbar, widget.NewSeparator(), header, widget.NewSeparator()),
 		container.NewBorder(widget.NewSeparator(), nil, nil, v.footer, nil), nil, nil,
 		container.NewStack(v.list, container.NewCenter(v.empty))))
 	v.refresh()
@@ -93,10 +107,18 @@ func (v *logView) poll(ctx context.Context, reader *control.LogReader) {
 				return
 			}
 			if len(records) == 0 && readError == v.readError {
-				v.follow()
 				return
 			}
 			v.all = append(v.all, records...)
+			for _, record := range records {
+				if record.Activity != "" {
+					v.events = append(v.events, record)
+				}
+			}
+			slices.SortStableFunc(v.events, func(first, second control.LogEntry) int { return first.Time.Compare(second.Time) })
+			if extra := len(v.events) - logHistory; extra > 0 {
+				v.events = slices.Delete(v.events, 0, extra)
+			}
 			slices.SortStableFunc(v.all, func(first, second control.LogEntry) int { return first.Time.Compare(second.Time) })
 			if extra := len(v.all) - logHistory; extra > 0 {
 				v.all = slices.Delete(v.all, 0, extra)
@@ -118,9 +140,14 @@ func (v *logView) refresh() {
 	if level == "warning" {
 		level = "warn"
 	}
-	for _, record := range v.all {
+	source := v.all
+	if v.category != "All logs" && v.category != "" {
+		source = v.events
+	}
+	for _, record := range source {
 		if (v.service == "All" || record.Service.Label() == v.service) &&
-			(v.level == "All levels" || record.Level == level) {
+			(v.level == "All levels" || record.Level == level) && matchesActivity(v.category, record.Activity) &&
+			(v.search == "" || strings.Contains(strings.ToLower(activityMessage(record)), v.search) || strings.Contains(strings.ToLower(record.Character), v.search)) {
 			v.visible = append(v.visible, record)
 		}
 	}
@@ -182,9 +209,35 @@ func (v *logView) renderRow(id widget.ListItemID, object fyne.CanvasObject) {
 		stamp = entry.Time.Local().Format("15:04:05")
 	}
 	labels := row.Objects[1].(*fyne.Container).Objects
-	for i, text := range []string{stamp, strings.ToUpper(entry.Level), entry.Service.Label(), strings.ReplaceAll(entry.Message, "\n", " ")} {
+	for i, text := range []string{stamp, strings.ToUpper(entry.Level), entry.Service.Label(), strings.ReplaceAll(activityMessage(entry), "\n", " ")} {
 		labels[i].(*widget.Label).SetText(text)
 	}
+}
+
+func matchesActivity(category, activity string) bool {
+	switch category {
+	case "Player sessions":
+		return strings.HasPrefix(activity, "player.")
+	case "Staff audit":
+		return strings.HasPrefix(activity, "staff.")
+	case "Kill feed":
+		return strings.HasPrefix(activity, "kill.")
+	case "PvP kills":
+		return activity == "kill.pvp"
+	case "Monster kills":
+		return activity == "kill.monster"
+	case "Loot and gold":
+		return strings.HasPrefix(activity, "loot.")
+	default:
+		return true
+	}
+}
+
+func activityMessage(entry control.LogEntry) string {
+	if entry.MapID != nil {
+		return fmt.Sprintf("[Map %d] %s", *entry.MapID, entry.Message)
+	}
+	return entry.Message
 }
 
 type logColumns struct{}

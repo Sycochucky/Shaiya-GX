@@ -54,6 +54,7 @@ Read [wire conventions and session phases](server-protocol.md) first. The family
 | `0x0303` | [CharacterShape](protocol-targets.md#opcode-0303) | — | yes | yes |
 | `0x0304` | [TargetMobGetState](protocol-targets.md#opcode-0304) | yes | yes | yes |
 | `0x0305` | [TargetMobHpUpdate](protocol-targets.md#opcode-0305) | yes | yes | yes |
+| `0x0307` | [InspectEquipment](protocol-targets.md#opcode-0307) | yes | yes | — |
 | `0x030A` | [TargetClear](protocol-targets.md#opcode-030a) | yes | — | — |
 | `0x030B` | [TargetEffects](protocol-targets.md#opcode-030b) | — | yes | yes |
 | `0x030C` | [TargetEffectAdd](protocol-targets.md#opcode-030c) | — | — | yes |
@@ -179,8 +180,6 @@ Read [wire conventions and session phases](server-protocol.md) first. The family
 | `0x0D01` | [GuildCreateFailed](protocol-guilds.md#opcode-0d01) | — | yes | yes |
 | `0x0D03` | [GuildDisband](protocol-guilds.md#opcode-0d03) | yes | yes | yes |
 | `0x0D04` | [GuildDisbandAgree](protocol-guilds.md#opcode-0d04) | yes | yes | yes |
-| `0x0D05` | [GuildInvite](protocol-guilds.md#opcode-0d05) | yes | yes | yes |
-| `0x0D06` | [GuildInviteAnswer](protocol-guilds.md#opcode-0d06) | yes | yes | yes |
 | `0x0D07` | [GuildApply](protocol-guilds.md#opcode-0d07) | yes | yes | yes |
 | `0x0D08` | [GuildJoinResult](protocol-guilds.md#opcode-0d08) | yes | yes | yes |
 | `0x0D09` | [GuildLeave](protocol-guilds.md#opcode-0d09) | yes | yes | yes |
@@ -330,6 +329,8 @@ Read [wire conventions and session phases](server-protocol.md) first. The family
 | `0x7F28` | [GXPartyAssist](protocol-extensions.md#opcode-7f28) | yes | yes | — |
 | `0x7F29` | [GXGMModes](protocol-extensions.md#opcode-7f29) | — | yes | yes |
 | `0x7F2A` | [GXDrowningDeath](protocol-extensions.md#opcode-7f2a) | — | yes | yes |
+| `0x7F2B` | [GXEquipRefusal](protocol-extensions.md#opcode-7f2b) | — | yes | — |
+| `0x7F2C` | [GXQuestMobs](protocol-extensions.md#opcode-7f2c) | — | yes | yes |
 | `0xA101` | [LoginHandshake](protocol-authentication.md#opcode-a101) | yes | yes | — |
 | `0xA102` | [LoginRequest](protocol-authentication.md#opcode-a102) | yes | yes | — |
 | `0xA106` | [LoginRequestEx](protocol-authentication.md#opcode-a106) | — | — | — |
@@ -343,6 +344,6 @@ Read [wire conventions and session phases](server-protocol.md) first. The family
 | `0xF501` | [GmCommandError](protocol-chat.md#opcode-f501) | — | — | — |
 | `0xF702` | [GmCommandGetItem](protocol-chat.md#opcode-f702) | — | — | — |
 
-Inventory: **332 numeric opcodes**, **545 typed declarations**, **15 families**.
+Inventory: **333 numeric opcodes**, **545 typed declarations**, **15 families**.
 
 Regenerate with `python3 tools/generate_server_reference.py`; verify freshness with `--check`. The generator parses source for both operating systems and tests are excluded from implementation evidence. Source links track main; use Git history when comparing older binaries.

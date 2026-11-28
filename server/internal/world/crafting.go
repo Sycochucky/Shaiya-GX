@@ -540,6 +540,14 @@ func (s *Session) planItemCompose(p []byte) {
 		fail("item not recreatable")
 		return
 	}
+	fee := activeEconomy().RerollGold
+	if !s.economyAmountMatches(fee) {
+		return
+	}
+	if ch.Money < fee {
+		fail("not enough gold for recreation")
+		return
+	}
 	name, err := recreateWithRune(runeDef, itemDef, item)
 	if err != nil {
 		fail(err.Error())
@@ -549,6 +557,10 @@ func (s *Session) planItemCompose(p []byte) {
 	s.items[ii].CraftName = name
 	s.saveInventoryItem(&s.items[ii])
 	s.adjustCount(rune.UID, rune.Count-1)
+	if fee != 0 {
+		ch.Money -= fee
+		s.send(buildSetMoney(ch.Money), "recreation fee")
+	}
 	consumed := rune
 	consumed.Count--
 	s.log.Printf("GX Server World item compose item=%d/%d craftname=%s", item.Type, item.TypeID, name)

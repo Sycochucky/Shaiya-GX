@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"time"
 
@@ -168,6 +169,9 @@ func (s *Session) applyLoot(p *ConnectedPlayer) {
 		for _, a := range adds {
 			s.send(a, "0x0205 group loot")
 		}
+		activityForMap(realMap(g.mapID)).pickups.Add(uint64(g.item.Count))
+		s.activity("loot.pickup", fmt.Sprintf("%s received %s through party loot", s.char.Name, itemActivityName(g.item.Type, g.item.TypeID)),
+			"item_type", g.item.Type, "item_id", g.item.TypeID, "quantity", g.item.Count)
 		s.questPickup(g.item.Type, g.item.TypeID)
 		s.announceLoot(g.item)
 	}

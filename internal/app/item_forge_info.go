@@ -21,6 +21,9 @@ func itemForgeInfo(d *sdata.Item) string {
 	value := max(0, int(int16(d.ReqVG)))
 	switch d.Special {
 	case 36:
+		if value == 100 {
+			return "Linking chance: 100%"
+		}
 		return fmt.Sprintf("Linking bonus: +%d%%", value)
 	case 58:
 		return fmt.Sprintf("Extraction chance: %d%%", min(100, value))

@@ -59,9 +59,18 @@ func TestAuctionPanelsGL(t *testing.T) {
 	for view := proto.AuctionBrowse; view <= proto.AuctionWatch; view++ {
 		a.auction.view = view
 		for _, modal := range []string{"", "setup", "bid", "details"} {
-			a.auction.modal = modal
 			for _, viewport := range [][2]int{{404, 480}, {1024, 768}} {
 				width, height := viewport[0], viewport[1]
+				a.auction.modal = modal
+				if modal == "setup" {
+					b := auctionDialogBox(modal, width, height)
+					a.updateAuctionDialog(&platform.Input{
+						MouseX: b.x + 0xb7, MouseY: b.y + 0x8d, Pressed: true,
+					}, width, height)
+					if !a.auction.durationOpen {
+						t.Fatal("duration selector did not open")
+					}
+				}
 				gl.Viewport(0, 0, int32(width), int32(height))
 				gl.ClearColor(.1, .1, .12, 1)
 				gl.Clear(gl.COLOR_BUFFER_BIT)
@@ -76,6 +85,9 @@ func TestAuctionPanelsGL(t *testing.T) {
 					if err := render.SavePNG(filepath.Join(out, fmt.Sprintf("auction-v%d-%s.png", view, modal)), width, height); err != nil {
 						t.Fatal(err)
 					}
+				}
+				if modal == "setup" {
+					a.closeAuctionDialog()
 				}
 			}
 		}

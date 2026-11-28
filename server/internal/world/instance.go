@@ -3,6 +3,7 @@ package world
 import (
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 )
@@ -47,6 +48,7 @@ func createInstance(mapID uint16, owner uint32) (uint16, error) {
 	if err != nil {
 		return 0, err
 	}
+	timing := configuredDungeonRun(mapID, time.Now())
 	realm.instanceMu.Lock()
 	zone := realm.nextInstance
 	for {
@@ -63,6 +65,7 @@ func createInstance(mapID uint16, owner uint32) (uint16, error) {
 		realm.nextInstance = instanceZoneBase
 	}
 	realm.instanceMaps[zone], realm.instanceOwner[zone] = mapID, owner
+	realm.instanceTiming[zone] = timing
 	realm.instanceMu.Unlock()
 	RegisterMapGrid(zone, load.mapSize, load.mask)
 	nav, err := loadMobNavigation(zone)
@@ -98,6 +101,7 @@ func destroyInstance(zone uint16) {
 	realm.instanceMu.Lock()
 	delete(realm.instanceMaps, zone)
 	delete(realm.instanceOwner, zone)
+	delete(realm.instanceTiming, zone)
 	realm.instanceMu.Unlock()
 	realm.shardsMu.Lock()
 	delete(realm.shards, zone)

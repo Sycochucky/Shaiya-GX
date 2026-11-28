@@ -135,7 +135,7 @@ func (a *App) cancelSkillIntentOnMount() {
 		v.approachSkill, v.approachTarget, v.travel = nil, 0, false
 	}
 	v.requestedSkill, v.requestedSkills = nil, nil
-	v.attackPose, v.attackMoveUntil = false, 0
+	v.attackMoveUntil = 0
 	if v.self.ActionActive() {
 		v.self.ReleaseAction()
 	}

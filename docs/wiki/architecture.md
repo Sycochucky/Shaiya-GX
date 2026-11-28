@@ -24,6 +24,11 @@ One thread owns application state and OpenGL. Network goroutines deliver decoded
 
 World rendering uses reverse depth. Character previews use conventional depth and restore the surrounding render state. UI capture, portrait composition, world effects and map overlays have separate rendering responsibilities.
 
+Crowd skinning reuses bone palettes across the reflected and main camera
+passes within a frame. Each view keeps its own culling and camera transforms.
+Monsters at the same phase of the same loop can share a skeleton evaluation
+while retaining independent animation state.
+
 Assets load from the configured local data directory and are cached. `internal/data/archive` retains its legacy name and SAH/SAF reader for import tooling, while game startup explicitly uses its loose-directory reader. Lookup remains case-insensitive on both Linux and Windows. Interface resources are lossless PNG; Vorbis is decoded in Go to the audio mixer format. Terrain and repeated objects are batched and culled. UI layout persists normalized window centers while preserving native artwork dimensions.
 
 ## Reference policy

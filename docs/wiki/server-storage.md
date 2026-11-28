@@ -101,8 +101,7 @@ plaintext passwords or a different migration ledger is unsupported.
 
 ## Editing game definitions
 
-[GX Studio](gx-studio.md) edits the active source of each catalog. GX
-World reads the game files in `data/game` at startup. The historical
+[GX Studio](gx-studio.md) edits supported client catalogs, SQLite definitions and NpcQuest rules. GX World reads the game files in `data/game` at startup. The historical
 SQLite definition rows can be exported from a pre-26 backup. Migration 26
 creates and verifies that backup beside the runtime before dropping the tables. SQLite continues to store durable game state and the
 active item, skill, experience and mall catalogs.

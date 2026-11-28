@@ -232,17 +232,18 @@ func TestSonicLinkAndExtractionRefreshEquippedSpeed(t *testing.T) {
 	}
 	add(db.Item{Bag: 0, Slot: 4, Type: 21, TypeID: 53, Count: 1})
 	add(db.Item{Bag: 1, Slot: 0, Type: 30, TypeID: 106, Count: 2})
-	add(db.Item{Bag: 1, Slot: 1, Type: 100, TypeID: 82, Count: 1}) // Native 100-point linking hammer.
+	link, extract := defs.Item(100, 192), defs.Item(100, 191)
+	if !validForgeHammer(link, specialGemSuccessUp) || link.ReqVg != 100 ||
+		!validForgeHammer(extract, specialGemExtract) || extractionChance(extract) != 100 {
+		t.Fatal("stock GM hammers must guarantee a valid attempt", link, extract)
+	}
+	add(db.Item{Bag: 1, Slot: 1, Type: 100, TypeID: 192, Count: 1})
 	s.syncPlayerSpeed(true)
 	s.handleGemAdd(proto.GemAddHammerPacket(1, 0, 0, 4, 1, 1))
 	if sp := s.speeds(); sp.move != 3 || s.lastSpeeds.move != 3 || s.items[0].Gems[0] != 106 {
 		t.Fatal("equipped linking did not publish haste", sp, s.lastSpeeds, s.items)
 	}
-	// Make extraction deterministic using a local tool definition only.
-	tool := *defs.Item(100, 141)
-	tool.ReqVg = 100
-	defs.Items[db.ItemKey{Type: 100, TypeID: 141}] = &tool
-	add(db.Item{Bag: 1, Slot: 2, Type: 100, TypeID: 141, Count: 1})
+	add(db.Item{Bag: 1, Slot: 2, Type: 100, TypeID: 191, Count: 1})
 	s.handleGemRemove(proto.GemRemoveHammerPacket([2]uint8{0, 4}, [2]uint8{1, 2}, 0))
 	if sp := s.speeds(); sp.move != 2 || s.lastSpeeds.move != 2 || s.items[0].Gems[0] != 0 {
 		t.Fatal("extraction did not remove/publish haste", sp, s.lastSpeeds, s.items)

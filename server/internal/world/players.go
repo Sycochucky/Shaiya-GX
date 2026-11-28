@@ -83,21 +83,21 @@ type ConnectedPlayer struct {
 	gmVisible                     bool
 	mount                         uint8 // 0x051D vehicle shape, 0 on foot
 
-	mailMu           sync.Mutex
-	teleport         *pendingTeleport
-	summonOffer      *partySummonOffer
-	forced           *forcedTeleport // a GM's /asummon waiting for this user's session
-	tradeRefresh     *tradeRefresh
-	damage           []pendingDamage
-	lifeSkill        *pendingLifeSkill
-	soulKill         *pendingSoulKill
-	friendly         []pendingFriendly
-	userHits         []pendingUserHit
-	combatMailClosed bool
-	pvpKillCount     uint32
-	duelEnds         []pendingDuelEnd
-	duelWins         int
-	itemGrants       []db.Item
+	mailMu                     sync.Mutex
+	teleport                   *pendingTeleport
+	summonOffer                *partySummonOffer
+	forced                     *forcedTeleport // a GM's /asummon waiting for this user's session
+	tradeRefresh               *tradeRefresh
+	damage                     []pendingDamage
+	lifeSkill                  *pendingLifeSkill
+	soulKill                   *pendingSoulKill
+	friendly                   []pendingFriendly
+	userHits                   []pendingUserHit
+	combatMailClosed           bool
+	pvpKillCount, pvpRankCount uint32
+	duelEnds                   []pendingDuelEnd
+	duelWins                   int
+	itemGrants                 []db.Item
 
 	guild  playerGuildState // guarded by guildMu
 	reveal bool             // an enemy's Detection found this user: stealth ends
@@ -334,6 +334,9 @@ func RegisterPlayer(ch db.Character, items []db.Item, isAdmin bool, faction uint
 		gmVisible: true, mapID: ch.MapID, character: ch, items: append([]db.Item(nil), items...), faction: faction}
 	if len(owner) > 0 {
 		p.owner = owner[0]
+		if p.owner != nil {
+			p.owner.syncQuestIDs(p)
+		}
 	}
 	p.lifeState.Store(1)
 	realm.registryMu.Lock()

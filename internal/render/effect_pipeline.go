@@ -18,7 +18,12 @@ layout(std430, binding=3) readonly buffer Instances { Instance instances[]; };
 layout(std430, binding=5) readonly buffer EffectKeys { KeyVertex keys[]; };
 layout(std430, binding=6) readonly buffer ClipWorlds { mat4 worlds[]; };
 layout(location=0) uniform vec4 clipPlane;
-#ifdef EFFECT_INDIRECT
+#if defined(DRAW_MATERIAL_ATTRIBUTE)
+layout(location=4) in uvec4 drawMaterial;
+flat out uint vTexture;
+// Every vertex in an instance has the same color.
+flat out vec4 vColor;
+#elif defined(EFFECT_INDIRECT)
 layout(std430, binding=7) readonly buffer Draws { uvec4 draws[]; };
 layout(location=1) uniform int drawOffset;
 flat out uvec2 vTexture;
@@ -27,12 +32,20 @@ layout(location=1) uniform int instanceBase;
 layout(location=2) uniform bool hasKeys;
 #endif
 out vec2 vUV;
+#ifndef DRAW_MATERIAL_ATTRIBUTE
 out vec4 vColor;
+#endif
 void main() {
-	#ifdef EFFECT_INDIRECT
+	#if defined(DRAW_MATERIAL_ATTRIBUTE)
+	uvec4 draw = drawMaterial;
+	vTexture = draw.x;
+	int index = int(draw.y) + gl_InstanceID;
+	#elif defined(EFFECT_INDIRECT)
 	uvec4 draw = draws[drawOffset + gl_DrawIDARB];
 	vTexture = draw.xy;
 	int index = gl_BaseInstanceARB + gl_InstanceID;
+	#endif
+	#ifdef EFFECT_INDIRECT
 	bool hasKeys = draw.z != 0u;
 	int keyVertex = int(draw.z)-1 + gl_VertexID - int(draw.w);
 	#else
@@ -57,17 +70,28 @@ void main() {
 }`
 
 const effectFS = `#version 450 core
-#ifdef EFFECT_INDIRECT
+#if defined(DRAW_MATERIAL_ATTRIBUTE)
+flat in uint vTexture;
+flat in vec4 vColor;
+#elif defined(EFFECT_INDIRECT)
 flat in uvec2 vTexture;
 #else
 layout(binding=0) uniform sampler2D tex0;
 #endif
 in vec2 vUV;
+#ifndef DRAW_MATERIAL_ATTRIBUTE
 in vec4 vColor;
+#endif
 out vec4 frag;
 void main() {
 	#ifdef EFFECT_INDIRECT
+	#if defined(DRAW_MATERIAL_ATTRIBUTE)
+	frag = sampleDrawTexture(vTexture, vUV) * vColor;
+	#elif defined(EFFECT_BOUND)
+	frag = texture(effectTextures[vTexture.x], vUV) * vColor;
+	#else
 	frag = texture(sampler2D(vTexture), vUV) * vColor;
+	#endif
 	#else
 	frag = texture(tex0, vUV) * vColor;
 	#endif
@@ -122,15 +146,39 @@ func (p *effectPipeline) init() {
 		return
 	}
 	p.program = program
-	if skinIndirectSupported {
+	if sceneStorageSupported {
 		const header = "#version 450 core\n"
-		vs := strings.Replace(effectVS, header, header+"#extension GL_ARB_shader_draw_parameters : require\n#define EFFECT_INDIRECT\n", 1)
-		fs := strings.Replace(effectFS, header, header+"#extension GL_ARB_bindless_texture : require\n#define EFFECT_INDIRECT\n", 1)
-		indirect, err := Program("effect bindless indirect", vs, fs)
-		if err != nil {
-			log.Printf("effect multi-draw unavailable: %v", err)
-		} else {
-			p.indirect.program = indirect
+		if drawParametersSupported {
+			vs := strings.Replace(effectVS, header, header+"#extension GL_ARB_shader_draw_parameters : require\n#define EFFECT_INDIRECT\n", 1)
+			if skinIndirectSupported {
+				fs := strings.Replace(effectFS, header, header+"#extension GL_ARB_bindless_texture : require\n#define EFFECT_INDIRECT\n", 1)
+				p.indirect.program, err = Program("effect bindless indirect", vs, fs)
+				if err != nil {
+					log.Printf("effect bindless shader: %v", err)
+				}
+			}
+			if p.indirect.program == 0 {
+				fs := strings.Replace(effectFS, header, header+"#define EFFECT_INDIRECT\n#define EFFECT_BOUND\nlayout(binding=16) uniform sampler2D effectTextures[16];\n", 1)
+				p.indirect.program, err = Program("effect bound indirect", vs, fs)
+				if err != nil {
+					log.Printf("effect bound shader: %v", err)
+				} else {
+					p.indirect.bound = true
+					log.Printf("OpenGL effect draw path: indirect with bound textures")
+				}
+			}
+		}
+		if p.indirect.program == 0 {
+			const defines = "#version 450 core\n#define EFFECT_INDIRECT\n#define DRAW_MATERIAL_ATTRIBUTE\n"
+			vs := strings.Replace(effectVS, header, defines, 1)
+			fs := strings.Replace(effectFS, header, defines+drawMaterialFragment, 1)
+			p.indirect.program, err = Program("effect OpenGL 4.5 indirect", vs, fs)
+			if err != nil {
+				log.Printf("effect OpenGL 4.5 shader: %v", err)
+			} else {
+				p.indirect.bound, p.indirect.materialAttribute = true, true
+				log.Printf("OpenGL effect draw path: indirect with instanced materials")
+			}
 		}
 	}
 }

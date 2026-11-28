@@ -7,15 +7,18 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Spelunkern/Shaiya-GX/server/internal/netx"
 )
 
 func TestAuthenticatedScopedShutdownAndMetrics(t *testing.T) {
 	t.Chdir(t.TempDir())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	shield := netx.NewShield()
 	s, err := Start(ctx, "test_service", "", cancel, func() ServiceStatus {
 		return ServiceStatus{Endpoint: "127.0.0.1:30810", Players: 3}
-	})
+	}, shield)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,6 +48,14 @@ func TestAuthenticatedScopedShutdownAndMetrics(t *testing.T) {
 	if response.StatusCode != 401 || ctx.Err() != nil {
 		t.Fatal("unauthenticated shutdown")
 	}
+	response, err = client.Post("http://"+s.Address()+"/shield?minutes=30", "text/plain", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusUnauthorized || shield.Status().Mode != netx.ShieldStandard {
+		t.Fatal("unauthenticated shield change")
+	}
 	exe, _ := os.Executable()
 	if _, err := ReadStatus(ctx, ".", "test_service", os.Getpid()+1, exe); err == nil {
 		t.Fatal("status accepted wrong process")
@@ -52,6 +63,12 @@ func TestAuthenticatedScopedShutdownAndMetrics(t *testing.T) {
 	report, err := ReadStatus(ctx, ".", "test_service", os.Getpid(), exe)
 	if err != nil || report.Endpoint != "127.0.0.1:30810" || report.Players != 3 {
 		t.Fatalf("local status = %+v, %v", report, err)
+	}
+	if state, err := RequestShield(t.Context(), ".", "test_service", os.Getpid(), exe, 30); err != nil || state.Mode != netx.ShieldUnderAttack || shield.Status().Mode != netx.ShieldUnderAttack {
+		t.Fatalf("enable shield = %+v, %v", state, err)
+	}
+	if state, err := RequestShield(t.Context(), ".", "test_service", os.Getpid(), exe, 0); err != nil || state.Mode != netx.ShieldStandard {
+		t.Fatalf("disable attack mode = %+v, %v", state, err)
 	}
 	if err := RequestStop(t.Context(), ".", "test_service", os.Getpid()+1, exe); err == nil {
 		t.Fatal("wrong process accepted")
@@ -70,7 +87,7 @@ func TestAuthenticatedScopedShutdownAndMetrics(t *testing.T) {
 	}
 }
 func TestRefusesPublicDiagnostics(t *testing.T) {
-	if _, err := Start(context.Background(), "test", "0.0.0.0:0", func() {}, nil); err == nil {
+	if _, err := Start(context.Background(), "test", "0.0.0.0:0", func() {}, nil, nil); err == nil {
 		t.Fatal("public diagnostics accepted")
 	}
 }

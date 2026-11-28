@@ -50,3 +50,28 @@ func questMapInventoryChanged(op proto.Opcode) bool {
 	}
 	return false
 }
+
+func (s *State) resetQuestMobs() {
+	s.MapQuestMobs, s.MapQuestMobsReady = nil, false
+	s.questMobStaging, s.questMobStagingActive = nil, false
+}
+
+func (s *State) applyQuestMobs(p []byte) error {
+	mapID, flags, rows, err := proto.DecodeQuestMobs(p)
+	if err != nil || mapID != s.MapID {
+		return err
+	}
+	if flags&proto.QuestNPCBegin != 0 {
+		s.questMobStaging, s.questMobStagingActive = nil, true
+	}
+	if !s.questMobStagingActive || len(s.questMobStaging)+len(rows) > 65535 {
+		return fmt.Errorf("unexpected quest mob catalog fragment")
+	}
+	s.questMobStaging = append(s.questMobStaging, rows...)
+	if flags&proto.QuestNPCEnd != 0 {
+		s.MapQuestMobs, s.MapQuestMobsReady = s.questMobStaging, true
+		s.questMobStaging, s.questMobStagingActive = nil, false
+		s.QuestMapRevision++
+	}
+	return nil
+}

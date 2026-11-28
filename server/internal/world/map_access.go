@@ -3,7 +3,10 @@ package world
 import "github.com/Spelunkern/Shaiya-GX/server/internal/db"
 
 func (s *Session) canEnterMap(mapID, level uint16) bool {
-	return mapLevelAllowed(mapID, level, s.isAdmin)
+	if s.char != nil && realMap(s.char.MapID) == realMap(mapID) {
+		return mapLevelAllowed(mapID, level, s.isAdmin)
+	}
+	return s.mapAdmissionAllowed(mapID, level)
 }
 
 func mapLevelAllowed(mapID, level uint16, gm bool) bool {

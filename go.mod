@@ -8,11 +8,11 @@ require (
 	github.com/arl/gogeo v0.0.0-20200405111831-9d419f5f7a90
 	github.com/arnodel/golua v0.4.1
 	github.com/ebitengine/oto/v3 v3.5.1
-	github.com/go-gl/gl v0.0.0-20260331235117-4566fea9a276
 	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.1.0.20260707082822-2a407d02d01a
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.4
 	github.com/jfreymuth/oggvorbis v1.0.5
+	github.com/woozymasta/bcn v0.7.0
 	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.24.0
 	golang.org/x/net v0.62.0
@@ -38,6 +38,7 @@ require (
 	github.com/fyne-io/glfw-js v0.4.0 // indirect
 	github.com/fyne-io/image v0.1.1 // indirect
 	github.com/fyne-io/oksvg v0.2.0 // indirect
+	github.com/go-gl/gl v0.0.0-20260331235117-4566fea9a276 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hack-pad/go-indexeddb v0.3.2 // indirect
@@ -57,7 +58,6 @@ require (
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	github.com/woozymasta/bcn v0.7.0
 	github.com/yuin/goldmark v1.8.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.75.7 // indirect

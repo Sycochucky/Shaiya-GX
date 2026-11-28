@@ -9,6 +9,7 @@ func (a *App) toggleInventory() {
 	a.playUISound("ui_window.ogg")
 	a.inventory.open = !a.inventory.open
 	if a.inventory.open {
+		a.inventory.servicePosition = ui.WindowPosition{}
 		a.skills.assign = nil
 	} else {
 		a.inventory.cancelItemPointer()
@@ -16,7 +17,8 @@ func (a *App) toggleInventory() {
 }
 
 // EP5.4 merchant 0x43e1c2 and warehouse 0x440369 align both panels at the
-// same Y and put their edges together. GX anchors the inventory on the left.
+// same Y and put their edges together. GX starts the inventory on the left
+// and uses a temporary position once the player drags it.
 func (a *App) inventoryDockOrigin(w, h int) (x, y int, active bool) {
 	if a.state == nil {
 		return 0, 0, false
@@ -29,7 +31,8 @@ func (a *App) inventoryDockOrigin(w, h int) (x, y int, active bool) {
 	default:
 		return 0, 0, false
 	}
-	return max(0, x-ui.InventoryWidth), min(y, max(0, h-ui.InventoryHeight)), true
+	x, y = a.inventory.servicePosition.Origin(w, h, ui.InventoryWidth, ui.InventoryHeight, x-ui.InventoryWidth, y)
+	return x, y, true
 }
 
 func (a *App) toggleSkills(assign bool) {

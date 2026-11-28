@@ -309,7 +309,7 @@ func (a *App) confirmedPosition(p []byte) {
 		v.combatHeading = render.V3{}
 		v.approachTarget = 0
 		v.snapRenderedCamera()
-		v.moving, v.motion, v.sendT = false, 0, 0
+		v.moving, v.turning, v.motion, v.sendT = false, false, 0, 0
 		v.waterDirty = false
 		v.waterFallSpeed = 0
 		v.jumping, v.jumpPending = false, false

@@ -104,6 +104,13 @@ func (a *App) cachedQuestMarkers(mapSize float32, now time.Time) *questMarkerCac
 			c.markers = append(c.markers, ui.MapMarker{U: u, V: v, Kind: kind})
 		}
 	}
+	for _, mob := range a.state.MapQuestMobs {
+		if c.objectives[mob.MobID] {
+			if u, v, ok := ui.MapPosition(mob.X, mob.Z, mapSize); ok {
+				c.markers = append(c.markers, ui.MapMarker{U: u, V: v, Kind: ui.MapQuestObjective})
+			}
+		}
+	}
 	sortMapMarkers(c.markers)
 	c.inventoryCounts = questInventoryCounts(a.state, c.inventoryDeps)
 	c.builds++
@@ -111,7 +118,7 @@ func (a *App) cachedQuestMarkers(mapSize float32, now time.Time) *questMarkerCac
 }
 
 func (a *App) questMapMarkers(mapSize float32, markers []ui.MapMarker) []ui.MapMarker {
-	if !a.state.MapQuestNPCsReady {
+	if !a.state.MapQuestNPCsReady && !a.state.MapQuestMobsReady {
 		// Legacy worlds and initial loading retain the nearby hint until metadata arrives.
 		markers = a.visibleQuestMapMarkers(mapSize, markers)
 		sortMapMarkers(markers)
@@ -119,8 +126,10 @@ func (a *App) questMapMarkers(mapSize float32, markers []ui.MapMarker) []ui.MapM
 	}
 	c := a.cachedQuestMarkers(mapSize, time.Now())
 	markers = append(markers, c.markers...)
-	// Creature objectives and party positions remain live overlays. Their movement
-	// never rescans NPC eligibility or invalidates the map-wide static markers.
+	if a.state.MapQuestMobsReady {
+		return markers
+	}
+	// Older worlds still mark nearby live monsters.
 	start := len(markers)
 	for _, e := range a.state.Entities {
 		if e.Kind != game.KindMob || e.Dead || !c.objectives[e.TypeID] {

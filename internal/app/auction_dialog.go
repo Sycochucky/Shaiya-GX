@@ -36,7 +36,7 @@ var auctionDialogArt = map[string]string{"bid": "auction_tender", "setup": "auct
 
 func (a *App) closeAuctionDialog() {
 	v := &a.auction
-	v.modal, v.focus, v.dropdown = "", -1, 0
+	v.modal, v.focus, v.dropdown, v.durationOpen = "", -1, 0, false
 }
 
 func (a *App) auctionDialogControls(ox, oy int) []auctionControl {
@@ -110,8 +110,8 @@ func (a *App) updateAuctionDialog(in *platform.Input, w, h int) {
 	}
 	if v.modal == "setup" && in.Pressed {
 		rx, ry := in.MouseX-b.x, in.MouseY-b.y
-		if v.dropdown == 4 {
-			v.dropdown = 0
+		if v.durationOpen {
+			v.durationOpen = false
 			if inRect(rx, ry, 0x63, 0x9f, 0x66, 0x46) {
 				if i := (ry - 0xa4) / 0xf; ry >= 0xa4 && i < 4 {
 					v.duration = uint8(i)
@@ -120,7 +120,7 @@ func (a *App) updateAuctionDialog(in *platform.Input, w, h int) {
 			}
 		}
 		if inRect(rx, ry, 0xb5, 0x8b, 0x14, 0x14) {
-			v.dropdown = 4
+			v.durationOpen = true
 		}
 	}
 }
@@ -194,8 +194,8 @@ func (a *App) drawAuctionDialog(w, h int) {
 		c.b.Draw(a.sprites)
 	}
 	if v.modal == "setup" {
-		a.drawAuctionArrow(b.x+0xb5, b.y+0x8b, inRect(a.lastMouseX-b.x, a.lastMouseY-b.y, 0xb5, 0x8b, 0x14, 0x14) || v.dropdown == 4)
-		if v.dropdown == 4 {
+		a.drawAuctionArrow(b.x+0xb5, b.y+0x8b, inRect(a.lastMouseX-b.x, a.lastMouseY-b.y, 0xb5, 0x8b, 0x14, 0x14) || v.durationOpen)
+		if v.durationOpen {
 			a.auctionBox(b.x+0x63, b.y+0x9f, 0x66, 0x46, [4]float32{.28, .28, .28, .5})
 			for i := range 4 {
 				c := white

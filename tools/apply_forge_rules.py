@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply explicit forge item definitions to stopped, explicitly selected DBs.
 
-Only PS_GameDefs_Items.ReqVg/Count and the native client stack counts are changed.
+Only declared PS_GameDefs_Items fields and native client stack counts are changed.
 Backups are required and created using SQLite backup, never by replacing a
 personal runtime with the distributed seed.
 """
@@ -12,26 +12,48 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+from typing import NamedTuple
 
 from item_sdata import item_sdata_path, patch_stack_limits
 
 
+class ForgePatch(NamedTuple):
+    typ: int
+    identity: int
+    vg: int
+    stack: int
+    special: int | None = None
+    name: str | None = None
+
+
 def read_patches(path):
     with path.open(newline='', encoding='utf-8') as f:
-        rows=list(csv.DictReader(f))
-    return [(int(r['type']),int(r['type_id']),int(r['req_vg']),int(r['stack'])) for r in rows]
+        return [
+            ForgePatch(int(row['type']), int(row['type_id']), int(row['req_vg']), int(row['stack']),
+                       int(row['special']) if row.get('special') else None, row.get('name') or None)
+            for row in csv.DictReader(f)
+        ]
 
 
 def apply(path, patches):
     if not path.is_file(): raise ValueError('missing database '+str(path))
     with closing(sqlite3.connect(path)) as db:
         with db:
-            for typ,identity,vg,stack in patches:
-                if not 0<=vg<=100 or stack not in (0,255): raise ValueError('invalid forge definition')
+            for patch in patches:
+                typ, identity, vg, stack, special, name = ForgePatch(*patch)
+                if not 0 <= vg <= 100 or stack not in (0, 255):
+                    raise ValueError('invalid forge definition')
                 row=db.execute('SELECT Special FROM PS_GameDefs_Items WHERE Type=? AND TypeID=?',(typ,identity)).fetchone()
                 if row is None: raise ValueError('missing forge item')
-                if row[0] not in (36,58) and typ!=95: raise ValueError('refusing unrelated item')
-                db.execute('UPDATE PS_GameDefs_Items SET ReqVg=?,Count=CASE WHEN ?=0 THEN Count ELSE ? END WHERE Type=? AND TypeID=?',(vg,stack,stack,typ,identity))
+                if special is None:
+                    if row[0] not in (36, 58) and typ != 95:
+                        raise ValueError('refusing unrelated item')
+                elif (typ, identity, special) not in ((100, 191, 58), (100, 192, 36)) or row[0] not in (0, special):
+                    raise ValueError('refusing unrelated item conversion')
+                db.execute('''UPDATE PS_GameDefs_Items
+                    SET ReqVg=?, Count=CASE WHEN ?=0 THEN Count ELSE ? END,
+                        Special=COALESCE(?,Special), ItemName=COALESCE(?,ItemName)
+                    WHERE Type=? AND TypeID=?''', (vg, stack, stack, special, name, typ, identity))
             if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok': raise ValueError('integrity failure')
         limits=list(db.execute('SELECT Type*1000+TypeID,CASE WHEN Count>1 THEN 255 ELSE 1 END FROM PS_GameDefs_Items ORDER BY Type,TypeID'))
     manifest=path.with_suffix('.manifest.json')
@@ -50,7 +72,7 @@ def main():
     patches=read_patches(args.patches)
     item = item_sdata_path(args.client_data)
     raw = item.read_bytes()
-    patched = patch_stack_limits(raw, {typ * 1000 + ident: stack for typ, ident, _, stack in patches if stack})
+    patched = patch_stack_limits(raw, {p.typ * 1000 + p.identity: p.stack for p in patches if p.stack})
     (args.backup_dir / 'Item.SData').write_bytes(raw)
     for n,path in enumerate(args.database):
         if not path.is_file():raise ValueError('missing database')

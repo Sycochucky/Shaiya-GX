@@ -42,7 +42,7 @@ func TestStatusAndPotionNativeFieldsGL(t *testing.T) {
 	defer a.Close()
 	a.state = game.New()
 	a.state.SelfID = 1
-	a.state.Slots[0] = proto.CharacterSlot{ID: 1, Mode: 3}
+	a.state.Slots[0] = proto.CharacterSlot{ID: 1, Mode: 3, Str: 20, Dex: 21, Rec: 22, Int: 23, Wis: 24, Luc: 25}
 	var slots [2]ui.ActionSlot
 	for index := range slots {
 		def := a.itemsItem(25, uint8(index+4))
@@ -59,7 +59,7 @@ func TestStatusAndPotionNativeFieldsGL(t *testing.T) {
 	if out == "" {
 		out = t.TempDir()
 	}
-	for index, value := range []uint8{0, 6, 6} {
+	for index, value := range []uint8{0, 6, 6, 6} {
 		view := a.statusState()
 		view.Element = elementName(value, a.msg)
 		if index == 2 {
@@ -73,8 +73,31 @@ func TestStatusAndPotionNativeFieldsGL(t *testing.T) {
 			view.Details.MaxHP, view.Details.MaxMP, view.Details.MaxSP = 4294967295, 25000, 15000
 			view.HP, view.MP, view.SP = 2147483648, 18000, 9500
 			view.Details.Kills, view.Details.Deaths, view.Details.Wins, view.Details.Losses = 600000, 5000, 250, 100
-			view.Stats = proto.AdditionalStats{MinAttack: 12345, MaxAttack: 987654, MinMagic: 500, MaxMagic: 1000, Defense: 15500, Resistance: 29000}
+			view.Stats = proto.AdditionalStats{
+				Str: 70000, Rec: 100, Int: 4, Wis: 19, Dex: 9, Luc: 235,
+				MinAttack: 12345, MaxAttack: 987654, MinMagic: 500, MaxMagic: 1000, Defense: 15500, Resistance: 29000,
+			}
 			view.Known = true
+		}
+		if index == 3 {
+			a.statusUI.Clear()
+			a.statusUI.Expanded = true
+			a.state.Details.StatPoint = 2
+			packet := proto.NewWriter(proto.CharacterAdditionalStats)
+			for _, value := range [12]uint32{28, 22, 23, 24, 21, 25, 100, 110, 60, 65, 40, 30} {
+				packet.U32(value)
+			}
+			if _, err := a.state.Apply(packet.Bytes()); err != nil {
+				t.Fatal(err)
+			}
+			view = a.statusState()
+			x, y := a.statusUI.Origin(800, 600)
+			a.statusUI.Update(&platform.Input{MouseX: x + 86, MouseY: y + 129, Pressed: true, MouseDown: true}, 800, 600, view, 0)
+			a.statusUI.Update(&platform.Input{MouseX: x + 86, MouseY: y + 129, Clicked: true}, 800, 600, view, 0)
+			if !view.Known || view.Stats.Str != 28 || view.Base[0] != 20 || a.statusUI.Draft != (proto.StatPoints{1}) {
+				t.Fatalf("confirmed stats and base draft did not stay independent: %+v, draft %v", view, a.statusUI.Draft)
+			}
+			t.Log("rendered confirmed STR 28 alongside base STR 20 with one draft point")
 		}
 		gl.Viewport(0, 0, 800, 600)
 		gl.ClearColor(.15, .15, .15, 1)
@@ -86,8 +109,22 @@ func TestStatusAndPotionNativeFieldsGL(t *testing.T) {
 		if code := gl.GetError(); code != gl.NO_ERROR {
 			t.Fatal(code)
 		}
-		if err := render.SavePNG(filepath.Join(out, []string{"status-neutral-potions.png", "status-element-potions.png", "status-expanded-values.png"}[index]), 800, 600); err != nil {
+		if err := render.SavePNG(filepath.Join(out, []string{"status-neutral-potions.png", "status-element-potions.png", "status-expanded-values.png", "status-confirmed-total-and-draft.png"}[index]), 800, 600); err != nil {
 			t.Fatal(err)
 		}
+	}
+	a.status.open = true
+	x, y := a.statusUI.Origin(800, 600)
+	a.lastMouseX, a.lastMouseY = x+60, y+133
+	a.sprites.Begin(800, 600)
+	a.drawStatus(800, 600)
+	want := a.msg.Get(5283)
+	if want == "" || len(a.tooltip) != 1 || a.tooltip[0].text != want || a.tooltipItem {
+		t.Fatalf("hover did not queue the original STR text in the shared tooltip: %v", a.tooltip)
+	}
+	a.drawSharedTooltip(800, 600)
+	a.sprites.End()
+	if code := gl.GetError(); code != gl.NO_ERROR {
+		t.Fatal(code)
 	}
 }

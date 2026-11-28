@@ -567,5 +567,7 @@ func (s *Session) finalizeTrade(trade *tradeSession, partner *ConnectedPlayer) {
 	}
 	s.send(buildSetMoney(s.char.Money), "trade committed money")
 	other.send(buildSetMoney(other.char.Money), "trade committed money")
+	s.goldActivity(a.Before.Money, "trade")
+	other.goldActivity(b.Before.Money, "trade")
 	s.log.Printf("GX Server World trade committed character_id=%d money_delta=%d", partner.CharacterID, delta)
 }

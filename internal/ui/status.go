@@ -10,6 +10,17 @@ import (
 
 const StatusWidth, StatusHeight = 277, 486
 
+const (
+	statusAllocationWidth = 132
+	statusAllocationTop   = 131
+	statusAttributeTop    = 172
+	statusAttributeStep   = 20
+	statusAttributeHeight = 15
+	statusLeftValue       = 73
+	statusRightValue      = 188
+	statusValueWidth      = 68
+)
+
 // Status uses the original stats art and controls (0x502df0). The delivery
 // layout starts at the right edge; numeric allocation replaces the graph.
 type Status struct {
@@ -42,10 +53,24 @@ type StatusState struct {
 // Display order STR/REC/INT/WIS/DEX/LUC differs from the allocation wire order.
 var statOrder = [...]int{0, 2, 3, 4, 1, 5}
 
+// displayedAttributes returns the main grid in STR/REC/INT/WIS/DEX/LUC order.
+// The base allocation values are shown until an additional-stats snapshot arrives.
+func (s StatusState) displayedAttributes() [6]uint32 {
+	if s.Known {
+		d := s.Stats
+		return [6]uint32{d.Str, d.Rec, d.Int, d.Wis, d.Dex, d.Luc}
+	}
+	var base [6]uint32
+	for i, index := range statOrder {
+		base[i] = uint32(s.Base[index])
+	}
+	return base
+}
+
 func StatusOrigin(w, h int, expanded bool) (int, int) {
 	width := StatusWidth
 	if expanded {
-		width += 132 // Native expanded bounds, 0x502ab0.
+		width += statusAllocationWidth // Native expanded bounds, 0x502ab0.
 	}
 	return max(0, w-width), min(114, max(0, h-StatusHeight))
 }
@@ -90,7 +115,7 @@ func (v *Status) controls(w, h int, state StatusState) {
 	x, y := v.Origin(w, h)
 	mainX := x
 	if v.Expanded {
-		mainX += 132
+		mainX += statusAllocationWidth
 	}
 	v.close.OriginX, v.close.OriginY = mainX, y
 	v.expand.OriginX, v.expand.OriginY = mainX, y
@@ -246,7 +271,7 @@ func (v *Status) Draw(s *render.Sprites, f *Font, w, h int, state StatusState) {
 	x, y := v.Origin(w, h)
 	variant, width, mainX := 0, StatusWidth, x
 	if v.Expanded {
-		variant, width, mainX = 1, width+132, x+132
+		variant, width, mainX = 1, width+statusAllocationWidth, x+statusAllocationWidth
 	}
 	s.Draw(v.frames[variant], float32(x), float32(y), float32(width), StatusHeight, 0, 0, float32(width)/512, StatusHeight/512.0, white)
 	// Cover the unused field baked into both native frames with the panel background.
@@ -260,15 +285,15 @@ func (v *Status) Draw(s *render.Sprites, f *Font, w, h int, state StatusState) {
 		s.Draw(v.resourceBars, float32(mainX+73), float32(y+265+20*i), 68*ratio, 15, 0, float32(i)/4, ratio, float32(i)/4+12.0/64, white)
 	}
 	// stats_off/stats_on use the same cells, offset 132px in the expanded frame.
-	const left, right, columnWidth = 73, 188, 68
+	const left, right, columnWidth = statusLeftValue, statusRightValue, statusValueWidth
 	text := func(value string, dx, dy, width int) {
 		drawStatusValue(s, f, value, mainX+dx, y+dy, width)
 	}
 	text(state.Class, left, 79, columnWidth)
 	text(state.Title, left, 99, 183)
 	text(fmt.Sprintf("%d / %d", state.Details.Exp, state.Details.NextExp), left, 132, 183)
-	for i, index := range statOrder {
-		text(fmt.Sprint(state.Base[index]), left+i/3*(right-left), 172+i%3*20, columnWidth)
+	for i, value := range state.displayedAttributes() {
+		text(fmt.Sprint(value), left+i/3*(right-left), statusAttributeTop+i%3*statusAttributeStep, columnWidth)
 	}
 	text(fmt.Sprint(state.Points), right, 232, columnWidth)
 	for i, pool := range []Resource{{state.HP, state.Details.MaxHP}, {state.MP, state.Details.MaxMP}, {state.SP, state.Details.MaxSP}} {
@@ -299,7 +324,7 @@ func (v *Status) Draw(s *render.Sprites, f *Font, w, h int, state StatusState) {
 			if v.Draft[index] != 0 {
 				tint = [4]float32{1, 1, 0, 1}
 			}
-			drawStatusValue(s, f, fmt.Sprint(uint32(state.Base[index])+uint32(v.Draft[index])), x+51, y+131+i*20, 30, tint)
+			drawStatusValue(s, f, fmt.Sprint(uint32(state.Base[index])+uint32(v.Draft[index])), x+51, y+statusAllocationTop+i*statusAttributeStep, 30, tint)
 		}
 		for i := range v.steps {
 			v.steps[i].Draw(s)
@@ -309,12 +334,39 @@ func (v *Status) Draw(s *render.Sprites, f *Font, w, h int, state StatusState) {
 	}
 }
 
+// AttributeMessageAt returns the SysMsg for the hovered attribute.
+func (v *Status) AttributeMessageAt(mx, my, w, h int) int {
+	x, y := v.Origin(w, h)
+	mx, my = mx-x, my-y
+	// EP5.4 0x507670 checks the allocation rows, then 0x502c40
+	// looks up SysMsg 5283–5288 in STR/REC/INT/WIS/DEX/LUC order.
+	if v.Expanded {
+		if dy := my - statusAllocationTop; mx >= 20 && mx <= 80 && dy >= 0 &&
+			dy < len(statOrder)*statusAttributeStep && dy%statusAttributeStep < statusAttributeHeight {
+			return 5283 + dy/statusAttributeStep
+		}
+		mx -= statusAllocationWidth
+	}
+	dy := my - statusAttributeTop
+	if dy < 0 || dy >= 3*statusAttributeStep || dy%statusAttributeStep >= statusAttributeHeight {
+		return 0
+	}
+	row := dy / statusAttributeStep
+	switch {
+	case mx >= 20 && mx < statusLeftValue+statusValueWidth:
+		return 5283 + row
+	case mx >= 148 && mx < statusRightValue+statusValueWidth:
+		return 5286 + row
+	}
+	return 0
+}
+
 func (v *Status) Origin(w, h int) (int, int) {
 	expanded := v != nil && v.Expanded
 	x, y := StatusOrigin(w, h, expanded)
 	width := StatusWidth
 	if expanded {
-		width += 132
+		width += statusAllocationWidth
 	}
 	if v == nil {
 		return x, y

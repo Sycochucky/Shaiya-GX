@@ -361,12 +361,13 @@ func (s *Session) startCooldown(k db.CharacterSkill, def *db.SkillDef, prepared 
 	now := time.Now()
 	if len(prepared) == 0 || !prepared[0] {
 		s.lastActionAt = now
+		s.clipFloorAt, s.clipFloor = now, 0
+		if def.ReadyTime == 0 && !def.MobSkill && def.TypeEffect != 0 {
+			s.clipFloor = skilltiming.ClipFloor(k.SkillID)
+		}
 	}
 	s.pendingCombo = nil
 	s.lastSkillID, s.lastSkillAt = k.SkillID, s.lastActionAt
-	if len(prepared) == 0 || !prepared[0] {
-		s.clipFloorAt, s.clipFloor = s.lastActionAt, skilltiming.ClipFloor(k.SkillID, k.Level)
-	}
 	s.commitAttackStop(now)
 	if def.MobSkill {
 		if s.evolutionReadyAt == nil {

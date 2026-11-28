@@ -213,6 +213,37 @@ func TestHUDPresentationGL(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Hover a bag item and verify its equipped counterpart is rendered by the
+	// same code, using its own instance properties and frame.
+	a.inventory.open, a.inventory.bag = true, 1
+	a.items[sdata.ItemKey{Type: 21, TypeID: 1}] = &sdata.Item{Type: 21, TypeID: 1, Name: "Bag Boots", Def: 10}
+	a.items[sdata.ItemKey{Type: 36, TypeID: 1}] = &sdata.Item{Type: 36, TypeID: 1, Name: "Equipped Boots", Def: 20, Slot: 1}
+	a.state.Inventory[[2]uint8{1, 0}] = proto.InventoryItem{Bag: 1, Type: 21, TypeID: 1, Count: 1}
+	a.state.Inventory[[2]uint8{0, 4}] = proto.InventoryItem{Slot: 4, Type: 36, TypeID: 1, Count: 1, Gems: [6]uint8{251}}
+	inventoryX, inventoryY := a.inventoryUI.Origin(1024, 768)
+	cx, cy, _, _ := ui.InventoryCell(1, 0)
+	a.lastMouseX, a.lastMouseY = inventoryX+cx+10, inventoryY+cy+10
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	a.sprites.Begin(1024, 768)
+	a.drawInventory(1024, 768)
+	comparison := a.tooltipComparison
+	if len(a.tooltip) == 0 || a.tooltip[0].text != "Bag Boots" || len(comparison.tooltip) == 0 ||
+		comparison.tooltip[0].text != "Equipped Boots" || len(comparison.tooltipSockets) != 1 ||
+		comparison.tooltipSockets[0].definition == nil || comparison.tooltipSockets[0].definition.TypeID != 251 {
+		t.Fatalf("inventory comparison lost item data: primary=%v equipped=%v", a.tooltip, comparison)
+	}
+	a.drawSharedTooltip(1024, 768)
+	a.sprites.End()
+	if err := render.SavePNG(filepath.Join(dir, "inventory-comparison.png"), 1024, 768); err != nil {
+		t.Fatal(err)
+	}
+	if tip := a.inventoryComparison(0, 21); len(tip.tooltip) != 0 {
+		t.Fatal("equipped hover produced a comparison")
+	}
+	if tip := a.inventoryComparison(1, 25); len(tip.tooltip) != 0 {
+		t.Fatal("consumable hover produced a comparison")
+	}
+
 	if err := gl.GetError(); err != gl.NO_ERROR {
 		t.Fatalf("HUD GL error %#x", err)
 	}

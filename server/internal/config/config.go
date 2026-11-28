@@ -147,11 +147,17 @@ func sqliteDSN(readOnly bool) (string, error) {
 // DataDir holds map data (data/maps/*.svmap).
 func DataDir() string { return env("RAPTURE_DATA_DIR", "data") }
 
-// PublicIP is the world address sent to clients after server selection.
-func PublicIP() string { return env("RAPTURE_PUBLIC_IP", "127.0.0.1") }
+const (
+	PublicIPKey    = "RAPTURE_PUBLIC_IP"
+	LoginListenKey = "RAPTURE_LOGIN_LISTEN"
+	WorldListenKey = "RAPTURE_WORLD_LISTEN"
+)
 
-func LoginListen() string { return env("RAPTURE_LOGIN_LISTEN", "127.0.0.1:30800") }
-func WorldListen() string { return env("RAPTURE_WORLD_LISTEN", "127.0.0.1:30810") }
+// PublicIP is the world IPv4 address sent to clients after server selection.
+func PublicIP() string { return env(PublicIPKey, "127.0.0.1") }
+
+func LoginListen() string { return env(LoginListenKey, "127.0.0.1:30800") }
+func WorldListen() string { return env(WorldListenKey, "127.0.0.1:30810") }
 
 const (
 	DefaultCombatDEXFirst  = 500

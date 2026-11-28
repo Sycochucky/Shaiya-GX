@@ -17,6 +17,27 @@ func TestPostureToggleOnePerPress(t *testing.T) {
 	}
 }
 
+func TestSeatedMovementOnlyStandsForKeyboard(t *testing.T) {
+	for _, in := range []platform.Input{
+		{Clicked: true},
+		{MouseDown: true, RightDown: true},
+		{Down: "W", SuppressAutoRun: true},
+	} {
+		if keyboardPostureMovement(&in, false) {
+			t.Fatalf("input %+v should keep the character seated", in)
+		}
+	}
+	for _, key := range "WSADQE" {
+		if !keyboardPostureMovement(&platform.Input{Down: string(key)}, false) {
+			t.Errorf("%c should stand the character", key)
+		}
+	}
+	if !keyboardPostureMovement(&platform.Input{Keys: []platform.Key{platform.KeySpace}}, false) ||
+		!keyboardPostureMovement(&platform.Input{}, true) {
+		t.Fatal("jump and keyboard autorun should still stand the character")
+	}
+}
+
 func TestRemoteSittingKeepsSeatedPoseWithoutMovement(t *testing.T) {
 	e := &game.Entity{Sitting: true}
 	if clip := remoteLocomotion(nil, e); clip != "012_sit" {

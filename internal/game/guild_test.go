@@ -80,19 +80,13 @@ func TestGuildDirectoryRosterAndStatus(t *testing.T) {
 	if len(s.Guild.Members) != 0 {
 		t.Fatal("leave update")
 	}
-	invite := proto.NewWriter(proto.GuildInvite)
-	invite.U32(20)
-	apply(invite.Bytes())
-	if s.Guild.InviteID != 20 || s.Guild.InviteSerial != 1 {
-		t.Fatal("invitation")
-	}
 	join := proto.NewWriter(proto.GuildJoinResult)
 	join.U8(1)
 	join.U32(42)
 	join.U8(9)
 	join.Fixed("Guild", 25, true)
 	apply(join.Bytes())
-	if s.Guild.ID != 42 || s.Guild.InviteID != 0 || s.Guild.Rank != 9 {
+	if s.Guild.ID != 42 || s.Guild.Rank != 9 {
 		t.Fatal("join")
 	}
 	leave := proto.NewWriter(proto.GuildLeave)

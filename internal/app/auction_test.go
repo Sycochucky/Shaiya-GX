@@ -210,11 +210,11 @@ func TestAuctionDoubleClickOpensDetailsAndDialogClosesFromItsButtons(t *testing.
 		a.updateAuctionDialog(&platform.Input{MouseX: b.x + x, MouseY: b.y + y, Clicked: true}, 1024, 768)
 	}
 	click(0xb5+2, 0x8b+2)
-	if a.auction.dropdown != 4 {
+	if !a.auction.durationOpen || a.auction.dropdown != 0 {
 		t.Fatal("duration dropdown did not open")
 	}
 	click(0x70, 0xa4+3*0xf+2)
-	if a.auction.duration != 3 {
+	if a.auction.duration != 3 || a.auction.durationOpen {
 		t.Fatal("duration entry was not selected")
 	}
 	click(0xcd+2, 0x71+2)

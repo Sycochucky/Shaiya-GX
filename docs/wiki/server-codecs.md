@@ -1669,22 +1669,6 @@ func DecodeGuildCreate(p []byte) (GuildJoin, string, error) {
 ```
 
 ```go
-func GuildInvitePacket(id uint32) []byte { return idPacket(GuildInvite, id) }
-```
-
-```go
-func GuildAnswerPacket(accept bool) []byte {
-	w := NewWriter(GuildInviteAnswer)
-	if accept {
-		w.U8(1)
-	} else {
-		w.U8(0)
-	}
-	return w.Bytes()
-}
-```
-
-```go
 func GuildLeavePacket() []byte   { return NewWriter(GuildLeave).Bytes() }
 ```
 
@@ -2089,6 +2073,51 @@ func DecodeGuildRankingList(p []byte) ([]GuildRankingEntry, error) {
 
 </details>
 
+## inspect
+
+[internal/proto/inspect.go](../../internal/proto/inspect.go#L1)
+
+<details><summary>Types and codecs</summary>
+
+```go
+func InspectPacket(target uint32) []byte {
+	w := NewWriter(InspectEquipment)
+	w.U32(target)
+	return w.Bytes()
+}
+```
+
+```go
+func DecodeInspectEquipment(p []byte) (target uint32, items [InspectSlots]InventoryItem, err error) {
+	r := NewReader(p)
+	n := int(r.U8())
+	if n > len(items) || (r.Remaining() != n*32 && r.Remaining() != n*32+4) {
+		return 0, items, fmt.Errorf("invalid inspection equipment count")
+	}
+	for range n {
+		slot := r.U8()
+		item := InventoryItem{Slot: slot, Type: r.U8(), TypeID: r.U8(), Quality: r.U16(), Count: 1}
+		for i := range item.Gems {
+			item.Gems[i] = r.U8()
+		}
+		item.Craft = r.Fixed(21)
+		if int(slot) >= len(items) || item.Type == 0 || item.TypeID == 0 || items[slot].Type != 0 {
+			return 0, items, fmt.Errorf("invalid inspection slot %d", slot)
+		}
+		items[slot] = item
+	}
+	if r.Remaining() == 4 {
+		target = r.U32()
+		if target == 0 {
+			return 0, items, fmt.Errorf("invalid inspection target")
+		}
+	}
+	return target, items, r.Err()
+}
+```
+
+</details>
+
 ## inventory
 
 [internal/proto/inventory.go](../../internal/proto/inventory.go#L1)
@@ -2155,6 +2184,15 @@ func DecodeItemAdd(p []byte) (InventoryItem, error) {
 	r := NewReader(p)
 	m := readItemSlot(r)
 	return m, r.Err()
+}
+```
+
+```go
+func DecodeEquipRefusal(p []byte) (typ, id uint8, err error) {
+	if len(p) != 4 || Op(p) != GXEquipRefusal || p[2] == 0 || p[3] == 0 {
+		return 0, 0, fmt.Errorf("invalid equipment refusal")
+	}
+	return p[2], p[3], nil
 }
 ```
 
@@ -3765,6 +3803,41 @@ func DecodeQuestNPCs(p []byte) (QuestNPCChunk, error) {
 		}
 	}
 	return c, r.Err()
+}
+```
+
+</details>
+
+## quest mob map
+
+[internal/proto/quest_mob_map.go](../../internal/proto/quest_mob_map.go#L1)
+
+<details><summary>Types and codecs</summary>
+
+```go
+type QuestMobSpawn struct {
+	MobID uint16
+	X, Z  float32
+}
+```
+
+```go
+func DecodeQuestMobs(p []byte) (mapID uint16, flags uint8, rows []QuestMobSpawn, err error) {
+	r := NewReader(p)
+	mapID, flags = r.U16(), r.U8()
+	count := int(r.U16())
+	if r.Err() != nil || count > QuestMobChunkLimit || flags & ^uint8(QuestNPCBegin|QuestNPCEnd) != 0 || r.Remaining() != count*10 {
+		return 0, 0, nil, fmt.Errorf("invalid quest mob catalog")
+	}
+	rows = make([]QuestMobSpawn, count)
+	for i := range rows {
+		row := QuestMobSpawn{MobID: r.U16(), X: r.F32(), Z: r.F32()}
+		if row.MobID == 0 || math.IsNaN(float64(row.X)) || math.IsNaN(float64(row.Z)) || math.IsInf(float64(row.X), 0) || math.IsInf(float64(row.Z), 0) {
+			return 0, 0, nil, fmt.Errorf("invalid quest mob position")
+		}
+		rows[i] = row
+	}
+	return mapID, flags, rows, r.Err()
 }
 ```
 

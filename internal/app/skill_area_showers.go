@@ -61,7 +61,6 @@ func (a *App) startSkillAreaShower(r proto.SkillResult, d sdata.Skill, file stri
 	side := render.V3{-dir[2], 0, dir[0]}
 	shower := skillAreaShower{center: center, side: side, forward: dir.Scale(-1), radius: max(1, int(d.ApplyRange)), remaining: profile.Duration, profile: profile, file: file}
 	a.wv.areaShowers = append(a.wv.areaShowers, shower)
-	a.playSound(effect.ImpactSound(file), center[0], center[2])
 }
 func (a *App) updateSkillAreaShowers(dt float32) {
 	rows := a.wv.areaShowers[:0]

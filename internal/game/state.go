@@ -104,6 +104,7 @@ type Event struct {
 }
 
 type State struct {
+	Economy                proto.EconomySettings
 	LastMobSpeech          proto.MobSpeech
 	RaidNotice             string // last 0x1112 raid notice text
 	RaidNoticeSerial       uint64
@@ -120,6 +121,10 @@ type State struct {
 	PhysicsTime            float64
 	MapQuestNPCs           []proto.QuestNPC
 	MapQuestNPCsReady      bool
+	MapQuestMobs           []proto.QuestMobSpawn
+	MapQuestMobsReady      bool
+	questMobStaging        []proto.QuestMobSpawn
+	questMobStagingActive  bool
 	QuestMapRevision       uint64
 	QuestInventoryRevision uint64
 	questNPCStaging        []proto.QuestNPC
@@ -262,6 +267,12 @@ func (s *State) Apply(p []byte) (result Event, applyErr error) {
 		for _, row := range rows {
 			s.ChestCloakFits[[2]uint8{row.Type, row.TypeID}] = row.Fit
 		}
+	case proto.GXEconomySettings:
+		settings, err := proto.DecodeEconomySettings(p)
+		if err != nil {
+			return fail(err)
+		}
+		s.Economy = settings
 	case proto.GXEnchantRules:
 		rules, err := proto.DecodeEnchantRules(p)
 		if err != nil {
@@ -278,6 +289,10 @@ func (s *State) Apply(p []byte) (result Event, applyErr error) {
 		}
 		for _, limit := range limits {
 			s.OJLimits[[2]uint8{limit.Type, limit.TypeID}] = limit
+		}
+	case proto.GXQuestMobs:
+		if err := s.applyQuestMobs(p); err != nil {
+			return fail(err)
 		}
 	case proto.GXQuestNPCs:
 		if err := s.applyQuestNPCs(p); err != nil {
@@ -624,7 +639,7 @@ func (s *State) Apply(p []byte) (result Event, applyErr error) {
 		if err := s.applyGuildDuel(p); err != nil {
 			return fail(err)
 		}
-	case proto.GuildListBegin, proto.GuildListEnd, proto.GuildList, proto.GuildNew, proto.GuildDisbanded, proto.GuildOnlineList, proto.GuildOfflineList, proto.GuildMemberAdded, proto.GuildApplicantList, proto.GuildApplicant, proto.GuildApplicantRemoved, proto.GuildApply, proto.GuildStatus, proto.GuildInvite, proto.GuildInviteAnswer, proto.GuildJoinResult, proto.GuildCreate, proto.GuildCreateAgree, proto.GuildCreateFailed, proto.GuildLeave, proto.GuildDisband, proto.GuildDisbandAgree, proto.GuildExpel, proto.GuildBankList, proto.GuildBankPlaced, proto.GuildBankTaken, proto.GuildBankResult, proto.GuildRankingNotice, proto.GuildRankingPoints, proto.GuildRankingList, proto.GuildEtin, proto.GuildRemark, proto.GuildNpcList, proto.GuildNpcUpgrade, proto.GuildHouseBuy, proto.GuildHouseKeepEtin, proto.GuildDonate:
+	case proto.GuildListBegin, proto.GuildListEnd, proto.GuildList, proto.GuildNew, proto.GuildDisbanded, proto.GuildOnlineList, proto.GuildOfflineList, proto.GuildMemberAdded, proto.GuildApplicantList, proto.GuildApplicant, proto.GuildApplicantRemoved, proto.GuildApply, proto.GuildStatus, proto.GuildJoinResult, proto.GuildCreate, proto.GuildCreateAgree, proto.GuildCreateFailed, proto.GuildLeave, proto.GuildDisband, proto.GuildDisbandAgree, proto.GuildExpel, proto.GuildBankList, proto.GuildBankPlaced, proto.GuildBankTaken, proto.GuildBankResult, proto.GuildRankingNotice, proto.GuildRankingPoints, proto.GuildRankingList, proto.GuildEtin, proto.GuildRemark, proto.GuildNpcList, proto.GuildNpcUpgrade, proto.GuildHouseBuy, proto.GuildHouseKeepEtin, proto.GuildDonate:
 		if err := s.applyGuild(p); err != nil {
 			return fail(err)
 		}
@@ -1184,6 +1199,7 @@ func (s *State) Apply(p []byte) (result Event, applyErr error) {
 			s.SkillBarReady = false
 			s.MapQuestNPCs, s.MapQuestNPCsReady = nil, false
 			s.questNPCStaging, s.questNPCStagingActive = nil, false
+			s.resetQuestMobs()
 			s.GroundItems = map[uint32]proto.GroundItem{}
 			s.Entities = map[uint32]*Entity{}
 			s.MyShop, s.ShopView, s.ShopSigns = MyShopState{}, ShopViewState{}, nil
@@ -1211,6 +1227,7 @@ func (s *State) Apply(p []byte) (result Event, applyErr error) {
 				s.Relics = nil // a map without relics sends no 0x2101
 				s.MapQuestNPCs, s.MapQuestNPCsReady = nil, false
 				s.questNPCStaging, s.questNPCStagingActive = nil, false
+				s.resetQuestMobs()
 				s.Guild.RankingPointsKnown = false
 				s.GroundItems = map[uint32]proto.GroundItem{}
 				s.Entities = map[uint32]*Entity{}

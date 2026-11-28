@@ -19,6 +19,7 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/logx"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/netx"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/operatorwire"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/world"
 )
 
@@ -31,6 +32,7 @@ func main() {
 	}
 }
 func run() error {
+	inheritedRates := config.InheritedRewardRates()
 	if err := config.LoadRuntimeEnv(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -49,20 +51,15 @@ func run() error {
 	defer stop()
 	resetFailure := db.OnStorageFailure(func(err error) { logger.Errorf("storage unavailable; stopping service: %v", err); stop() })
 	defer resetFailure()
-	defer db.Close()
 	logger.Printf("Starting GX Server World")
-	if err := db.Open(db.UserData, db.GameData, db.GameDefs); err != nil {
-		logger.Printf("GX Server World database error: %v", err)
-		return err
-	}
-	ownership, cancelOwnership := context.WithTimeout(context.Background(), time.Second)
-	release, err := db.AcquireWorld(ownership)
-	cancelOwnership()
+	release, err := db.AcquireWorld(ctx)
 	if err != nil {
-		logger.Printf("world runtime already owned or unavailable: %v", err)
+		db.Close()
+		logger.Errorf("GX World startup: %v", err)
 		return err
 	}
 	defer release()
+	defer db.Close()
 	defs, err := db.Definitions()
 	if err != nil {
 		logger.Printf("GX Server World failed to load PS_GameDefs: %v", err)
@@ -98,8 +95,31 @@ func run() error {
 
 	engine := world.StartSweeps(ctx, logger, stop)
 	defer engine.Close()
-	admin, err := controlplane.Start(ctx, "gx_world", os.Getenv("RAPTURE_WORLD_DIAGNOSTICS"), stop, func() controlplane.ServiceStatus {
+	shield := netx.NewShield()
+	admin, err := controlplane.StartWorld(ctx, os.Getenv("RAPTURE_WORLD_DIAGNOSTICS"), stop, func() controlplane.ServiceStatus {
 		return controlplane.ServiceStatus{Endpoint: listener.Addr().String(), Players: world.PlayerCount()}
+	}, shield, func(req operatorwire.Request) (operatorwire.Response, error) {
+		switch req.Action {
+		case "reward-rates":
+			return operatorwire.Response{}, world.SaveRewardRates(req, inheritedRates, logger)
+		case "reward-event":
+			return operatorwire.Response{}, world.SaveRewardEvent(req, logger)
+		case "map-activity":
+			activity, err := world.MapActivity(req.MapID)
+			return operatorwire.Response{MapActivity: &activity}, err
+		case "scoped-drop":
+			return operatorwire.Response{}, world.SaveScopedDrop(req, logger)
+		case "economy-settings":
+			return operatorwire.Response{}, world.SaveEconomy(req, logger)
+		case "map-tuning":
+			return operatorwire.Response{}, world.SaveMapTuning(req, logger)
+		case "map-reward":
+			return operatorwire.Response{}, world.SaveMapReward(req, logger)
+		case "map-rates-effective":
+			rates, err := world.MapRewardRates(req.MapID)
+			return operatorwire.Response{EffectiveRates: &rates}, err
+		}
+		return world.Operate(req)
 	}, db.Observe)
 	if err != nil {
 		listener.Close()
@@ -115,10 +135,18 @@ func run() error {
 				log.Printf("world session panic: %v", r)
 			}
 		}()
+		banned, err := db.OperatorIPBanned(netx.PeerIP(conn))
+		if err != nil {
+			log.Printf("world admission storage error: %v", err)
+			return
+		}
+		if banned {
+			return
+		}
 		if err := world.Serve(conn, logger, log); err != nil {
 			log.Printf("world client error: %v", err)
 		}
-	}, netx.NewRateLimiter(4096, policy.Establishments, time.Minute)); err != nil {
+	}, netx.NewRateLimiter(4096, policy.Establishments, time.Minute), shield); err != nil {
 		logger.Printf("server accept error: %v", err)
 		return err
 	}

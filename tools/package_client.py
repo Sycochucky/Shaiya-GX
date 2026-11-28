@@ -44,9 +44,6 @@ def package_client(platform, output):
         stage.mkdir()
         exe = 'Shaiya GX.exe' if platform.startswith('windows') else 'Shaiya GX'
         shutil.copy2(ROOT/'build'/exe, stage/exe)
-        studio = 'GX Studio.exe' if platform.startswith('windows') else 'GX Studio'
-        (stage/'Studio').mkdir()
-        shutil.copy2(ROOT/'build'/'GX Studio'/studio, stage/'Studio'/studio)
         fonts = stage/'data/fonts'
         shutil.copytree(FONT_PACK, fonts)
         (stage/'data/Filter.INI').write_text(FILTER_TEMPLATE, encoding='utf-8', newline='\n')

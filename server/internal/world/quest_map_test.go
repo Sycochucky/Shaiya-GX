@@ -85,3 +85,53 @@ func TestQuestNPCCatalogChunksFitNativeFrames(t *testing.T) {
 		t.Fatal("catalog records lost")
 	}
 }
+
+func TestQuestMobCatalogUsesSpawnSitesAndUpdatesEvents(t *testing.T) {
+	const mapID = 60084
+	sh := shard(mapID)
+	sh.mu.Lock()
+	oldMobs, oldRows := sh.entities.Mobs, sh.questMobSpawns
+	oldFrames, oldRevision := sh.questMobCatalog, sh.questMobRevision.Load()
+	oldEvents := sh.questEventSpawns
+	sh.entities.Mobs, sh.questMobSpawns, sh.questMobCatalog, sh.questEventSpawns = nil, nil, nil, nil
+	sh.mu.Unlock()
+	t.Cleanup(func() {
+		sh.mu.Lock()
+		defer sh.mu.Unlock()
+		sh.entities.Mobs, sh.questMobSpawns = oldMobs, oldRows
+		sh.questMobCatalog, sh.questEventSpawns = oldFrames, oldEvents
+		sh.questMobRevision.Store(oldRevision)
+	})
+	AddEntities(mapID, MapEntities{Mobs: []MapMob{{ID: 42, MobID: 100, PosX: 900, PosZ: 800}}})
+	sh.mu.Lock()
+	sh.entities.Mobs[0].PosX, sh.entities.Mobs[0].PosZ = 350, 400
+	sh.mu.Unlock()
+	s, packets := gmWireSession(t, db.Character{ID: 991085, MapID: mapID}, false)
+	s.player = RegisterPlayer(*s.char, nil, false, 0, s.out, nil)
+	t.Cleanup(s.player.Unregister)
+	state := game.New()
+	state.MapID = mapID
+	assertCatalog := func(want int) {
+		t.Helper()
+		p := waitWorldPacket(t, packets, proto.GXQuestMobs)
+		if _, err := state.Apply(p); err != nil {
+			t.Fatal(err)
+		}
+		if !state.MapQuestMobsReady || len(state.MapQuestMobs) != want || len(state.Entities) != 0 || state.MapQuestMobs[0].X != 900 {
+			t.Fatal("catalog did not publish spawn coordinates as map metadata", state.MapQuestMobs)
+		}
+	}
+	s.syncQuestMobCatalog(true)
+	assertCatalog(1)
+	boss := MapMob{ID: 43, MobID: 200, homeX: 950, homeZ: 850}
+	sh.mu.Lock()
+	sh.setQuestEventSpawn(&boss, true)
+	sh.mu.Unlock()
+	s.syncQuestMobCatalog(false)
+	assertCatalog(2)
+	sh.mu.Lock()
+	sh.setQuestEventSpawn(&boss, false)
+	sh.mu.Unlock()
+	s.syncQuestMobCatalog(false)
+	assertCatalog(1)
+}

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"github.com/Spelunkern/Shaiya-GX/internal/game"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 )
@@ -20,9 +21,23 @@ func (a *App) sendCompose(runeKey, itemKey [2]uint8) bool {
 	if !r || !i || rune.Count == 0 || item.Count != 1 || runeKey[0] == 0 {
 		return false
 	}
+	request := proto.ComposePacket(runeKey[0], runeKey[1], itemKey[0], itemKey[1])
+	quote := a.state.Economy
+	if quote.Revision != 0 && quote.RerollGold > 0 {
+		a.confirmEconomy(quote, fmt.Sprintf("Reroll this item for %d gold and one rune?", quote.RerollGold), func() {
+			if a.state.Inventory[runeKey] == rune && a.state.Inventory[itemKey] == item && a.nearBlacksmith() {
+				a.sendComposePacket(runeKey, itemKey, proto.EconomyActionPacket(quote.Revision, quote.RerollGold, request))
+			}
+		})
+		return true
+	}
+	return a.sendComposePacket(runeKey, itemKey, request)
+}
+
+func (a *App) sendComposePacket(runeKey, itemKey [2]uint8, request []byte) bool {
 	a.compose = composeView{rune: runeKey, item: itemKey, pending: true}
 	a.shop.pending, a.shop.deadline = true, a.clock+10
-	if err := a.world.Send(proto.ComposePacket(runeKey[0], runeKey[1], itemKey[0], itemKey[1])); err != nil {
+	if err := a.world.Send(request); err != nil {
 		a.backToLoginID(12035)
 		return false
 	}

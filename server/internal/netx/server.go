@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/telemetry"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -14,12 +15,22 @@ var admitted = telemetry.NumberMetric("gx_connections_accepted_total")
 var rejected = telemetry.NumberMetric("gx_connections_rejected_total")
 var connections = telemetry.NumberMetric("gx_connections_active")
 
+// PeerIP returns a canonical peer address from the transport, including when
+// the connection is wrapped in TLS. A scope is local to the network interface.
+func PeerIP(conn net.Conn) netip.Addr {
+	address, err := netip.ParseAddrPort(conn.RemoteAddr().String())
+	if err != nil {
+		return netip.Addr{}
+	}
+	return address.Addr().Unmap().WithZone("")
+}
+
 // Serve bounds connections globally and by source. Cancellation closes sockets
 // and waits for handlers to finish persisting before the caller closes storage.
-func Serve(ctx context.Context, listener net.Listener, capacity, perIP int, handle func(net.Conn), admission ...*RateLimiter) error {
+func Serve(ctx context.Context, listener net.Listener, capacity, perIP int, handle func(net.Conn), admission *RateLimiter, shield *Shield) error {
 	starts := NewRateLimiter(4096, 120, time.Minute)
-	if len(admission) > 0 && admission[0] != nil {
-		starts = admission[0]
+	if admission != nil {
+		starts = admission
 	}
 	var mu sync.Mutex
 	active := map[net.Conn]string{}
@@ -61,13 +72,28 @@ func Serve(ctx context.Context, listener net.Listener, capacity, perIP int, hand
 			Abort(conn)
 			continue
 		}
+		if shield != nil && !shield.Admit(source) {
+			rejected.Add(1)
+			Abort(conn)
+			continue
+		}
 		if !starts.Allow(source) {
 			rejected.Add(1)
 			Abort(conn)
 			continue
 		}
 		mu.Lock()
-		if ctx.Err() != nil || len(active) >= capacity || sources[source] >= perIP {
+		sourceLimit := perIP
+		if shield != nil {
+			sourceLimit = shield.PerIP(perIP)
+		}
+		if ctx.Err() != nil || len(active) >= capacity || sources[source] >= sourceLimit {
+			if shield != nil && sourceLimit < perIP && sources[source] >= sourceLimit && sources[source] < perIP {
+				shield.RecordReject()
+			}
+			if shield != nil && len(active) >= capacity {
+				shield.ObserveCapacity(source)
+			}
 			rejected.Add(1)
 			mu.Unlock()
 			Abort(conn)
@@ -122,6 +148,12 @@ type bucket struct {
 
 func NewRateLimiter(capacity, burst int, interval time.Duration) *RateLimiter {
 	return &RateLimiter{entries: map[string]bucket{}, capacity: capacity, burst: float64(burst), interval: interval}
+}
+func (l *RateLimiter) reset() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.entries = make(map[string]bucket)
+	l.sweep = time.Time{}
 }
 func (l *RateLimiter) Allow(key string) bool                { return l.allow(key, time.Now()) }
 func (l *RateLimiter) AllowN(key string, units int) bool    { return l.allowN(key, units, time.Now()) }

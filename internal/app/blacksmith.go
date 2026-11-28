@@ -192,7 +192,16 @@ func (a *App) updateBlacksmithDrag(in *platform.Input, w, h int) bool {
 }
 
 func (a *App) updateGemConfirm(in *platform.Input, w, h int) {
-	if a.gemConfirm.Update(in, w, h) != ui.MessageOK {
+	answer := a.gemConfirm.Update(in, w, h)
+	if answer != ui.MessageNone && a.economyConfirm != nil {
+		confirm := a.economyConfirm
+		a.economyConfirm = nil
+		if answer == ui.MessageOK {
+			confirm()
+		}
+		return
+	}
+	if answer != ui.MessageOK {
 		return
 	}
 	ready := false

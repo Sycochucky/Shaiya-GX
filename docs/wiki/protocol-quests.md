@@ -10,13 +10,13 @@ Client codecs operate on opcode + body; server packet.Writer emits length + opco
 
 **`0x0901` — QuestList**
 
-Declarations: [packet.QuestList](../../server/internal/packet/packet.go#L133), [proto.QuestList](../../internal/proto/opcodes.go#L118).
+Declarations: [packet.QuestList](../../server/internal/packet/packet.go#L134), [proto.QuestList](../../internal/proto/opcodes.go#L118).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
 **S→C serializers:** [questListPackets (server/internal/world/quests.go)](../../server/internal/world/quests.go#L255)
 
-**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L643), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L11)
+**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L651), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L11)
 
 ### Wire layouts and validation
 
@@ -97,13 +97,13 @@ type ActiveQuest struct {
 
 **`0x0902` — QuestStart**
 
-Declarations: [packet.QuestStart](../../server/internal/packet/packet.go#L134), [proto.QuestStart](../../internal/proto/opcodes.go#L119).
+Declarations: [packet.QuestStart](../../server/internal/packet/packet.go#L135), [proto.QuestStart](../../internal/proto/opcodes.go#L119).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L111)
 
 **S→C serializers:** [startQuest (server/internal/world/quests.go)](../../server/internal/world/quests.go#L447)
 
-**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L643), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L33)
+**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L651), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L33)
 
 ### Wire layouts and validation
 
@@ -176,6 +176,7 @@ func (s *Session) startQuest(q *questDef, id uint16, npcID uint32) {
 	}
 	s.items = after
 	s.quests = append(s.quests, aq)
+	s.syncQuestIDs(s.player)
 	if s.player != nil {
 		s.player.UpdateItems(s.items)
 	}
@@ -233,13 +234,13 @@ func DecodeQuestStart(p []byte) (npc uint32, id uint16, err error) {
 
 **`0x0903` — QuestEnd**
 
-Declarations: [packet.QuestEnd](../../server/internal/packet/packet.go#L135), [proto.QuestEnd](../../internal/proto/opcodes.go#L120).
+Declarations: [packet.QuestEnd](../../server/internal/packet/packet.go#L136), [proto.QuestEnd](../../internal/proto/opcodes.go#L120).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L113)
 
-**S→C serializers:** [completeQuest (server/internal/world/quests.go)](../../server/internal/world/quests.go#L618), [awardQuest (server/internal/world/quests.go)](../../server/internal/world/quests.go#L720)
+**S→C serializers:** [completeQuest (server/internal/world/quests.go)](../../server/internal/world/quests.go#L619), [awardQuest (server/internal/world/quests.go)](../../server/internal/world/quests.go#L721)
 
-**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L643), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L60)
+**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L651), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L60)
 
 ### Wire layouts and validation
 
@@ -247,7 +248,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>completeQuest — server/internal/world/quests.go</summary>
 
-[Source definition](../../server/internal/world/quests.go#L618)
+[Source definition](../../server/internal/world/quests.go#L619)
 
 ```go
 func (s *Session) completeQuest(q *activeQuest, ctx uint32, success, requested bool) {
@@ -316,7 +317,7 @@ func (s *Session) completeQuest(q *activeQuest, ctx uint32, success, requested b
 
 <details><summary>awardQuest — server/internal/world/quests.go</summary>
 
-[Source definition](../../server/internal/world/quests.go#L720)
+[Source definition](../../server/internal/world/quests.go#L721)
 
 ```go
 func (s *Session) awardQuest(q *activeQuest, variant uint8, ctx uint32) {
@@ -324,7 +325,7 @@ func (s *Session) awardQuest(q *activeQuest, variant uint8, ctx uint32) {
 		return
 	}
 	res := q.def.Results[variant]
-	exp := config.ScaleEXP(res.Exp, rewardRates.QuestEXPPercent)
+	exp := config.ScaleEXP(res.Exp, currentRewardRates().QuestEXPPercent)
 	change := db.CharacterChange{Before: *s.char, After: *s.char, ItemsBefore: s.items, ItemsAfter: append([]db.Item(nil), s.items...)}
 	var packets [][]byte
 	if q.def.EndType == 1 {
@@ -455,7 +456,7 @@ type QuestEndResult struct {
 
 **`0x0904` — QuestStartAlt**
 
-Declarations: [packet.QuestStartAlt](../../server/internal/packet/packet.go#L136), [proto.QuestStartAlt](../../internal/proto/opcodes.go#L121).
+Declarations: [packet.QuestStartAlt](../../server/internal/packet/packet.go#L137), [proto.QuestStartAlt](../../internal/proto/opcodes.go#L121).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L111)
 
@@ -469,13 +470,13 @@ The shape is decoded inline, delegated, or only declared. Use the linked adapter
 
 **`0x0905` — QuestCounter**
 
-Declarations: [packet.QuestCounter](../../server/internal/packet/packet.go#L137), [proto.QuestCounter](../../internal/proto/opcodes.go#L122).
+Declarations: [packet.QuestCounter](../../server/internal/packet/packet.go#L138), [proto.QuestCounter](../../internal/proto/opcodes.go#L122).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
-**S→C serializers:** [bumpQuestCounter (server/internal/world/quests.go)](../../server/internal/world/quests.go#L831), [questKillCount (server/internal/world/quests.go)](../../server/internal/world/quests.go#L850)
+**S→C serializers:** [bumpQuestCounter (server/internal/world/quests.go)](../../server/internal/world/quests.go#L833), [questKillCount (server/internal/world/quests.go)](../../server/internal/world/quests.go#L852)
 
-**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L643), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L42)
+**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L651), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L42)
 
 ### Wire layouts and validation
 
@@ -483,7 +484,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>bumpQuestCounter — server/internal/world/quests.go</summary>
 
-[Source definition](../../server/internal/world/quests.go#L831)
+[Source definition](../../server/internal/world/quests.go#L833)
 
 ```go
 func (s *Session) bumpQuestCounter(q *activeQuest, slot int) {
@@ -508,7 +509,7 @@ func (s *Session) bumpQuestCounter(q *activeQuest, slot int) {
 
 <details><summary>questKillCount — server/internal/world/quests.go</summary>
 
-[Source definition](../../server/internal/world/quests.go#L850)
+[Source definition](../../server/internal/world/quests.go#L852)
 
 ```go
 func (s *Session) questKillCount(mobID uint16, count uint8) bool {
@@ -593,13 +594,13 @@ func DecodeQuestCounter(p []byte) (id uint16, slot, value uint8, err error) {
 
 **`0x0906` — QuestFinishedList**
 
-Declarations: [packet.QuestFinishedList](../../server/internal/packet/packet.go#L141), [proto.QuestFinishedList](../../internal/proto/opcodes.go#L126).
+Declarations: [packet.QuestFinishedList](../../server/internal/packet/packet.go#L142), [proto.QuestFinishedList](../../internal/proto/opcodes.go#L126).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
 **S→C serializers:** [questListPackets (server/internal/world/quests.go)](../../server/internal/world/quests.go#L255)
 
-**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L643), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L22)
+**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L651), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L22)
 
 ### Wire layouts and validation
 
@@ -675,13 +676,13 @@ type FinishedQuest struct {
 
 **`0x0907` — QuestChoose**
 
-Declarations: [packet.QuestChoose](../../server/internal/packet/packet.go#L138), [proto.QuestChoose](../../internal/proto/opcodes.go#L123).
+Declarations: [packet.QuestChoose](../../server/internal/packet/packet.go#L139), [proto.QuestChoose](../../internal/proto/opcodes.go#L123).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L115)
 
-**S→C serializers:** [completeQuest (server/internal/world/quests.go)](../../server/internal/world/quests.go#L618)
+**S→C serializers:** [completeQuest (server/internal/world/quests.go)](../../server/internal/world/quests.go#L619)
 
-**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L643), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L54)
+**Client receive reducers:** [questMapStateChanged (internal/game/quest_map.go)](../../internal/game/quest_map.go#L13), [Apply (internal/game/state.go)](../../internal/game/state.go#L651), [applyQuestsPacket (internal/game/state_quests_packets.go)](../../internal/game/state_quests_packets.go#L54)
 
 ### Wire layouts and validation
 
@@ -689,7 +690,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>completeQuest — server/internal/world/quests.go</summary>
 
-[Source definition](../../server/internal/world/quests.go#L618)
+[Source definition](../../server/internal/world/quests.go#L619)
 
 ```go
 func (s *Session) completeQuest(q *activeQuest, ctx uint32, success, requested bool) {
@@ -789,7 +790,7 @@ func DecodeQuestChoice(p []byte) (uint16, error) {
 
 **`0x0908` — QuestAbandon**
 
-Declarations: [packet.QuestAbandon](../../server/internal/packet/packet.go#L139), [proto.QuestAbandon](../../internal/proto/opcodes.go#L124).
+Declarations: [packet.QuestAbandon](../../server/internal/packet/packet.go#L140), [proto.QuestAbandon](../../internal/proto/opcodes.go#L124).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L117)
 

@@ -7,12 +7,31 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 )
 
+func TestStatusDisplayUsesConfirmedAttributes(t *testing.T) {
+	state := StatusState{
+		Base:  proto.StatPoints{20, 21, 22, 23, 24, 25},
+		Stats: proto.AdditionalStats{Str: 28, Rec: 32, Int: 17, Wis: 65536, Dex: 0, Luc: 38},
+	}
+	if got, want := state.displayedAttributes(), ([6]uint32{20, 22, 23, 24, 21, 25}); got != want {
+		t.Fatalf("base attributes before the first snapshot = %v, want %v", got, want)
+	}
+	state.Known = true
+	if got, want := state.displayedAttributes(), ([6]uint32{28, 32, 17, 65536, 0, 38}); got != want {
+		t.Fatalf("confirmed attribute totals = %v, want %v", got, want)
+	}
+}
+
 func TestStatusDraftLimitsCancellationAndWireOrder(t *testing.T) {
 	v, err := NewStatus(marketTextures{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := StatusState{Points: 3, Base: proto.StatPoints{65535, 10, 10, 10, 10, 10}}
+	state := StatusState{
+		Points: 3,
+		Base:   proto.StatPoints{65535, 10, 10, 10, 10, 10},
+		Stats:  proto.AdditionalStats{Str: 65000, Rec: 66000, Dex: 66001},
+		Known:  true,
+	}
 	click := func(x, y int) bool {
 		t.Helper()
 		v.Update(&platform.Input{MouseX: x, MouseY: y, Pressed: true, MouseDown: true}, 1024, 768, state, 0)
@@ -175,5 +194,35 @@ func TestStatusMinusButtonRepeatsLikeTheNativeRepeatButtons(t *testing.T) {
 	v.Update(&release, 1024, 768, state, 0)
 	if v.Draft[0] != 25-1-5 {
 		t.Fatal("half a second on the minus button must take back the press plus five", v.Draft[0])
+	}
+}
+
+func TestStatusAttributeHover(t *testing.T) {
+	const w, h = 1024, 768
+	v := Status{}
+	for _, expanded := range []bool{false, true} {
+		v.Expanded = expanded
+		v.Position.Move(82, 41, w, h, StatusWidth, StatusHeight)
+		x, y := v.Origin(w, h)
+		mainX := x
+		if expanded {
+			mainX += 132
+		}
+		for i := range 6 {
+			mx, my := mainX+90+(i/3)*115, y+174+(i%3)*20
+			if got := v.AttributeMessageAt(mx, my, w, h); got != 5283+i {
+				t.Errorf("main attribute %d, expanded=%v: SysMsg %d", i, expanded, got)
+			}
+			if expanded {
+				if got := v.AttributeMessageAt(x+60, y+133+i*20, w, h); got != 5283+i {
+					t.Errorf("allocation attribute %d: SysMsg %d", i, got)
+				}
+			}
+		}
+		for _, point := range [][2]int{{mainX + 90, y + 188}, {mainX + 145, y + 174}, {mainX + 90, y + 265}, {x - 1, y + 174}} {
+			if got := v.AttributeMessageAt(point[0], point[1], w, h); got != 0 {
+				t.Errorf("point %v outside an attribute, expanded=%v: SysMsg %d", point, expanded, got)
+			}
+		}
 	}
 }

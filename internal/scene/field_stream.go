@@ -275,6 +275,14 @@ func (w *World) Ready() bool {
 	return w == nil || w.stream == nil || w.stream.planned && len(w.stream.pending) == 0
 }
 
+// StreamRevision changes when the resident field geometry changes.
+func (w *World) StreamRevision() uint64 {
+	if w == nil || w.stream == nil {
+		return 0
+	}
+	return w.stream.revision
+}
+
 func (s *fieldStream) loadCell(key cellKey) *fieldCell {
 	w := s.world
 	c := &fieldCell{objects: s.index[key]}

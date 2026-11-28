@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/logx"
 )
@@ -50,6 +51,12 @@ func StartSweeps(ctx context.Context, log *logx.Logger, onFatal ...context.Cance
 	add := func(name string, d time.Duration, fn func(time.Time)) {
 		jobs = append(jobs, scheduler.Job{Name: name, Interval: d, Run: fn})
 	}
+	var announcedRewardEvent *config.TimedRewardEvent
+	announcedPvP := map[uint16]bool{}
+	add("reward_events", time.Second, func(now time.Time) {
+		pollRewardEvent(&announcedRewardEvent, now, log)
+		pollPvPWindows(announcedPvP, now, log)
+	})
 	add("items", 2*time.Second, func(now time.Time) {
 		for _, e := range sweepExpiredMapItems() {
 			log.Printf("GX Server World despawned map_item_id=%d on map=%d", e.Item.ID, e.MapID)

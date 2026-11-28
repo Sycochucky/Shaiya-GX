@@ -15,20 +15,62 @@ import (
 )
 
 var skinIndirectSupported bool
+var skinMultidrawSupported bool
+var mapIndirectSupported bool
 var drawParametersSupported bool
 var sceneStorageSupported bool
 var skinCrowdSupported bool
 
 func configureDrawPaths(bindless, drawParameters bool, vertexBlocks, fragmentBlocks int32) {
 	drawParametersSupported = drawParameters
-	sceneStorageSupported = vertexBlocks >= 4 // scene effects and cloth
-	skinCrowdSupported = vertexBlocks >= 2    // transforms and bone palettes
+	mapIndirectSupported = vertexBlocks >= 1 && fragmentBlocks >= 1
+	sceneStorageSupported = vertexBlocks >= 4                    // scene effects and cloth
+	skinCrowdSupported = vertexBlocks >= 2                       // transforms and bone palettes
+	skinMultidrawSupported = drawParameters && vertexBlocks >= 3 // per-draw materials
 	skinIndirectSupported = bindless && drawParametersSupported && sceneStorageSupported && fragmentBlocks >= 1
 }
 
 // Init loads GL entry points; debug installs a KHR_debug logger.
 func Init(debug bool) error {
-	if err := gl.InitWithProcAddrFunc(glfw.GetProcAddress); err != nil {
+	return InitWithOptions(InitOptions{Debug: debug})
+}
+
+// InitOptions controls diagnostics and optional OpenGL extensions.
+type InitOptions struct {
+	Debug                 bool
+	DisableBindless       bool
+	DisableDrawParameters bool
+}
+
+// InitWithOptions loads entry points and selects paths for the current context.
+func InitWithOptions(options InitOptions) error {
+	return initDevice(options, glfw.GetProcAddress)
+}
+
+func initDevice(options InitOptions, resolve func(string) unsafe.Pointer) error {
+	var missingBindless []string
+	err := gl.InitWithProcAddrFunc(func(name string) unsafe.Pointer {
+		bindless := false
+		switch name {
+		case "glGetTextureHandleARB", "glIsTextureHandleResidentARB",
+			"glMakeTextureHandleResidentARB", "glMakeTextureHandleNonResidentARB":
+			bindless = true
+		}
+		if bindless && options.DisableBindless {
+			return nil
+		}
+		address := resolve(name)
+		// A driver lookup can return a failure sentinel instead of NULL.
+		switch uintptr(address) {
+		case 0, 1, 2, 3, ^uintptr(0):
+			if bindless {
+				missingBindless = append(missingBindless, name)
+			}
+			return nil
+		}
+		return address
+	})
+	if err != nil {
 		return fmt.Errorf("load OpenGL entry points: %w", err)
 	}
 	var major, minor int32
@@ -70,14 +112,15 @@ func Init(debug bool) error {
 	var vertexBlocks, fragmentBlocks int32
 	gl.GetIntegerv(gl.MAX_VERTEX_SHADER_STORAGE_BLOCKS, &vertexBlocks)
 	gl.GetIntegerv(gl.MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &fragmentBlocks)
-	configureDrawPaths(bindless, drawParameters, vertexBlocks, fragmentBlocks)
+	if bindless && len(missingBindless) > 0 {
+		log.Printf("OpenGL bindless unavailable: missing commands %s", strings.Join(missingBindless, ", "))
+	}
+	configureDrawPaths(bindless && !options.DisableBindless && len(missingBindless) == 0, drawParameters && !options.DisableDrawParameters, vertexBlocks, fragmentBlocks)
 	configureTextureFormats(s3tc, dxt1)
-	clientlog.Debugf("OpenGL capabilities: ARB_bindless_texture=%t ARB_shader_draw_parameters=%t EXT_texture_compression_s3tc=%t bindless_indirect_enabled=%t",
-		bindless, drawParameters, s3tc, skinIndirectSupported)
-	clientlog.Debugf("OpenGL rendering paths: vertex_ssbo_limit=%d fragment_ssbo_limit=%d scene_storage=%t skin_instancing=%t terrain_multidraw=%t compressed_dds(DXT1,DXT3,DXT5)=%v",
-		vertexBlocks, fragmentBlocks, sceneStorageSupported, skinCrowdSupported, drawParametersSupported, compressedDDS[1:])
+	log.Printf("OpenGL paths: bindless_indirect=%t bindless_advertised=%t bindless_disabled=%t draw_parameters=%t draw_parameters_advertised=%t draw_parameters_disabled=%t terrain_multidraw=%t scene_storage=%t skin_instancing=%t vertex_ssbo_limit=%d fragment_ssbo_limit=%d compressed_dds(DXT1,DXT3,DXT5)=%v",
+		skinIndirectSupported, bindless, options.DisableBindless, drawParametersSupported, drawParameters, options.DisableDrawParameters, drawParametersSupported, sceneStorageSupported, skinCrowdSupported, vertexBlocks, fragmentBlocks, compressedDDS[1:])
 	fallbackDiffuse = nil
-	if debug {
+	if options.Debug {
 		gl.Enable(gl.DEBUG_OUTPUT)
 		gl.Enable(gl.DEBUG_OUTPUT_SYNCHRONOUS)
 		gl.DebugMessageCallback(func(source, gltype, id, severity uint32, length int32, message string, _ unsafe.Pointer) {

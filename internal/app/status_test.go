@@ -4,6 +4,7 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/internal/data/sdata"
 	"testing"
 
+	"github.com/Spelunkern/Shaiya-GX/internal/data/text"
 	"github.com/Spelunkern/Shaiya-GX/internal/platform"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 )
@@ -77,14 +78,32 @@ func TestStatusTitleFollowsConfirmedKillUpdates(t *testing.T) {
 	}
 }
 
+func TestPvPRewardShowsNextDeathThresholdAndCurrentGuide(t *testing.T) {
+	a := inputApp()
+	a.msg = text.SysMsg{5348: "Stale legacy guide", 5355: "gold"}
+	a.state.PvPRewards = proto.PvPRewards{Known: true, KillStage: 3, DeathStage: 6}
+	a.state.Details.Kills, a.state.Details.Deaths = 300, 9999
+	state := a.pvpRewardState()
+	if !state.CanKill || state.CanDeath || state.Kills != "300 / 300" || state.Deaths != "9999 / 10000" || state.Gold != "10,000 gold" {
+		t.Fatal("the death row must show its own claim threshold and payout", state)
+	}
+	if state.Description != text.Defaults[12375] || state.Description == "" {
+		t.Fatal("the panel must use the stock GX reward guide", state.Description)
+	}
+	a.state.Details.Deaths++
+	if state := a.pvpRewardState(); !state.CanDeath || state.Deaths != "10000 / 10000" {
+		t.Fatal("the claim must become available at the displayed threshold", state)
+	}
+}
+
 func TestPvPFinalRewardStageRemainsVisibleAndCannotReplay(t *testing.T) {
 	a := inputApp()
 	a.state.SelfID = 100
 	a.state.Slots[0] = proto.CharacterSlot{ID: 100, Mode: 2, Level: 40}
-	a.msg = map[int]string{5404: "final title", 5353: "<v>:<v2>", 5354: "level", 5355: "gold"}
+	a.msg = map[int]string{5404: "final title", 5353: "<v>:<v2>", 5354: "level", 5355: "gold", 12376: "completed"}
 	a.state.Details.Kills, a.state.Details.Deaths = 1000000, 1000000
 	a.state.PvPRewards = proto.PvPRewards{Known: true, KillStage: 31, DeathStage: 31}
-	if state := a.pvpRewardState(); !state.CanKill || !state.CanDeath || state.Reward != "31:30" {
+	if state := a.pvpRewardState(); !state.CanKill || !state.CanDeath || state.Reward != "31:30" || state.KillStatus != "" || state.DeathStatus != "" {
 		t.Fatal("rank31 must offer unified points", state)
 	}
 	for _, op := range []proto.Opcode{proto.PvPRewardKill, proto.PvPRewardDeath} {
@@ -98,12 +117,18 @@ func TestPvPFinalRewardStageRemainsVisibleAndCannotReplay(t *testing.T) {
 		if _, err := a.state.Apply(w.Bytes()); err != nil {
 			t.Fatal(err)
 		}
+		if op == proto.PvPRewardKill {
+			state := a.pvpRewardState()
+			if state.CanKill || !state.CanDeath || state.KillStatus != "completed" || state.DeathStatus != "" {
+				t.Fatal("finishing kills must leave the death track claimable", state)
+			}
+		}
 	}
 	if a.state.PvPRewards.KillStage != 32 || a.state.PvPRewards.DeathStage != 32 {
 		t.Fatal("final paid stage lost completion marker", a.state.PvPRewards)
 	}
 	s := a.pvpRewardState()
-	if s.CanKill || s.CanDeath || s.Reward != "31:30" || s.Kills != "1000000 / 1000000" || s.DeathLevel != "31 level / 31 level" || s.KillProgress != 1 || s.DeathProgress != 1 {
+	if s.CanKill || s.CanDeath || s.Reward != "31:30" || s.Kills != "1000000 / 1000000" || s.Deaths != "1000000 / 1000000" || s.Gold != "4,000,000 gold" || s.DeathLevel != "31 level / 31 level" || s.KillStatus != "completed" || s.DeathStatus != "completed" || s.KillProgress != 1 || s.DeathProgress != 1 {
 		t.Fatal("paid final reward must remain visible without a stage32 preview or replay", s)
 	}
 	if a.statusState().Title != "final title" {

@@ -11,7 +11,11 @@ import (
 // lasts about eleven seconds, the spell's own time). Nothing is repeated or
 // changed.
 func (a *App) placeField(f proto.Field) {
-	if a.wv == nil || len(a.wv.impacts) >= 32 {
+	if a.wv == nil {
+		return
+	}
+	a.playSound(effect.AreaSound(f.Skill), f.X, f.Z)
+	if len(a.wv.impacts) >= 32 {
 		return
 	}
 	file := effect.AreaLibrary(f.Skill)
@@ -29,5 +33,4 @@ func (a *App) placeField(f proto.Field) {
 	}
 	x.SetTransform(m)
 	a.wv.impacts = append(a.wv.impacts, skillImpact{instance: x, authoredLifetime: true, fixedWorld: &m})
-	a.playSound(effect.ImpactSound(file), f.X, f.Z)
 }

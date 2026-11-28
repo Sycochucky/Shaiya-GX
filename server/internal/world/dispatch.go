@@ -55,7 +55,7 @@ func (s *Session) dispatch(op packet.Opcode, p []byte) {
 	case packet.DeleteCharacter:
 		if len(p) >= 6 {
 			id, _ := packet.U32(p[2:])
-			ok, err := db.DeleteCharacter(s.accountID, id)
+			ok, err := deleteCharacter(s.accountID, id)
 			s.logErr("delete character", err)
 			s.send(buildCharResult(packet.DeleteCharacter, ok, id), "0x0103 delete character")
 		}
@@ -96,18 +96,14 @@ func (s *Session) dispatch(op packet.Opcode, p []byte) {
 		s.handleCloakAdd(p)
 	case packet.CloakRemove:
 		s.handleCloakRemove(p)
-	case packet.ItemCompose:
-		s.handleItemCompose(p)
+	case packet.ItemCompose, packet.ShopSell, packet.ShopBuy, packet.Opcode(proto.GXEconomyAction):
+		s.economyAction(op, p)
 	case packet.RemoveItem:
 		s.handleDropItem(p)
 	case packet.AddItem:
 		s.handlePickupItem(p)
 	case packet.ItemBagToBag:
 		s.handleItemBagToBag(p)
-	case packet.ShopSell:
-		s.handleShopSell(p)
-	case packet.ShopBuy:
-		s.handleShopBuy(p)
 	case packet.QuestStart, packet.QuestStartAlt:
 		s.handleQuestStart(p)
 	case packet.QuestEnd:
@@ -170,7 +166,7 @@ func (s *Session) dispatch(op packet.Opcode, p []byte) {
 			}
 		}
 	case packet.GuildCreate, packet.GuildCreateAgree, packet.GuildDisband, packet.GuildDisbandAgree,
-		packet.GuildInvite, packet.GuildInviteAnswer, packet.GuildApply, packet.GuildJoinResult,
+		packet.GuildApply, packet.GuildJoinResult,
 		packet.GuildLeave, packet.GuildExpel, packet.GuildStatus, packet.GuildRemark, packet.GuildEtin,
 		packet.GuildNpcUpgrade, packet.GuildHouseBuy, packet.GuildDonate:
 		s.handleGuild(op, p)
@@ -271,6 +267,8 @@ func (s *Session) dispatch(op packet.Opcode, p []byte) {
 		}
 	case packet.SkillUse, packet.SkillUseNoTarget:
 		s.handleUseSkill(op, p)
+	case packet.InspectEquipment:
+		s.handleInspectEquipment(p)
 	case packet.TargetMobHpUpdate, packet.TargetMobGetState:
 		if len(p) >= 6 && s.char != nil {
 			id, _ := packet.U32(p[2:])
@@ -324,7 +322,7 @@ func (s *Session) phaseAllows(op packet.Opcode) bool {
 func economicOpcode(op packet.Opcode) bool {
 	switch op {
 	case packet.AccountFaction, packet.CreateCharacter, packet.DeleteCharacter, packet.RestoreCharacter, packet.RenameCharacter, packet.SelectCharacter,
-		packet.Opcode(proto.GXAuction), packet.Opcode(proto.GXTeleportStone), packet.UseItem, packet.ChangeAppearance, packet.EnchantAdd, packet.GemAdd, packet.GemRemove, packet.CloakAdd, packet.CloakRemove, packet.ItemCompose, packet.RemoveItem, packet.AddItem, packet.ItemBagToBag, packet.ShopSell, packet.ShopBuy,
+		packet.Opcode(proto.GXAuction), packet.Opcode(proto.GXEconomyAction), packet.Opcode(proto.GXTeleportStone), packet.UseItem, packet.ChangeAppearance, packet.EnchantAdd, packet.GemAdd, packet.GemRemove, packet.CloakAdd, packet.CloakRemove, packet.ItemCompose, packet.RemoveItem, packet.AddItem, packet.ItemBagToBag, packet.ShopSell, packet.ShopBuy,
 		packet.QuestStart, packet.QuestStartAlt, packet.QuestEnd, packet.QuestChoose, packet.QuestAbandon, packet.LearnNewSkill, packet.SetStatPoint, packet.PointBuy, packet.PointGiftSend, packet.PointStoredItemGet:
 		return true
 	}

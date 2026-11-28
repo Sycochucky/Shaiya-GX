@@ -15,6 +15,7 @@ func TestClientForgeInformationUsesDefinitionValues(t *testing.T) {
 		{sdata.Item{Type: 30, ReqIg: 255}, "Base link chance: 1%"},
 		{sdata.Item{Type: 30, ReqIg: 0}, "Base link chance: 100%"},
 		{sdata.Item{Type: 100, Special: 36, ReqVG: 20}, "Linking bonus: +20%"},
+		{sdata.Item{Type: 100, Special: 36, ReqVG: 100}, "Linking chance: 100%"},
 		{sdata.Item{Type: 44, Special: 58, ReqVG: 90}, "Extraction chance: 90%"},
 		{sdata.Item{Type: 100, Special: 58, ReqVG: 150}, "Extraction chance: 100%"},
 		{sdata.Item{Type: 101, Special: 62, ReqVG: 201}, ""},

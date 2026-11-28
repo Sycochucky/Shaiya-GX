@@ -14,7 +14,7 @@ Start with [first run](quickstart.md), then [building and testing](building.md).
 | [First run](quickstart.md) | Windows/Linux downloads, verification, accounts and local play |
 | [Build and test](building.md) | Toolchains, native/cross builds, CI, integration and packaging |
 | [Server operations](server.md) | Terminal console, LAN, logs, backup and upgrades |
-| [GX Studio](gx-studio.md) | SData and SQLite catalog editing with recoverable saves |
+| [GX Studio](gx-studio.md) | Independent desktop editor for Shaiya GX |
 | [Map rules and progression](wiki/map-rules.md) | Access, respawn, weather, curses and the experience cap |
 | [Server Wiki reference](wiki/server-architecture.md) | Complete server structure, packages, storage, security and protocol catalog |
 | [Architecture](architecture.md) | Single Go module, client/server boundaries and state ownership |

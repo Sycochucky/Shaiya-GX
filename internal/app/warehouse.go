@@ -123,6 +123,7 @@ func (a *App) openRemoteWarehouse() {
 	}
 	if !a.remoteBank {
 		a.bank = warehouseView{}
+		a.inventory.servicePosition = ui.WindowPosition{}
 	}
 	a.remoteBank = true
 	if !a.inventory.open {

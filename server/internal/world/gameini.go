@@ -2,16 +2,19 @@ package world
 
 import (
 	"fmt"
-	"github.com/Spelunkern/Shaiya-GX/internal/catalogfiles"
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"sync"
+	"sync/atomic"
+	"time"
 
+	"github.com/Spelunkern/Shaiya-GX/internal/catalogfiles"
 	"github.com/Spelunkern/Shaiya-GX/internal/maprules"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/logx"
-	"time"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/operatorwire"
 )
 
 func gameDataDir() string { return filepath.Join(config.DataDir(), "game") }
@@ -123,7 +126,49 @@ func buildMapProperties(c maprules.Catalog) (MapConfig, error) {
 	return config, nil
 }
 
-var rewardRates = config.DefaultRewardRates()
+var rewardRates atomic.Pointer[config.RewardRates]
+var rewardSettingsMu sync.Mutex
+
+func currentRewardRates() config.RewardRates {
+	if rates := rewardRates.Load(); rates != nil {
+		return *rates
+	}
+	return config.DefaultRewardRates()
+}
+
+// SaveRewardRates commits the file before publishing the new settings.
+func SaveRewardRates(req operatorwire.Request, inherited map[string]string, log *logx.Logger) error {
+	rewardSettingsMu.Lock()
+	defer rewardSettingsMu.Unlock()
+	active := currentRewardRates()
+	fields := map[string]string{
+		config.MobEXPKey: req.MobRate, config.QuestEXPKey: req.QuestRate, config.PvPKillKey: req.KillRate,
+	}
+	// Older controllers omit settings they cannot edit.
+	for _, setting := range []struct {
+		key   string
+		input *string
+		value uint32
+	}{
+		{config.MobDropKey, req.DropRate, active.MobDropPercent},
+		{config.MobGoldKey, req.GoldRate, active.MobGoldPercent},
+		{config.WorldDropKey, req.WorldDropRate, active.WorldDropPercent},
+	} {
+		if setting.input != nil {
+			fields[setting.key] = *setting.input
+		} else {
+			fields[setting.key] = strconv.FormatUint(uint64(setting.value), 10)
+		}
+	}
+	rates, err := config.SaveRewardRates(".", fields, inherited)
+	if err != nil {
+		return err
+	}
+	rewardRates.Store(&rates)
+	log.Printf("GX Server World applied live reward rates: monster EXP %d%%, quest EXP %d%%, PvP rank kills %dx, monster loot %d%%, monster gold %d%%, global event loot %d%%",
+		rates.MobEXPPercent, rates.QuestEXPPercent, rates.PvPKills, rates.MobDropPercent, rates.MobGoldPercent, rates.WorldDropPercent)
+	return nil
+}
 
 // LoadGameConfig loads the original PS_Game ini files from data/game/.
 func LoadGameConfig(log *logx.Logger) error {
@@ -155,6 +200,23 @@ func LoadGameConfig(log *logx.Logger) error {
 		return fmt.Errorf("world drops: %w", err)
 	}
 	buildDropCatalog()
+	dropRules, err := config.ReadScopedDrops(".")
+	if err != nil {
+		return err
+	}
+	cappedDrops := false
+	for _, rule := range dropRules {
+		if err := validateScopedDrop(rule); err != nil {
+			return fmt.Errorf("event drop rule %d: %w", rule.ID, err)
+		}
+		cappedDrops = cappedDrops || rule.DailyLimit > 0
+	}
+	if cappedDrops {
+		if err := db.EnsureEventDropLimits(); err != nil {
+			return err
+		}
+	}
+	scopedDropRules.Store(&dropRules)
 	if err := loadItemBoxes(log); err != nil {
 		return fmt.Errorf("item boxes: %w", err)
 	}
@@ -170,10 +232,39 @@ func LoadGameConfig(log *logx.Logger) error {
 	if err := loadKillStatus(log); err != nil {
 		return fmt.Errorf("goddess blessing: %w", err)
 	}
+	overrides, err := config.ReadMapRewards(".")
+	if err != nil {
+		return err
+	}
+	events, err := config.ReadRewardEvents(".")
+	if err != nil {
+		return err
+	}
+	tuning, err := config.ReadMapTuning(".")
+	if err != nil {
+		return err
+	}
+	for _, policy := range tuning {
+		if policy.ReentryMinutes != nil {
+			if err := db.EnsureDungeonReentry(); err != nil {
+				return err
+			}
+			dungeonReentryPrepared.Store(true)
+			break
+		}
+	}
+	economy, err := config.ReadEconomy(".")
+	if err != nil {
+		return err
+	}
+	economySettings.Store(&economyState{Economy: economy, revision: 1})
+	mapTuning.Store(&tuning)
+	currentRewardEvent.Store(events.Scheduled)
+	mapRewardOverrides.Store(&overrides)
 	combatDEXFirst, combatDEXSecond = first, second
-	rewardRates = rates
-	log.Printf("GX Server World reward rates: monster EXP %d%%, quest EXP %d%%, PvP rank kills %dx",
-		rates.MobEXPPercent, rates.QuestEXPPercent, rates.PvPKills)
+	rewardRates.Store(&rates)
+	log.Printf("GX Server World reward rates: monster EXP %d%%, quest EXP %d%%, PvP rank kills %dx, monster loot %d%%, monster gold %d%%, global event loot %d%%",
+		rates.MobEXPPercent, rates.QuestEXPPercent, rates.PvPKills, rates.MobDropPercent, rates.MobGoldPercent, rates.WorldDropPercent)
 	log.Printf("GX Server World combat DEX thresholds: %d, %d", first, second)
 	return nil
 }

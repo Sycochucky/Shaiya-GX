@@ -184,9 +184,10 @@ type Skinner struct {
 	uCorpseFade                                        int32
 	opacity                                            float32
 	uCrowdBase                                         int32
-	crowdBuffers                                       [3]uint32
-	crowdBytes                                         [3]uint64
+	crowdBuffers                                       [2]uint32 // instance and material buffers
+	crowdBytes                                         [2]uint64
 	indirect                                           *Skinner
+	boundCrowdTextures                                 bool
 	uCrowdDrawOffset                                   int32
 }
 
@@ -206,14 +207,27 @@ func NewSkinner() (*Skinner, error) {
 	gl.NamedBufferStorage(palette, MaxBones*64, nil, gl.DYNAMIC_STORAGE_BIT)
 	addGPUBytes(MaxBones * 64)
 	k := skinProgram(p, palette)
-	if skinIndirectSupported {
+	if skinMultidrawSupported {
 		vertex := strings.Replace(vertex, "#version 450 core\n", "#version 450 core\n#extension GL_ARB_shader_draw_parameters : require\n#define SKIN_INDIRECT\n", 1)
-		fragment := strings.Replace(sceneFS, "#version 450 core\n", "#version 450 core\n#extension GL_ARB_bindless_texture : require\n#define SKIN_INDIRECT\n", 1)
-		indirect, err := Program("skinned bindless indirect", vertex, fragment)
-		if err != nil {
-			log.Printf("skinned multi-draw unavailable: %v", err)
-		} else {
-			k.indirect = skinProgram(indirect, palette)
+		if skinIndirectSupported {
+			fragment := strings.Replace(sceneFS, "#version 450 core\n", "#version 450 core\n#extension GL_ARB_bindless_texture : require\n#define SKIN_INDIRECT\n", 1)
+			indirect, err := Program("skinned bindless indirect", vertex, fragment)
+			if err != nil {
+				log.Printf("skinned bindless shader: %v", err)
+			} else {
+				k.indirect = skinProgram(indirect, palette)
+			}
+		}
+		if k.indirect == nil {
+			fragment := strings.Replace(sceneFS, "#version 450 core\n", "#version 450 core\n#define SKIN_INDIRECT\n#define SKIN_BOUND\n", 1)
+			indirect, err := Program("skinned bound indirect", vertex, fragment)
+			if err != nil {
+				log.Printf("skinned bound shader: %v", err)
+			} else {
+				k.indirect = skinProgram(indirect, palette)
+				k.indirect.boundCrowdTextures = true
+				log.Printf("OpenGL crowd draw path: indirect with bound textures")
+			}
 		}
 	}
 	return k, nil

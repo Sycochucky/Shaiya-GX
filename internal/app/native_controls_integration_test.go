@@ -135,6 +135,16 @@ func TestNativeControlsAgainstRapture(t *testing.T) {
 	if actor.PlayingAction(8) {
 		t.Fatal("observer did not finish its jump animation")
 	}
+	// Stationary A/D rotation broadcasts 0x0501 heading updates while staying idle.
+	startDir := other.Entities[st.SelfID].Dir
+	a.updateWorld(&platform.Input{Down: "A"}, .15)
+	a.updateWorld(&platform.Input{}, .02)
+	pump(func() bool { return other.Entities[st.SelfID].Dir != startDir && other.Entities[st.SelfID].Motion == 0 })
+	b.clock += .2
+	b.prepareRemotePlayers()
+	if !actor.PlayingClip("000_normal") {
+		t.Fatal("stationary A/D turn animated footsteps on observer")
+	}
 	// Walk/run, both strafes, backwards and autorun use normal movement snapshots.
 	a.updateWorld(&platform.Input{Keys: []platform.Key{platform.KeyTab}}, .01)
 	if !v.walking {
@@ -330,6 +340,12 @@ func TestNativeControlsAgainstRapture(t *testing.T) {
 	})
 	a.updateWorld(&platform.Input{Chars: []rune{'c'}}, .01)
 	pump(func() bool { return st.Self.Sitting && !v.sitPending })
+	for i := 0; i < 600 && v.self.PlayingAction(10); i++ {
+		a.updateWorld(&platform.Input{}, 1.0/60)
+	}
+	if v.self.PlayingAction(10) || !st.Self.Sitting {
+		t.Fatal("sit animation did not settle into the seated posture")
+	}
 	a.updateWorld(&platform.Input{Chars: []rune{'c'}}, .01)
 	pump(func() bool { return !st.Self.Sitting && !v.sitPending })
 	// Advance both real time and App.clock: the earlier self buff now has

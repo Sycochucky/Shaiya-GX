@@ -9,7 +9,7 @@ counter. GX World sends the progress, timer and tooltip bonuses to the client.
 GX World loads shared `[Tier_N]` sections from `data/game/KillStatus.ini`.
 Both factions use the same 30 stages and keep independent kill counters.
 GX World requires consecutive tier numbers and increasing thresholds.
-GX Studio shows inherited effective bonuses. Restart GX World after saving.
+Restart GX World after saving changes to `data/game/KillStatus.ini`.
 
 The thresholds for both countries are:
 

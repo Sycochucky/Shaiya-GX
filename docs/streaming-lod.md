@@ -15,6 +15,32 @@ In a map-1 comparison, 16,917 resident placements required 895 individual tests
 for one view. Across 32 sampled views on maps 1, 2 and 19, sector culling and
 asynchronous loading preserved full-detail images byte for byte.
 
+## Map and effect draw batches
+
+GX can submit packed static map geometry through indirect draws. With shader
+draw parameters and shader storage available, devices can batch with ordinary
+texture bindings when bindless textures are unavailable. Each submission can
+use up to 16 diffuse textures and lightmaps in total, in the authored draw order.
+When a submission reaches that texture limit or the next mesh needs different
+index or culling state, GX starts a new submission. Ordinary direct drawing
+remains available when the driver or mesh cannot use packed batches.
+
+Effects can use the same texture bindings with indirect drawing. Effect
+batches preserve draw order, blend factors, animated geometry and each
+material's wrap mode. Texture views share the original texel storage.
+
+Crowded characters and monsters can share skinned draw batches while keeping
+individual bone palettes and material settings. Without bindless, each
+indirect skinned submission can use up to eight bound textures. A monster
+with active transparent effects is drawn at its original position in the
+draw sequence.
+
+Monsters with the same looping clip and exact animation phase can reuse
+one skeleton evaluation. Skin batches share palette ranges when the inverse
+binds and weighted bones match. The main and reflected views reuse existing
+palette ranges within the same frame while calculating their camera transforms
+and visibility independently.
+
 ## Asynchronous field loading
 
 Live network gameplay enables two CPU workers for file reads, texture decoding,

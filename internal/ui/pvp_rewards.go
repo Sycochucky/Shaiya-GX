@@ -23,6 +23,7 @@ type PvPRewardState struct {
 	Name, Description                       string
 	Portrait                                *render.Texture
 	Reward, Kills, Deaths, DeathLevel, Gold string
+	KillStatus, DeathStatus                 string
 	KillProgress, DeathProgress             float32
 	CanKill, CanDeath, Busy                 bool
 }
@@ -84,7 +85,7 @@ func (v *PvPRewardPanel) Draw(s *render.Sprites, f *Font, w, h int, state PvPRew
 		s.Draw(state.Portrait, float32(x+7), float32(y+7), 64, 64, 0, 0, 1, 1, white)
 	}
 	f.Draw(s, state.Name, x+65+max(0, (155-f.Width(state.Name))/2), y+35, white, 155)
-	// Native SysMsg5348 inserts grade3 at {fn0}; retain its original colours.
+	// Insert the native rank guide at the SysMsg marker.
 	parts := strings.SplitN(state.Description, "{fn0}", 2)
 	before, _ := wrapMarkupWidth(f, parts[0], white, true, 226)
 	var after [][]chatRun
@@ -134,4 +135,6 @@ func (v *PvPRewardPanel) Draw(s *render.Sprites, f *Font, w, h int, state PvPRew
 	for i := range v.claims {
 		v.claims[i].Draw(s)
 	}
+	center(state.KillStatus, 288, 185, 200)
+	center(state.DeathStatus, 288, 379, 200)
 }

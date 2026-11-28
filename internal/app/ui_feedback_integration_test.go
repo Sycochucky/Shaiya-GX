@@ -170,12 +170,12 @@ func TestNativeUIFeedbackGL(t *testing.T) {
 	target.X, target.Y, target.Z = 10, 0, 0
 	result := proto.SkillResult{ID: 37, Level: 1, Source: a.state.SelfID, Target: 11}
 	a.wv.self.Time = .5
-	a.startSkillProjectile(result, "Effect/CA_ice.EFT", "Effect/DA_target_generic.EFT")
+	a.startSkillProjectile(result, "Effect/CA_ice.EFT", "Effect/DA_target_generic.EFT", "")
 	if len(a.wv.projectiles) != 1 || math.Abs(float64(a.wv.projectiles[0].pos[0]-5)) > .01 || a.wv.projectiles[0].instance.Time < .08 {
 		t.Fatal("late packet replayed launch/flight instead of catching up")
 	}
 	a.wv.self.Time = .7
-	a.startSkillProjectile(result, "Effect/CA_ice.EFT", "Effect/DA_target_generic.EFT")
+	a.startSkillProjectile(result, "Effect/CA_ice.EFT", "Effect/DA_target_generic.EFT", "")
 	if len(a.wv.projectiles) != 1 || len(a.wv.impacts) != 1 || a.wv.impacts[0].instance.Time < .08 {
 		t.Fatal("elapsed flight did not proceed directly to original impact")
 	}

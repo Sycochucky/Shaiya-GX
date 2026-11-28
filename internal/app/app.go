@@ -50,12 +50,14 @@ const (
 )
 
 type App struct {
+	economyConfirm func()
+	tooltipContent
+
 	showCatalogIDs                      bool
 	physicsClockAt                      time.Time
 	collisionLines                      *render.DebugLines
 	collisionVertices                   []render.DebugLineVertex
 	missingInterfaces                   int
-	tooltipMuted                        bool
 	forgeQuoteSerial                    uint32
 	npcSkillDefs                        map[sdata.SkillKey]sdata.Skill
 	chatBubbles                         []chatBubble
@@ -86,7 +88,6 @@ type App struct {
 	menuPending                         bool
 	menuDeadline                        float64
 	deathUI                             *ui.DeathDialog
-	guildMessage                        *ui.Message
 	guildConfirm                        *ui.Message
 	unionConfirm                        *ui.Message // confirm before dismantling a raid
 	guildVoteMessage                    *ui.Message
@@ -138,6 +139,8 @@ type App struct {
 	sprites                             *render.Sprites
 	actionBar                           *ui.ActionBar
 	inventoryUI                         *ui.Inventory
+	inspectUI                           *ui.Inspect
+	inspect                             inspectView
 	statusUI                            *ui.Status
 	marketUI                            *ui.Market
 	personalMarketUI                    *ui.PersonalMarket
@@ -169,14 +172,10 @@ type App struct {
 	subActionsUI                        *ui.SubActions
 	subActionsOpen                      bool
 	font                                *ui.Font
-	tooltip                             []itemDetailLine
+	tooltipComparison                   tooltipContent
 	tooltipFont                         *ui.Font
 	tooltipHeadingFont                  *ui.Font
 	chatTextFont                        *ui.Font
-	tooltipItem                         bool
-	tooltipDescription                  string
-	tooltipExtra                        tooltipExtras
-	tooltipSockets                      []tooltipSocket
 	chatCache                           []game.ChatLine
 	chatEntries                         []ui.ChatEntry
 	chatFilter                          *text.WordFilter
@@ -247,6 +246,8 @@ type App struct {
 	questStartedAt    map[uint16]time.Time
 	questSnapshotAt   map[uint16]time.Time
 	questUI           *ui.QuestLog
+	questTrackerUI    *ui.QuestTracker
+	questTracker      questTrackerView
 	questConfirm      *ui.Message
 	questItemOffer    itemQuestOffer
 	questItemLinks    map[sdata.ItemKey]sdata.QuestItemLinks
@@ -392,13 +393,15 @@ func New(cfg Config, arc *archive.Archive) (*App, error) {
 		return nil, err
 	}
 	a.inventoryUI.DockOrigin = a.inventoryDockOrigin
+	if art := a.OptionalInterface("inspect.png"); art != nil {
+		if a.inspectUI, err = ui.NewInspect(a, art); err != nil {
+			return nil, err
+		}
+	}
 	if a.duelUI, err = ui.NewDuelPanel(a); err != nil {
 		return nil, err
 	}
 	if a.duelMessage, err = ui.NewMessage(a); err != nil {
-		return nil, err
-	}
-	if a.guildMessage, err = ui.NewMessage(a); err != nil {
 		return nil, err
 	}
 	if a.guildConfirm, err = ui.NewMessage(a); err != nil {
@@ -461,6 +464,9 @@ func New(cfg Config, arc *archive.Archive) (*App, error) {
 		return nil, err
 	}
 	if a.questUI, err = ui.NewQuestLog(a); err != nil {
+		return nil, err
+	}
+	if a.questTrackerUI, err = ui.NewQuestTracker(a, a.OptionalInterface("quest_mini.png")); err != nil {
 		return nil, err
 	}
 	if a.npcQuestUI, err = ui.NewNPCQuest(a); err != nil {
@@ -657,18 +663,21 @@ func (a *App) Draw(w, h int) {
 	if w <= 0 || h <= 0 {
 		return
 	}
-	if a.frameTarget == nil || a.frameWidth != w || a.frameHeight != h {
+	if a.frameWidth != w || a.frameHeight != h {
 		if a.frameTarget != nil {
 			a.frameTarget.Delete()
 		}
+		// Keep the direct-render fallback at this size if allocation fails.
+		a.frameWidth, a.frameHeight = w, h
 		var err error
 		a.frameTarget, err = render.NewWaterTarget(w, h)
 		if err != nil {
 			clientlog.Warnf("frame target: %v", err)
-			a.drawFrame(w, h)
-			return
 		}
-		a.frameWidth, a.frameHeight = w, h
+	}
+	if a.frameTarget == nil {
+		a.drawFrame(w, h)
+		return
 	}
 	previousDepth := a.scene3d.ReverseDepth
 	a.scene3d.SetReverseDepth(true)
@@ -763,9 +772,6 @@ func (a *App) drawFrame(w, h int) {
 	}
 	if a.screen == screenWorld && !a.worldUIHidden() && a.exchangeInvite != nil {
 		a.exchangeInvite.Draw(a.sprites, a.font, w, h)
-	}
-	if a.screen == screenWorld && !a.worldUIHidden() && a.guildMessage != nil {
-		a.guildMessage.Draw(a.sprites, a.font, w, h)
 	}
 	if a.screen == screenWorld && !a.worldUIHidden() && a.auctionConfirm != nil {
 		a.auctionConfirm.Draw(a.sprites, a.font, w, h)
@@ -918,9 +924,6 @@ func (a *App) backToLogin(msg string) {
 	a.guildDuel = guildDuelView{}
 	if a.guildDuelMessage != nil {
 		a.guildDuelMessage.Visible = false
-	}
-	if a.guildMessage != nil {
-		a.guildMessage.Visible = false
 	}
 	if a.unionConfirm != nil {
 		a.unionConfirm.Visible = false

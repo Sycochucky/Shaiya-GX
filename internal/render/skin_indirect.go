@@ -6,6 +6,10 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/internal/render/gl"
 )
 
+// The shared scene fragment shader reserves eight of the sixteen required
+// fragment samplers for its other drawing modes.
+const skinDrawTextureLimit = 8
+
 const indexedDrawStride = int(unsafe.Sizeof(indexedDrawCommand{}))
 
 type indexedDrawCommand struct {
@@ -25,6 +29,7 @@ type skinDrawRun struct {
 	first     int
 	indexType uint32
 	twoSided  bool
+	textures  drawTextures
 }
 
 // Capacity increases on every replacement until deletion, which also drops the
@@ -92,16 +97,15 @@ func (b *SkinCrowd) meshLocation(m *SkinMesh) (skinLocation, bool) {
 	return at, true
 }
 
-func (b *SkinCrowd) plan(groups []SkinGroup, ambient float32) bool {
+func (b *SkinCrowd) plan(groups []SkinGroup, ambient float32, bound bool) bool {
 	if b.meshes == nil {
 		b.meshes = make(map[*SkinMesh]skinLocation)
 	}
 	b.commands, b.materials, b.runs = b.commands[:0], b.materials[:0], b.runs[:0]
 	for _, group := range groups {
 		texture := diffuseTexture(group.Texture)
-		handle := texture.bindlessHandle(texture.repeat)
 		at, ok := b.meshLocation(group.Mesh)
-		if !ok || handle == 0 {
+		if !ok {
 			return false
 		}
 		indexSize := 2
@@ -109,23 +113,50 @@ func (b *SkinCrowd) plan(groups []SkinGroup, ambient float32) bool {
 			indexSize = 4
 		}
 		if n := len(b.runs); n == 0 || b.runs[n-1].indexType != group.Mesh.indexType || b.runs[n-1].twoSided != group.TwoSided {
-			b.runs = append(b.runs, skinDrawRun{len(b.commands), group.Mesh.indexType, group.TwoSided})
+			b.newRun(group)
+		}
+		var textureRef uint64
+		if bound {
+			slot, ok := b.runs[len(b.runs)-1].textures.slot(texture.ID, skinDrawTextureLimit)
+			if !ok {
+				b.newRun(group)
+				slot, _ = b.runs[len(b.runs)-1].textures.slot(texture.ID, skinDrawTextureLimit)
+			}
+			textureRef = uint64(slot)
+		} else {
+			textureRef = texture.bindlessHandle(texture.repeat)
+			if textureRef == 0 {
+				return false
+			}
 		}
 		b.commands = append(b.commands, indexedDrawCommand{uint32(group.Mesh.Count), uint32(group.Count), uint32(at.index / indexSize), uint32(at.vertex), uint32(group.First)})
 		light := ambient
 		if group.Unlit {
 			light = 1
 		}
-		b.materials = append(b.materials, skinDrawMaterial{uint32(handle), uint32(handle >> 32), group.AlphaRef, light})
+		b.materials = append(b.materials, skinDrawMaterial{uint32(textureRef), uint32(textureRef >> 32), group.AlphaRef, light})
 	}
 	return len(b.commands) > len(b.runs)
 }
 
+func (b *SkinCrowd) newRun(group SkinGroup) {
+	run := skinDrawRun{first: len(b.commands), indexType: group.Mesh.indexType, twoSided: group.TwoSided}
+	if len(b.runs) < cap(b.runs) {
+		i := len(b.runs)
+		b.runs = b.runs[:i+1]
+		run.textures = b.runs[i].textures[:0]
+		b.runs[i] = run
+	} else {
+		b.runs = append(b.runs, run)
+	}
+}
+
 // DrawCrowdIndirect submits consecutive groups with compatible raster state
 // together. Indirect commands retain the same mesh and instance ordering.
-func (k *Skinner) DrawCrowdIndirect(s *Scene3D, b *SkinCrowd, groups []SkinGroup, instances []SkinInstance, palettes []M4, ambient float32) bool {
-	if k.indirect == nil || len(instances) == 0 || len(groups) < 2 || !b.plan(groups, ambient) {
-		return false
+func (k *Skinner) DrawCrowdIndirect(s *Scene3D, b *SkinCrowd, groups []SkinGroup, instances []SkinInstance, palettes *CrowdPalettes, ambient float32) (bool, int) {
+	if k.indirect == nil || (s.Shadow && k.indirect.boundCrowdTextures) ||
+		len(instances) == 0 || len(groups) < 2 || !b.plan(groups, ambient, k.indirect.boundCrowdTextures) {
+		return false, 0
 	}
 	if b.vao == 0 {
 		gl.CreateVertexArrays(1, &b.vao)
@@ -142,8 +173,9 @@ func (k *Skinner) DrawCrowdIndirect(s *Scene3D, b *SkinCrowd, groups []SkinGroup
 	addGPUBytes(b.commandBytes)
 
 	k.indirect.Begin(s, ambient)
-	k.uploadCrowdInstances(instances, palettes)
-	k.uploadCrowdBuffer(2, len(b.materials)*int(unsafe.Sizeof(b.materials[0])), unsafe.Pointer(&b.materials[0]))
+	k.uploadCrowdInstances(instances)
+	written := palettes.bind()
+	k.uploadCrowdBuffer(1, len(b.materials)*int(unsafe.Sizeof(b.materials[0])), unsafe.Pointer(&b.materials[0]))
 	gl.BindVertexArray(b.vao)
 	gl.BindBuffer(gl.DRAW_INDIRECT_BUFFER, b.indirect)
 	gl.FrontFace(gl.CW)
@@ -159,13 +191,14 @@ func (k *Skinner) DrawCrowdIndirect(s *Scene3D, b *SkinCrowd, groups []SkinGroup
 			end = b.runs[i+1].first
 		}
 		gl.Uniform1i(k.indirect.uCrowdDrawOffset, int32(run.first))
+		run.textures.bind()
 		gl.MultiDrawElementsIndirectWithOffset(gl.TRIANGLES, run.indexType, uintptr(run.first*indexedDrawStride), int32(end-run.first), 0)
 		drawCalls++
 	}
 	gl.BindBuffer(gl.DRAW_INDIRECT_BUFFER, 0)
 	gl.Disable(gl.CULL_FACE)
 	gl.FrontFace(gl.CCW)
-	return true
+	return true, written
 }
 
 func (b *SkinCrowd) Delete() {

@@ -32,6 +32,14 @@ type crowdWeaponEffect struct {
 	world      render.M4
 }
 
+type crowdPaletteKey struct {
+	bind  *render.M4
+	clip  *Clip
+	time  float32
+	count int
+	used  [render.MaxBones / 64]uint64
+}
+
 type CrowdDrawStats struct {
 	Skin         int `json:"skin"`
 	SkinGroups   int `json:"skin_groups"`
@@ -51,7 +59,10 @@ type CharacterBatch struct {
 	groups      []render.SkinGroup
 	buckets     [][]render.SkinInstance
 	instances   []render.SkinInstance
-	palettes    []render.M4
+	palettes    render.CrowdPalettes
+	partOffsets map[*skinPart][2]int32
+	sharedPoses map[crowdPaletteKey]int32
+	frameActive bool
 	offsets     [][4]int32
 	rigidKeys   map[rigidMaterial]int
 	rigidGroups []rigidGroup
@@ -75,6 +86,11 @@ func (b *CharacterBatch) Draw(k *render.Skinner, s *render.Scene3D, actors []*Ch
 	if b.keys == nil {
 		b.keys = make(map[render.SkinGroup]int)
 		b.rigidKeys = make(map[rigidMaterial]int)
+		b.partOffsets = make(map[*skinPart][2]int32)
+		b.sharedPoses = make(map[crowdPaletteKey]int32)
+	}
+	if !b.frameActive {
+		b.resetPalettes()
 	}
 	b.cloth.Begin(len(actors))
 	b.prepared = slices.Grow(b.prepared[:0], len(actors))[:len(actors)]
@@ -114,8 +130,9 @@ func (b *CharacterBatch) Draw(k *render.Skinner, s *render.Scene3D, actors []*Ch
 		if draw.occluded {
 			occlusion.Culled++
 		} else if draw.visible {
-			if len(b.palettes)+len(c.parts)*render.MaxBones > maxCrowdPaletteMatrices {
+			if len(b.palettes.Matrices)+len(c.parts)*render.MaxBones > maxCrowdPaletteMatrices {
 				b.flush(k, s)
+				b.resetPalettes()
 			}
 			b.add(s, c, draw.instance, c.lastFinals)
 		}
@@ -127,6 +144,54 @@ func (b *CharacterBatch) Draw(k *render.Skinner, s *render.Scene3D, actors []*Ch
 func (b *CharacterBatch) Delete() {
 	b.cloth.Delete()
 	b.skin.Delete()
+	b.palettes.Delete()
+}
+
+// BeginFrame shares only bone matrices across views. Group membership,
+// camera transforms and culling are still evaluated separately for each view.
+func (b *CharacterBatch) BeginFrame() {
+	b.resetPalettes()
+	b.frameActive = true
+}
+
+func (b *CharacterBatch) EndFrame() {
+	b.frameActive = false
+	clear(b.partOffsets)
+	clear(b.sharedPoses)
+}
+
+func (b *CharacterBatch) resetPalettes() {
+	b.palettes.Reset()
+	clear(b.partOffsets)
+	clear(b.sharedPoses)
+}
+
+func (b *CharacterBatch) paletteOffset(c *Character, part *skinPart, count int, used []int) [4]int32 {
+	if count == 0 {
+		return [4]int32{}
+	}
+	if offset, ok := b.partOffsets[part]; ok {
+		return [4]int32{offset[0], offset[1]}
+	}
+	matrices := part.pose[:count]
+	offset := int32(len(b.palettes.Matrices))
+	if c.blendLeft <= 0 && !c.oneShot {
+		// Cloned parts share immutable inverse binds. Equal phase and
+		// weighted-bone masks produce identical matrices at every used index.
+		key := crowdPaletteKey{bind: &part.bones[0], clip: c.clip, time: c.Time, count: count}
+		for _, bone := range used {
+			key.used[bone/64] |= uint64(1) << (bone % 64)
+		}
+		if previous, ok := b.sharedPoses[key]; ok {
+			b.partOffsets[part] = [2]int32{previous, int32(count)}
+			return [4]int32{previous, int32(count)}
+		} else {
+			b.sharedPoses[key] = offset
+		}
+	}
+	b.palettes.Matrices = append(b.palettes.Matrices, matrices...)
+	b.partOffsets[part] = [2]int32{offset, int32(count)}
+	return [4]int32{offset, int32(count)}
 }
 
 func (c *Character) hasBlendedAttachment() bool {
@@ -146,11 +211,11 @@ func (b *CharacterBatch) add(s *render.Scene3D, c *Character, instance render.Sk
 		source := c.poseSources[i]
 		if source == i {
 			count := min(len(part.pose), render.MaxBones)
-			if used := c.poseBones[source]; len(used) > 0 {
+			used := c.poseBones[source]
+			if len(used) > 0 {
 				count = used[len(used)-1] + 1
 			}
-			b.offsets = append(b.offsets, [4]int32{int32(len(b.palettes)), int32(count)})
-			b.palettes = append(b.palettes, part.pose[:count]...)
+			b.offsets = append(b.offsets, b.paletteOffset(c, part, count, used))
 		} else {
 			b.offsets = append(b.offsets, b.offsets[source])
 		}
@@ -234,14 +299,13 @@ func (b *CharacterBatch) flush(k *render.Skinner, s *render.Scene3D) {
 		ambient = .8
 	}
 	before := render.DrawCalls()
-	if !k.DrawCrowdIndirect(s, &b.skin, b.groups, b.instances, b.palettes, ambient) {
-		k.DrawCrowd(s, b.groups, b.instances, b.palettes, ambient)
+	indirect, written := k.DrawCrowdIndirect(s, &b.skin, b.groups, b.instances, &b.palettes, ambient)
+	if !indirect {
+		written = k.DrawCrowd(s, b.groups, b.instances, &b.palettes, ambient)
 	}
 	b.Stats.Skin += render.DrawCalls() - before
 	b.Stats.SkinGroups += len(b.groups)
-	if len(b.groups) != 0 {
-		b.Stats.PaletteBytes += len(b.palettes) * 64
-	}
+	b.Stats.PaletteBytes += written
 	before = render.DrawCalls()
 	if len(b.cloaks) != 0 || len(b.rigidKeys) != 0 {
 		s.Begin()
@@ -290,5 +354,5 @@ func (b *CharacterBatch) flush(k *render.Skinner, s *render.Scene3D) {
 	clear(b.rigidKeys)
 	clear(b.groups)
 	clear(b.cloaks)
-	b.groups, b.instances, b.palettes, b.cloaks = b.groups[:0], b.instances[:0], b.palettes[:0], b.cloaks[:0]
+	b.groups, b.instances, b.cloaks = b.groups[:0], b.instances[:0], b.cloaks[:0]
 }

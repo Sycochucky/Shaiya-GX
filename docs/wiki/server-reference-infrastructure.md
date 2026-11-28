@@ -125,7 +125,7 @@ Direct GX dependencies: `internal/blessingrules`, `internal/catalogfiles`, `inte
 
 Login handshake, bounded credential verification, handoff creation, server selection and diagnostics.
 
-Tests: [login_integration_test.go](../../server/cmd/gx_login/login_integration_test.go).
+Tests: [login_integration_test.go](../../server/cmd/gx_login/login_integration_test.go), [shield_test.go](../../server/cmd/gx_login/shield_test.go).
 
 ### main.go
 
@@ -143,16 +143,19 @@ Direct GX dependencies: `internal/authwire`, `internal/itemstack`, `internal/tra
 | [`nextConnection`](../../server/cmd/gx_login/main.go#L31)<br>`var nextConnection atomic.Int64` | See the source definition and the subsystem ownership contract. |
 | [`loginByIP`](../../server/cmd/gx_login/main.go#L32)<br>`var loginByIP` | See the source definition and the subsystem ownership contract. |
 | [`loginByAccount`](../../server/cmd/gx_login/main.go#L33)<br>`var loginByAccount` | See the source definition and the subsystem ownership contract. |
-| [`main`](../../server/cmd/gx_login/main.go#L35)<br>`func main()` | See the source definition and the subsystem ownership contract. |
-| [`run`](../../server/cmd/gx_login/main.go#L41)<br>`func run() error` | See the source definition and the subsystem ownership contract. |
-| [`handshake`](../../server/cmd/gx_login/main.go#L103)<br>`func handshake() []byte` | See the source definition and the subsystem ownership contract. |
-| [`loginReply`](../../server/cmd/gx_login/main.go#L114)<br>`func loginReply(result uint8, userUID uint32, permission uint8, identity [16]byte) []byte` | See the source definition and the subsystem ownership contract. |
-| [`serverList`](../../server/cmd/gx_login/main.go#L125)<br>`func serverList() []byte` | See the source definition and the subsystem ownership contract. |
-| [`selectServerReply`](../../server/cmd/gx_login/main.go#L136)<br>`func selectServerReply(status uint8) []byte` | See the source definition and the subsystem ownership contract. |
-| [`client`](../../server/cmd/gx_login/main.go#L147)<br>`type client` | See the source definition and the subsystem ownership contract. |
-| [`write`](../../server/cmd/gx_login/main.go#L157)<br>`func (c *client) write(frame []byte, label string) error` | See the source definition and the subsystem ownership contract. |
-| [`handle`](../../server/cmd/gx_login/main.go#L170)<br>`func handle(conn net.Conn, log *logx.Tag) error` | See the source definition and the subsystem ownership contract. |
-| [`frame`](../../server/cmd/gx_login/main.go#L200)<br>`func (c *client) frame(frame []byte, remote string) error` | See the source definition and the subsystem ownership contract. |
+| [`handshakeByIP`](../../server/cmd/gx_login/main.go#L34)<br>`var handshakeByIP` | See the source definition and the subsystem ownership contract. |
+| [`handshakeWork`](../../server/cmd/gx_login/main.go#L35)<br>`var handshakeWork` | See the source definition and the subsystem ownership contract. |
+| [`main`](../../server/cmd/gx_login/main.go#L37)<br>`func main()` | See the source definition and the subsystem ownership contract. |
+| [`run`](../../server/cmd/gx_login/main.go#L43)<br>`func run() error` | See the source definition and the subsystem ownership contract. |
+| [`handshake`](../../server/cmd/gx_login/main.go#L113)<br>`func handshake() []byte` | See the source definition and the subsystem ownership contract. |
+| [`loginReply`](../../server/cmd/gx_login/main.go#L124)<br>`func loginReply(result uint8, userUID uint32, permission uint8, identity [16]byte) []byte` | See the source definition and the subsystem ownership contract. |
+| [`serverList`](../../server/cmd/gx_login/main.go#L135)<br>`func serverList() []byte` | See the source definition and the subsystem ownership contract. |
+| [`selectServerReply`](../../server/cmd/gx_login/main.go#L146)<br>`func selectServerReply(status uint8) []byte` | See the source definition and the subsystem ownership contract. |
+| [`client`](../../server/cmd/gx_login/main.go#L157)<br>`type client` | See the source definition and the subsystem ownership contract. |
+| [`write`](../../server/cmd/gx_login/main.go#L167)<br>`func (c *client) write(frame []byte, label string) error` | See the source definition and the subsystem ownership contract. |
+| [`handle`](../../server/cmd/gx_login/main.go#L180)<br>`func handle(conn net.Conn, log *logx.Tag) error` | See the source definition and the subsystem ownership contract. |
+| [`frame`](../../server/cmd/gx_login/main.go#L210)<br>`func (c *client) frame(frame []byte, remote string) error` | See the source definition and the subsystem ownership contract. |
+| [`deriveLoginMaterial`](../../server/cmd/gx_login/main.go#L307)<br>`func deriveLoginMaterial(encrypted []byte) ([32]byte, error)` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -190,6 +193,125 @@ Direct GX dependencies: `internal/data/archive`, `internal/data/world`, `interna
 
 Standalone desktop service controls, live logs and reward-rate settings.
 
+Tests: [game_real_test.go](../../server/cmd/gx_server_control/game_real_test.go), [game_test.go](../../server/cmd/gx_server_control/game_test.go), [installation_test.go](../../server/cmd/gx_server_control/installation_test.go), [operator_dashboard_test.go](../../server/cmd/gx_server_control/operator_dashboard_test.go).
+
+### accounts.go
+
+[server/cmd/gx_server_control/accounts.go](../../server/cmd/gx_server_control/accounts.go#L1)
+
+Direct GX dependencies: `internal/pvprank`, `server/internal/operatorwire`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`accountPanel`](../../server/cmd/gx_server_control/accounts.go#L19)<br>`type accountPanel` | See the source definition and the subsystem ownership contract. |
+| [`openAccounts`](../../server/cmd/gx_server_control/accounts.go#L31)<br>`func (d *dashboard) openAccounts()` | See the source definition and the subsystem ownership contract. |
+| [`request`](../../server/cmd/gx_server_control/accounts.go#L67)<br>`func (p *accountPanel) request(req operatorwire.Request, complete func(operatorwire.Response, error))` | See the source definition and the subsystem ownership contract. |
+| [`search`](../../server/cmd/gx_server_control/accounts.go#L108)<br>`func (p *accountPanel) search()` | See the source definition and the subsystem ownership contract. |
+| [`runPendingSearch`](../../server/cmd/gx_server_control/accounts.go#L118)<br>`func (p *accountPanel) runPendingSearch()` | See the source definition and the subsystem ownership contract. |
+| [`searchAccounts`](../../server/cmd/gx_server_control/accounts.go#L127)<br>`func (p *accountPanel) searchAccounts(query string)` | See the source definition and the subsystem ownership contract. |
+| [`show`](../../server/cmd/gx_server_control/accounts.go#L146)<br>`func (p *accountPanel) show(id uint32)` | See the source definition and the subsystem ownership contract. |
+| [`form`](../../server/cmd/gx_server_control/accounts.go#L200)<br>`func (p *accountPanel) form(title, action string, fields []*widget.FormItem, help string, 	read func() (operatorwire.Request, error), after func())` | See the source definition and the subsystem ownership contract. |
+| [`create`](../../server/cmd/gx_server_control/accounts.go#L230)<br>`func (p *accountPanel) create()` | See the source definition and the subsystem ownership contract. |
+| [`password`](../../server/cmd/gx_server_control/accounts.go#L244)<br>`func (p *accountPanel) password(a operatorwire.Account)` | See the source definition and the subsystem ownership contract. |
+| [`editAccount`](../../server/cmd/gx_server_control/accounts.go#L256)<br>`func (p *accountPanel) editAccount(a operatorwire.Account)` | See the source definition and the subsystem ownership contract. |
+| [`editStats`](../../server/cmd/gx_server_control/accounts.go#L272)<br>`func (p *accountPanel) editStats(a operatorwire.Account, ch operatorwire.Character)` | See the source definition and the subsystem ownership contract. |
+| [`deleteCharacter`](../../server/cmd/gx_server_control/accounts.go#L310)<br>`func (p *accountPanel) deleteCharacter(a operatorwire.Account, ch operatorwire.Character)` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type accountPanel struct {
+	d             *dashboard
+	ctx           context.Context
+	query         *widget.Entry
+	status        *widget.Label
+	list          *widget.List
+	details       *fyne.Container
+	accounts      []operatorwire.Account
+	busy          bool
+	pendingSearch *string
+}
+```
+
+</details>
+
+### banner.go
+
+[server/cmd/gx_server_control/banner.go](../../server/cmd/gx_server_control/banner.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`bannerSize`](../../server/cmd/gx_server_control/banner.go#L14)<br>`var bannerSize` | See the source definition and the subsystem ownership contract. |
+| [`newBanner`](../../server/cmd/gx_server_control/banner.go#L18)<br>`func newBanner(_ context.Context) fyne.CanvasObject` | newBanner keeps the controller artwork distributable by drawing it from source instead of embedding game or generated image assets. |
+| [`bannerText`](../../server/cmd/gx_server_control/banner.go#L48)<br>`func bannerText(value string, size float32, fill color.Color, position fyne.Position) *canvas.Text` | See the source definition and the subsystem ownership contract. |
+| [`bannerLine`](../../server/cmd/gx_server_control/banner.go#L56)<br>`func bannerLine(start, end fyne.Position, fill color.Color, width float32) *canvas.Line` | See the source definition and the subsystem ownership contract. |
+| [`shaiyaGXBackground`](../../server/cmd/gx_server_control/banner.go#L64)<br>`func shaiyaGXBackground(width, height int) image.Image` | See the source definition and the subsystem ownership contract. |
+| [`clamp`](../../server/cmd/gx_server_control/banner.go#L87)<br>`func clamp(value, minimum, maximum float64) float64` | See the source definition and the subsystem ownership contract. |
+
+### game.go
+
+[server/cmd/gx_server_control/game.go](../../server/cmd/gx_server_control/game.go#L1)
+
+Direct GX dependencies: `server/internal/control`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`gamePathFile`](../../server/cmd/gx_server_control/game.go#L23)<br>`func gamePathFile(root string) string` | See the source definition and the subsystem ownership contract. |
+| [`gamePath`](../../server/cmd/gx_server_control/game.go#L28)<br>`func gamePath(root string) string` | gamePath recognizes the client that belongs to this installation. |
+| [`runGame`](../../server/cmd/gx_server_control/game.go#L59)<br>`func (d *dashboard) runGame()` | See the source definition and the subsystem ownership contract. |
+| [`pickGame`](../../server/cmd/gx_server_control/game.go#L75)<br>`func (d *dashboard) pickGame(launch func(string))` | See the source definition and the subsystem ownership contract. |
+| [`showGameStatus`](../../server/cmd/gx_server_control/game.go#L108)<br>`func (d *dashboard) showGameStatus(message string)` | See the source definition and the subsystem ownership contract. |
+| [`launchGame`](../../server/cmd/gx_server_control/game.go#L113)<br>`func (d *dashboard) launchGame(path string)` | See the source definition and the subsystem ownership contract. |
+| [`gameStartupLog`](../../server/cmd/gx_server_control/game.go#L146)<br>`type gameStartupLog` | The released client writes diagnostics to both its own log and stderr. Watch this process's output so a previous launch cannot signal readiness. |
+| [`Write`](../../server/cmd/gx_server_control/game.go#L152)<br>`func (l *gameStartupLog) Write(p []byte) (int, error)` | See the source definition and the subsystem ownership contract. |
+| [`startGame`](../../server/cmd/gx_server_control/game.go#L167)<br>`func startGame(cmd *exec.Cmd, update func(string, bool)) error` | See the source definition and the subsystem ownership contract. |
+| [`gameExecutable`](../../server/cmd/gx_server_control/game.go#L202)<br>`func gameExecutable(path string) (string, error)` | See the source definition and the subsystem ownership contract. |
+| [`gameCommand`](../../server/cmd/gx_server_control/game.go#L220)<br>`func gameCommand(path string, status map[control.Service]control.Status) (*exec.Cmd, error)` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type gameStartupLog struct {
+	ready chan struct{}
+	tail  string
+	seen  bool
+}
+```
+
+</details>
+
+### game_unix.go
+
+[server/cmd/gx_server_control/game_unix.go](../../server/cmd/gx_server_control/game_unix.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`setGameProcessAttributes`](../../server/cmd/gx_server_control/game_unix.go#L7)<br>`func setGameProcessAttributes(_ *exec.Cmd)` | See the source definition and the subsystem ownership contract. |
+
+### game_windows.go
+
+[server/cmd/gx_server_control/game_windows.go](../../server/cmd/gx_server_control/game_windows.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`setGameProcessAttributes`](../../server/cmd/gx_server_control/game_windows.go#L10)<br>`func setGameProcessAttributes(cmd *exec.Cmd)` | See the source definition and the subsystem ownership contract. |
+
+### installation.go
+
+[server/cmd/gx_server_control/installation.go](../../server/cmd/gx_server_control/installation.go#L1)
+
+Direct GX dependencies: `server/internal/control`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`installationPathFile`](../../server/cmd/gx_server_control/installation.go#L19)<br>`func installationPathFile(root string) string` | See the source definition and the subsystem ownership contract. |
+| [`installationListFile`](../../server/cmd/gx_server_control/installation.go#L23)<br>`func installationListFile(root string) string` | See the source definition and the subsystem ownership contract. |
+| [`rememberInstallation`](../../server/cmd/gx_server_control/installation.go#L27)<br>`func rememberInstallation(root, chosen string) error` | See the source definition and the subsystem ownership contract. |
+| [`rememberedInstallations`](../../server/cmd/gx_server_control/installation.go#L55)<br>`func rememberedInstallations(root string) []string` | See the source definition and the subsystem ownership contract. |
+| [`openInstallation`](../../server/cmd/gx_server_control/installation.go#L84)<br>`func openInstallation(path string) (*control.Manager, error)` | See the source definition and the subsystem ownership contract. |
+| [`rememberedInstallation`](../../server/cmd/gx_server_control/installation.go#L100)<br>`func rememberedInstallation(original *control.Manager) *control.Manager` | See the source definition and the subsystem ownership contract. |
+| [`chooseInstallation`](../../server/cmd/gx_server_control/installation.go#L113)<br>`func (d *dashboard) chooseInstallation()` | See the source definition and the subsystem ownership contract. |
+
 ### logs.go
 
 [server/cmd/gx_server_control/logs.go](../../server/cmd/gx_server_control/logs.go#L1)
@@ -202,14 +324,14 @@ Direct GX dependencies: `server/internal/control`.
 | [`logView`](../../server/cmd/gx_server_control/logs.go#L20)<br>`type logView` | See the source definition and the subsystem ownership contract. |
 | [`newLogView`](../../server/cmd/gx_server_control/logs.go#L29)<br>`func newLogView(window fyne.Window, ctx context.Context, root string) *logView` | See the source definition and the subsystem ownership contract. |
 | [`poll`](../../server/cmd/gx_server_control/logs.go#L79)<br>`func (v *logView) poll(ctx context.Context, reader *control.LogReader)` | See the source definition and the subsystem ownership contract. |
-| [`refresh`](../../server/cmd/gx_server_control/logs.go#L115)<br>`func (v *logView) refresh()` | See the source definition and the subsystem ownership contract. |
-| [`follow`](../../server/cmd/gx_server_control/logs.go#L151)<br>`func (v *logView) follow()` | See the source definition and the subsystem ownership contract. |
-| [`newLogRow`](../../server/cmd/gx_server_control/logs.go#L157)<br>`func newLogRow() fyne.CanvasObject` | See the source definition and the subsystem ownership contract. |
-| [`renderRow`](../../server/cmd/gx_server_control/logs.go#L168)<br>`func (v *logView) renderRow(id widget.ListItemID, object fyne.CanvasObject)` | See the source definition and the subsystem ownership contract. |
-| [`logColumns`](../../server/cmd/gx_server_control/logs.go#L190)<br>`type logColumns` | See the source definition and the subsystem ownership contract. |
-| [`logWidths`](../../server/cmd/gx_server_control/logs.go#L192)<br>`var logWidths` | See the source definition and the subsystem ownership contract. |
-| [`Layout`](../../server/cmd/gx_server_control/logs.go#L194)<br>`func (*logColumns) Layout(objects []fyne.CanvasObject, size fyne.Size)` | See the source definition and the subsystem ownership contract. |
-| [`MinSize`](../../server/cmd/gx_server_control/logs.go#L205)<br>`func (*logColumns) MinSize(objects []fyne.CanvasObject) fyne.Size` | See the source definition and the subsystem ownership contract. |
+| [`refresh`](../../server/cmd/gx_server_control/logs.go#L114)<br>`func (v *logView) refresh()` | See the source definition and the subsystem ownership contract. |
+| [`follow`](../../server/cmd/gx_server_control/logs.go#L150)<br>`func (v *logView) follow()` | See the source definition and the subsystem ownership contract. |
+| [`newLogRow`](../../server/cmd/gx_server_control/logs.go#L156)<br>`func newLogRow() fyne.CanvasObject` | See the source definition and the subsystem ownership contract. |
+| [`renderRow`](../../server/cmd/gx_server_control/logs.go#L167)<br>`func (v *logView) renderRow(id widget.ListItemID, object fyne.CanvasObject)` | See the source definition and the subsystem ownership contract. |
+| [`logColumns`](../../server/cmd/gx_server_control/logs.go#L189)<br>`type logColumns` | See the source definition and the subsystem ownership contract. |
+| [`logWidths`](../../server/cmd/gx_server_control/logs.go#L191)<br>`var logWidths` | See the source definition and the subsystem ownership contract. |
+| [`Layout`](../../server/cmd/gx_server_control/logs.go#L193)<br>`func (*logColumns) Layout(objects []fyne.CanvasObject, size fyne.Size)` | See the source definition and the subsystem ownership contract. |
+| [`MinSize`](../../server/cmd/gx_server_control/logs.go#L204)<br>`func (*logColumns) MinSize(objects []fyne.CanvasObject) fyne.Size` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -236,21 +358,27 @@ type logColumns struct{}
 
 Command gx_server_control is the standalone local GX Server Control desktop app.
 
-Direct GX dependencies: `server/internal/control`.
+Direct GX dependencies: `server/internal/control`, `server/internal/netx`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`serviceRow`](../../server/cmd/gx_server_control/main.go#L22)<br>`type serviceRow` | See the source definition and the subsystem ownership contract. |
-| [`dashboard`](../../server/cmd/gx_server_control/main.go#L28)<br>`type dashboard` | See the source definition and the subsystem ownership contract. |
-| [`main`](../../server/cmd/gx_server_control/main.go#L42)<br>`func main()` | See the source definition and the subsystem ownership contract. |
-| [`build`](../../server/cmd/gx_server_control/main.go#L68)<br>`func (d *dashboard) build()` | See the source definition and the subsystem ownership contract. |
-| [`strong`](../../server/cmd/gx_server_control/main.go#L116)<br>`func strong(text string) *widget.Label` | See the source definition and the subsystem ownership contract. |
-| [`statusCell`](../../server/cmd/gx_server_control/main.go#L120)<br>`func statusCell(dot *canvas.Circle, label *widget.Label) fyne.CanvasObject` | See the source definition and the subsystem ownership contract. |
-| [`poll`](../../server/cmd/gx_server_control/main.go#L124)<br>`func (d *dashboard) poll()` | See the source definition and the subsystem ownership contract. |
-| [`refresh`](../../server/cmd/gx_server_control/main.go#L148)<br>`func (d *dashboard) refresh()` | See the source definition and the subsystem ownership contract. |
-| [`setEnabled`](../../server/cmd/gx_server_control/main.go#L222)<br>`func setEnabled(button *widget.Button, enabled bool)` | See the source definition and the subsystem ownership contract. |
-| [`run`](../../server/cmd/gx_server_control/main.go#L230)<br>`func (d *dashboard) run(action control.Action, targets []control.Service)` | See the source definition and the subsystem ownership contract. |
-| [`apply`](../../server/cmd/gx_server_control/main.go#L260)<br>`func (d *dashboard) apply(action control.Action, targets []control.Service)` | See the source definition and the subsystem ownership contract. |
+| [`serviceRow`](../../server/cmd/gx_server_control/main.go#L24)<br>`type serviceRow` | See the source definition and the subsystem ownership contract. |
+| [`dashboard`](../../server/cmd/gx_server_control/main.go#L31)<br>`type dashboard` | See the source definition and the subsystem ownership contract. |
+| [`main`](../../server/cmd/gx_server_control/main.go#L59)<br>`func main()` | See the source definition and the subsystem ownership contract. |
+| [`mountDashboard`](../../server/cmd/gx_server_control/main.go#L74)<br>`func mountDashboard(window fyne.Window, parent context.Context, manager *control.Manager, controllerRoot string)` | See the source definition and the subsystem ownership contract. |
+| [`build`](../../server/cmd/gx_server_control/main.go#L97)<br>`func (d *dashboard) build()` | See the source definition and the subsystem ownership contract. |
+| [`strong`](../../server/cmd/gx_server_control/main.go#L189)<br>`func strong(text string) *widget.Label` | See the source definition and the subsystem ownership contract. |
+| [`statusCell`](../../server/cmd/gx_server_control/main.go#L193)<br>`func statusCell(dot *canvas.Circle, label *widget.Label) fyne.CanvasObject` | See the source definition and the subsystem ownership contract. |
+| [`poll`](../../server/cmd/gx_server_control/main.go#L197)<br>`func (d *dashboard) poll()` | See the source definition and the subsystem ownership contract. |
+| [`discoverRunningOwner`](../../server/cmd/gx_server_control/main.go#L224)<br>`func (d *dashboard) discoverRunningOwner()` | See the source definition and the subsystem ownership contract. |
+| [`refresh`](../../server/cmd/gx_server_control/main.go#L269)<br>`func (d *dashboard) refresh()` | See the source definition and the subsystem ownership contract. |
+| [`refreshShield`](../../server/cmd/gx_server_control/main.go#L368)<br>`func (d *dashboard) refreshShield()` | See the source definition and the subsystem ownership contract. |
+| [`applyShield`](../../server/cmd/gx_server_control/main.go#L408)<br>`func (d *dashboard) applyShield(minutes int)` | See the source definition and the subsystem ownership contract. |
+| [`closeDashboard`](../../server/cmd/gx_server_control/main.go#L430)<br>`func (d *dashboard) closeDashboard(closeWindow func())` | See the source definition and the subsystem ownership contract. |
+| [`setEnabled`](../../server/cmd/gx_server_control/main.go#L452)<br>`func setEnabled(button *widget.Button, enabled bool)` | See the source definition and the subsystem ownership contract. |
+| [`run`](../../server/cmd/gx_server_control/main.go#L460)<br>`func (d *dashboard) run(action control.Action, targets []control.Service)` | See the source definition and the subsystem ownership contract. |
+| [`apply`](../../server/cmd/gx_server_control/main.go#L493)<br>`func (d *dashboard) apply(action control.Action, targets []control.Service)` | See the source definition and the subsystem ownership contract. |
+| [`applyOperation`](../../server/cmd/gx_server_control/main.go#L497)<br>`func (d *dashboard) applyOperation(action control.Action, targets []control.Service, onSuccess func())` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -259,6 +387,7 @@ type serviceRow struct {
 	status, endpoint     *widget.Label
 	dot                  *canvas.Circle
 	start, stop, restart *widget.Button
+	force                *widget.Button
 }
 ```
 
@@ -266,19 +395,44 @@ type serviceRow struct {
 type dashboard struct {
 	window                         fyne.Window
 	manager                        *control.Manager
+	controllerRoot                 string
 	ctx                            context.Context
 	rows                           map[control.Service]serviceRow
 	status                         map[control.Service]control.Status
 	overall, players, notice       *widget.Label
+	shieldStatus                   *widget.Label
+	gameStatus                     *widget.Label
+	ownerNotice                    *widget.Label
+	setupIssue                     error
+	availableOwners                []string
+	openInstallation               *widget.Button
+	ownerPanel                     *fyne.Container
+	connectOwner                   *widget.Button
+	runningOwner                   *control.Manager
+	useInstallation                func(*control.Manager)
 	overallDot                     *canvas.Circle
 	start, stop, restart, settings *widget.Button
+	accounts, game, chooseGame     *widget.Button
+	network, servers, shieldButton *widget.Button
 	busy                           bool
+	gameBusy                       bool
 	checked                        bool
 	revision                       atomic.Uint64
 }
 ```
 
 </details>
+
+### network.go
+
+[server/cmd/gx_server_control/network.go](../../server/cmd/gx_server_control/network.go#L1)
+
+Direct GX dependencies: `server/internal/config`, `server/internal/control`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`endpointWithPort`](../../server/cmd/gx_server_control/network.go#L18)<br>`func endpointWithPort(endpoint string, port int) string` | See the source definition and the subsystem ownership contract. |
+| [`openNetwork`](../../server/cmd/gx_server_control/network.go#L26)<br>`func (d *dashboard) openNetwork()` | See the source definition and the subsystem ownership contract. |
 
 ### settings.go
 
@@ -327,7 +481,7 @@ type controlTheme struct{ fyne.Theme }
 
 World bootstrap/lease, definition/map loading, owned scheduler, bounded sessions and graceful storage shutdown.
 
-Tests: [combat_integration_test.go](../../server/cmd/gx_world/combat_integration_test.go), [fixtures_integration_test.go](../../server/cmd/gx_world/fixtures_integration_test.go), [itemmall_integration_test.go](../../server/cmd/gx_world/itemmall_integration_test.go), [journey_integration_test.go](../../server/cmd/gx_world/journey_integration_test.go), [load_integration_test.go](../../server/cmd/gx_world/load_integration_test.go), [party_integration_test.go](../../server/cmd/gx_world/party_integration_test.go), [quest_atomic_integration_test.go](../../server/cmd/gx_world/quest_atomic_integration_test.go), [quest_integration_test.go](../../server/cmd/gx_world/quest_integration_test.go), [spell_fluidity_integration_test.go](../../server/cmd/gx_world/spell_fluidity_integration_test.go), [storage_load_integration_test.go](../../server/cmd/gx_world/storage_load_integration_test.go), [trade_integration_test.go](../../server/cmd/gx_world/trade_integration_test.go), [traffic_probe_test.go](../../server/cmd/gx_world/traffic_probe_test.go), [view_integration_test.go](../../server/cmd/gx_world/view_integration_test.go), [world_integration_test.go](../../server/cmd/gx_world/world_integration_test.go).
+Tests: [combat_integration_test.go](../../server/cmd/gx_world/combat_integration_test.go), [fixtures_integration_test.go](../../server/cmd/gx_world/fixtures_integration_test.go), [itemmall_integration_test.go](../../server/cmd/gx_world/itemmall_integration_test.go), [journey_integration_test.go](../../server/cmd/gx_world/journey_integration_test.go), [live_operator_integration_test.go](../../server/cmd/gx_world/live_operator_integration_test.go), [load_integration_test.go](../../server/cmd/gx_world/load_integration_test.go), [party_integration_test.go](../../server/cmd/gx_world/party_integration_test.go), [quest_atomic_integration_test.go](../../server/cmd/gx_world/quest_atomic_integration_test.go), [quest_integration_test.go](../../server/cmd/gx_world/quest_integration_test.go), [spell_fluidity_integration_test.go](../../server/cmd/gx_world/spell_fluidity_integration_test.go), [storage_load_integration_test.go](../../server/cmd/gx_world/storage_load_integration_test.go), [trade_integration_test.go](../../server/cmd/gx_world/trade_integration_test.go), [traffic_probe_test.go](../../server/cmd/gx_world/traffic_probe_test.go), [view_integration_test.go](../../server/cmd/gx_world/view_integration_test.go), [world_integration_test.go](../../server/cmd/gx_world/world_integration_test.go).
 
 ### main.go
 
@@ -337,13 +491,13 @@ Command gx_world is the Shaiya 5.4 game server on the original
 EP4.5 tables translated to SQLite: character select, world simulation (maps,
 NPCs, mobs, combat, skills), items, trade and the item mall.
 
-Direct GX dependencies: `internal/transport`, `server/internal/config`, `server/internal/controlplane`, `server/internal/db`, `server/internal/logx`, `server/internal/netx`, `server/internal/world`.
+Direct GX dependencies: `internal/transport`, `server/internal/config`, `server/internal/controlplane`, `server/internal/db`, `server/internal/logx`, `server/internal/netx`, `server/internal/operatorwire`, `server/internal/world`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`nextConnection`](../../server/cmd/gx_world/main.go#L25)<br>`var nextConnection atomic.Int64` | See the source definition and the subsystem ownership contract. |
-| [`main`](../../server/cmd/gx_world/main.go#L27)<br>`func main()` | See the source definition and the subsystem ownership contract. |
-| [`run`](../../server/cmd/gx_world/main.go#L33)<br>`func run() error` | See the source definition and the subsystem ownership contract. |
+| [`nextConnection`](../../server/cmd/gx_world/main.go#L26)<br>`var nextConnection atomic.Int64` | See the source definition and the subsystem ownership contract. |
+| [`main`](../../server/cmd/gx_world/main.go#L28)<br>`func main()` | See the source definition and the subsystem ownership contract. |
+| [`run`](../../server/cmd/gx_world/main.go#L34)<br>`func run() error` | See the source definition and the subsystem ownership contract. |
 
 ## server/internal/admin
 
@@ -371,6 +525,19 @@ Direct GX dependencies: `server/internal/config`, `server/internal/db`.
 | Declaration | Responsibility / source comment |
 |---|---|
 | [`certificates`](../../server/internal/admin/certificates.go#L21)<br>`func certificates(args []string) error` | See the source definition and the subsystem ownership contract. |
+
+### operator.go
+
+[server/internal/admin/operator.go](../../server/internal/admin/operator.go#L1)
+
+Direct GX dependencies: `server/internal/db`, `server/internal/operatorwire`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`runOperator`](../../server/internal/admin/operator.go#L16)<br>`func runOperator(input io.Reader, output io.Writer) error` | See the source definition and the subsystem ownership contract. |
+| [`Operate`](../../server/internal/admin/operator.go#L44)<br>`func Operate(req operatorwire.Request) (res operatorwire.Response, err error)` | Operate executes local account tasks and character tasks when their owner is serialized by the caller. |
+| [`operateAccount`](../../server/internal/admin/operator.go#L66)<br>`func operateAccount(req operatorwire.Request, account operatorwire.Account) (res operatorwire.Response, err error)` | See the source definition and the subsystem ownership contract. |
+| [`changeCharacter`](../../server/internal/admin/operator.go#L99)<br>`func changeCharacter(req operatorwire.Request) error` | See the source definition and the subsystem ownership contract. |
 
 ## server/internal/config
 
@@ -400,15 +567,18 @@ back to .local/runtime.env for local overrides. SQLite needs no credentials.
 | [`ReadDSN`](../../server/internal/config/config.go#L122)<br>`func ReadDSN() (string, error)` | ReadDSN opens a WAL reader that cannot mutate gameplay data. |
 | [`sqliteDSN`](../../server/internal/config/config.go#L124)<br>`func sqliteDSN(readOnly bool) (string, error)` | See the source definition and the subsystem ownership contract. |
 | [`DataDir`](../../server/internal/config/config.go#L148)<br>`func DataDir() string` | DataDir holds map data (data/maps/*.svmap). |
-| [`PublicIP`](../../server/internal/config/config.go#L151)<br>`func PublicIP() string` | PublicIP is the world address sent to clients after server selection. |
-| [`LoginListen`](../../server/internal/config/config.go#L153)<br>`func LoginListen() string` | See the source definition and the subsystem ownership contract. |
-| [`WorldListen`](../../server/internal/config/config.go#L154)<br>`func WorldListen() string` | See the source definition and the subsystem ownership contract. |
-| [`DefaultCombatDEXFirst`](../../server/internal/config/config.go#L157)<br>`const DefaultCombatDEXFirst = 500` | See the source definition and the subsystem ownership contract. |
-| [`DefaultCombatDEXSecond`](../../server/internal/config/config.go#L158)<br>`const DefaultCombatDEXSecond = 800` | See the source definition and the subsystem ownership contract. |
-| [`CombatDEXThresholds`](../../server/internal/config/config.go#L162)<br>`func CombatDEXThresholds() (uint32, uint32, error)` | CombatDEXThresholds reads the two points where DEX gains change rate. |
-| [`resolvePaths`](../../server/internal/config/config.go#L177)<br>`func resolvePaths(root string)` | Launchers and direct binaries resolve storage/data against their checkout. |
-| [`sqliteURIPath`](../../server/internal/config/config.go#L189)<br>`func sqliteURIPath(path string) string` | A Windows drive is part of the URI path, never its authority. Without the leading slash net/url emits file://C:/..., which SQLite rejects. |
-| [`FallDamageEnabled`](../../server/internal/config/config.go#L197)<br>`func FallDamageEnabled() bool` | FallDamageEnabled defaults to the GX landing rule; an explicit false opts out. |
+| [`PublicIPKey`](../../server/internal/config/config.go#L151)<br>`const PublicIPKey = "RAPTURE_PUBLIC_IP"` | See the source definition and the subsystem ownership contract. |
+| [`LoginListenKey`](../../server/internal/config/config.go#L152)<br>`const LoginListenKey = "RAPTURE_LOGIN_LISTEN"` | See the source definition and the subsystem ownership contract. |
+| [`WorldListenKey`](../../server/internal/config/config.go#L153)<br>`const WorldListenKey = "RAPTURE_WORLD_LISTEN"` | See the source definition and the subsystem ownership contract. |
+| [`PublicIP`](../../server/internal/config/config.go#L157)<br>`func PublicIP() string` | PublicIP is the world IPv4 address sent to clients after server selection. |
+| [`LoginListen`](../../server/internal/config/config.go#L159)<br>`func LoginListen() string` | See the source definition and the subsystem ownership contract. |
+| [`WorldListen`](../../server/internal/config/config.go#L160)<br>`func WorldListen() string` | See the source definition and the subsystem ownership contract. |
+| [`DefaultCombatDEXFirst`](../../server/internal/config/config.go#L163)<br>`const DefaultCombatDEXFirst = 500` | See the source definition and the subsystem ownership contract. |
+| [`DefaultCombatDEXSecond`](../../server/internal/config/config.go#L164)<br>`const DefaultCombatDEXSecond = 800` | See the source definition and the subsystem ownership contract. |
+| [`CombatDEXThresholds`](../../server/internal/config/config.go#L168)<br>`func CombatDEXThresholds() (uint32, uint32, error)` | CombatDEXThresholds reads the two points where DEX gains change rate. |
+| [`resolvePaths`](../../server/internal/config/config.go#L183)<br>`func resolvePaths(root string)` | Launchers and direct binaries resolve storage/data against their checkout. |
+| [`sqliteURIPath`](../../server/internal/config/config.go#L195)<br>`func sqliteURIPath(path string) string` | A Windows drive is part of the URI path, never its authority. Without the leading slash net/url emits file://C:/..., which SQLite rejects. |
+| [`FallDamageEnabled`](../../server/internal/config/config.go#L203)<br>`func FallDamageEnabled() bool` | FallDamageEnabled defaults to the GX landing rule; an explicit false opts out. |
 
 ### gameini.go
 
@@ -455,23 +625,69 @@ type NetworkPolicy struct {
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`MobEXPKey`](../../server/internal/config/rates.go#L11)<br>`const MobEXPKey = "RAPTURE_MOB_EXP_PERCENT"` | See the source definition and the subsystem ownership contract. |
-| [`QuestEXPKey`](../../server/internal/config/rates.go#L12)<br>`const QuestEXPKey = "RAPTURE_QUEST_EXP_PERCENT"` | See the source definition and the subsystem ownership contract. |
-| [`PvPKillKey`](../../server/internal/config/rates.go#L13)<br>`const PvPKillKey = "RAPTURE_PVP_KILL_MULTIPLIER"` | See the source definition and the subsystem ownership contract. |
-| [`RewardRates`](../../server/internal/config/rates.go#L16)<br>`type RewardRates` | See the source definition and the subsystem ownership contract. |
-| [`DefaultRewardRates`](../../server/internal/config/rates.go#L22)<br>`func DefaultRewardRates() RewardRates` | See the source definition and the subsystem ownership contract. |
-| [`RuntimeValue`](../../server/internal/config/rates.go#L27)<br>`func RuntimeValue(settings map[string]string, key string) string` | RuntimeValue gives explicitly inherited values precedence over the local file. |
-| [`ParseRewardRates`](../../server/internal/config/rates.go#L35)<br>`func ParseRewardRates(mob, quest, kills string) (RewardRates, error)` | ParseRewardRates accepts whole percentages (100 = 1×) and whole PvP multipliers. |
-| [`ReadRewardRates`](../../server/internal/config/rates.go#L58)<br>`func ReadRewardRates(settings map[string]string) (RewardRates, error)` | See the source definition and the subsystem ownership contract. |
-| [`ScaleEXP`](../../server/internal/config/rates.go#L63)<br>`func ScaleEXP(amount, percent uint32) uint32` | ScaleEXP applies a percentage after native reward rounding, with saturation. |
+| [`MobEXPKey`](../../server/internal/config/rates.go#L15)<br>`const MobEXPKey = "RAPTURE_MOB_EXP_PERCENT"` | See the source definition and the subsystem ownership contract. |
+| [`QuestEXPKey`](../../server/internal/config/rates.go#L16)<br>`const QuestEXPKey = "RAPTURE_QUEST_EXP_PERCENT"` | See the source definition and the subsystem ownership contract. |
+| [`PvPKillKey`](../../server/internal/config/rates.go#L17)<br>`const PvPKillKey = "RAPTURE_PVP_KILL_MULTIPLIER"` | See the source definition and the subsystem ownership contract. |
+| [`MobDropKey`](../../server/internal/config/rates.go#L18)<br>`const MobDropKey = "RAPTURE_MOB_DROP_PERCENT"` | See the source definition and the subsystem ownership contract. |
+| [`MobGoldKey`](../../server/internal/config/rates.go#L19)<br>`const MobGoldKey = "RAPTURE_MOB_GOLD_PERCENT"` | See the source definition and the subsystem ownership contract. |
+| [`WorldDropKey`](../../server/internal/config/rates.go#L20)<br>`const WorldDropKey = "RAPTURE_WORLD_DROP_PERCENT"` | See the source definition and the subsystem ownership contract. |
+| [`RewardRates`](../../server/internal/config/rates.go#L23)<br>`type RewardRates` | See the source definition and the subsystem ownership contract. |
+| [`DefaultRewardRates`](../../server/internal/config/rates.go#L32)<br>`func DefaultRewardRates() RewardRates` | See the source definition and the subsystem ownership contract. |
+| [`RuntimeValue`](../../server/internal/config/rates.go#L40)<br>`func RuntimeValue(settings map[string]string, key string) string` | RuntimeValue gives explicitly inherited values precedence over the local file. |
+| [`ParseRewardRates`](../../server/internal/config/rates.go#L48)<br>`func ParseRewardRates(settings map[string]string) (RewardRates, error)` | ParseRewardRates accepts whole percentages (100 = 1Ã—) and whole PvP multipliers. |
+| [`ReadRewardRates`](../../server/internal/config/rates.go#L75)<br>`func ReadRewardRates(settings map[string]string) (RewardRates, error)` | See the source definition and the subsystem ownership contract. |
+| [`ScaleEXP`](../../server/internal/config/rates.go#L83)<br>`func ScaleEXP(amount, percent uint32) uint32` | ScaleEXP applies a percentage after native reward rounding, with saturation. |
+| [`InheritedRewardRates`](../../server/internal/config/rates.go#L88)<br>`func InheritedRewardRates() map[string]string` | InheritedRewardRates records the launch environment before loading runtime.env. |
+| [`SaveRewardRates`](../../server/internal/config/rates.go#L100)<br>`func SaveRewardRates(root string, settings, inherited map[string]string) (RewardRates, error)` | SaveRewardRates validates and saves local settings, honoring the receiving process's launch environment. The returned rates can immediately go live. |
+| [`saveRewardRates`](../../server/internal/config/rates.go#L111)<br>`func saveRewardRates(root string, rates RewardRates, inherited map[string]string) error` | See the source definition and the subsystem ownership contract. |
+| [`replaceSetting`](../../server/internal/config/rates.go#L163)<br>`func replaceSetting(content, key, value, eol string) string` | Update the last assignment, which is the one the runtime parser uses. |
 
 <details><summary>Type definitions and owned fields</summary>
 
 ```go
 type RewardRates struct {
-	MobEXPPercent   uint32
-	QuestEXPPercent uint32
-	PvPKills        uint32
+	MobEXPPercent    uint32
+	QuestEXPPercent  uint32
+	PvPKills         uint32
+	MobDropPercent   uint32
+	MobGoldPercent   uint32
+	WorldDropPercent uint32
+}
+```
+
+</details>
+
+### replace_file_unix.go
+
+[server/internal/config/replace_file_unix.go](../../server/internal/config/replace_file_unix.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`replaceFile`](../../server/internal/config/replace_file_unix.go#L7)<br>`func replaceFile(source, destination string) error` | See the source definition and the subsystem ownership contract. |
+
+### replace_file_windows.go
+
+[server/internal/config/replace_file_windows.go](../../server/internal/config/replace_file_windows.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`replaceFile`](../../server/internal/config/replace_file_windows.go#L7)<br>`func replaceFile(source, destination string) error` | See the source definition and the subsystem ownership contract. |
+
+### runtime_settings.go
+
+[server/internal/config/runtime_settings.go](../../server/internal/config/runtime_settings.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`RuntimeSetting`](../../server/internal/config/runtime_settings.go#L11)<br>`type RuntimeSetting` | RuntimeSetting is one ordered assignment for .local/runtime.env. |
+| [`SaveRuntimeSettings`](../../server/internal/config/runtime_settings.go#L18)<br>`func SaveRuntimeSettings(root string, settings []RuntimeSetting, inherited map[string]string) error` | SaveRuntimeSettings preserves comments and unrelated assignments. Values inherited by the controller process remain authoritative and are not saved. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type RuntimeSetting struct {
+	Key   string
+	Value string
 }
 ```
 
@@ -481,7 +697,7 @@ type RewardRates struct {
 
 Shared desktop and terminal lifecycle, executable-scoped status and shutdown, detached launch, reward settings and log tailing.
 
-Tests: [logs_test.go](../../server/internal/control/logs_test.go), [settings_test.go](../../server/internal/control/settings_test.go).
+Tests: [logs_test.go](../../server/internal/control/logs_test.go), [native_operator_test.go](../../server/internal/control/native_operator_test.go), [network_test.go](../../server/internal/control/network_test.go), [settings_test.go](../../server/internal/control/settings_test.go), [shield_integration_test.go](../../server/internal/control/shield_integration_test.go).
 
 ### control.go
 
@@ -489,40 +705,43 @@ Tests: [logs_test.go](../../server/internal/control/logs_test.go), [settings_tes
 
 Package control manages the detached Login and World processes for a single GX installation.
 
-Direct GX dependencies: `server/internal/config`, `server/internal/controlplane`, `server/internal/filelock`.
+Direct GX dependencies: `server/internal/config`, `server/internal/controlplane`, `server/internal/filelock`, `server/internal/netx`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`Service`](../../server/internal/control/control.go#L21)<br>`type Service` | See the source definition and the subsystem ownership contract. |
-| [`Login`](../../server/internal/control/control.go#L24)<br>`const Login = "gx_login"` | See the source definition and the subsystem ownership contract. |
-| [`World`](../../server/internal/control/control.go#L25)<br>`const World = "gx_world"` | See the source definition and the subsystem ownership contract. |
-| [`Services`](../../server/internal/control/control.go#L28)<br>`func Services() []Service` | See the source definition and the subsystem ownership contract. |
-| [`Label`](../../server/internal/control/control.go#L30)<br>`func (s Service) Label() string` | See the source definition and the subsystem ownership contract. |
-| [`State`](../../server/internal/control/control.go#L37)<br>`type State` | See the source definition and the subsystem ownership contract. |
-| [`Stopped`](../../server/internal/control/control.go#L40)<br>`const Stopped = "Stopped"` | See the source definition and the subsystem ownership contract. |
-| [`Starting`](../../server/internal/control/control.go#L41)<br>`const Starting = "Starting"` | See the source definition and the subsystem ownership contract. |
-| [`Ready`](../../server/internal/control/control.go#L42)<br>`const Ready = "Ready"` | See the source definition and the subsystem ownership contract. |
-| [`Stopping`](../../server/internal/control/control.go#L43)<br>`const Stopping = "Stopping"` | See the source definition and the subsystem ownership contract. |
-| [`Failed`](../../server/internal/control/control.go#L44)<br>`const Failed = "Failed"` | See the source definition and the subsystem ownership contract. |
-| [`Unknown`](../../server/internal/control/control.go#L45)<br>`const Unknown = "Unknown"` | See the source definition and the subsystem ownership contract. |
-| [`Status`](../../server/internal/control/control.go#L48)<br>`type Status` | See the source definition and the subsystem ownership contract. |
-| [`Action`](../../server/internal/control/control.go#L56)<br>`type Action` | See the source definition and the subsystem ownership contract. |
-| [`Start`](../../server/internal/control/control.go#L59)<br>`const Start = "Start"` | See the source definition and the subsystem ownership contract. |
-| [`Stop`](../../server/internal/control/control.go#L60)<br>`const Stop = "Stop"` | See the source definition and the subsystem ownership contract. |
-| [`Restart`](../../server/internal/control/control.go#L61)<br>`const Restart = "Restart"` | See the source definition and the subsystem ownership contract. |
-| [`Manager`](../../server/internal/control/control.go#L64)<br>`type Manager` | See the source definition and the subsystem ownership contract. |
-| [`New`](../../server/internal/control/control.go#L70)<br>`func New(root string) *Manager` | See the source definition and the subsystem ownership contract. |
-| [`Installation`](../../server/internal/control/control.go#L75)<br>`func Installation() (*Manager, error)` | Installation opens the portable root containing the controller's build directory. |
-| [`Root`](../../server/internal/control/control.go#L86)<br>`func (m *Manager) Root() string` | See the source definition and the subsystem ownership contract. |
-| [`exeName`](../../server/internal/control/control.go#L88)<br>`func exeName(service Service) string` | See the source definition and the subsystem ownership contract. |
-| [`binary`](../../server/internal/control/control.go#L96)<br>`func (m *Manager) binary(service Service) string` | See the source definition and the subsystem ownership contract. |
-| [`lock`](../../server/internal/control/control.go#L100)<br>`func (m *Manager) lock(ctx context.Context) (func(), error)` | See the source definition and the subsystem ownership contract. |
-| [`current`](../../server/internal/control/control.go#L110)<br>`func (m *Manager) current(ctx context.Context, service Service, found []int) Status` | See the source definition and the subsystem ownership contract. |
-| [`Snapshot`](../../server/internal/control/control.go#L132)<br>`func (m *Manager) Snapshot(ctx context.Context) map[Service]Status` | See the source definition and the subsystem ownership contract. |
-| [`Apply`](../../server/internal/control/control.go#L160)<br>`func (m *Manager) Apply(ctx context.Context, action Action, targets []Service, progress func(Service, Status)) error` | Apply serializes GUI and CLI changes to this installation. Restart starts only services whose old processes were verified stopped. |
-| [`start`](../../server/internal/control/control.go#L218)<br>`func (m *Manager) start(ctx context.Context, service Service) error` | See the source definition and the subsystem ownership contract. |
-| [`stop`](../../server/internal/control/control.go#L276)<br>`func (m *Manager) stop(ctx context.Context, service Service) error` | See the source definition and the subsystem ownership contract. |
-| [`lastStderr`](../../server/internal/control/control.go#L312)<br>`func lastStderr(path string) string` | See the source definition and the subsystem ownership contract. |
+| [`Service`](../../server/internal/control/control.go#L22)<br>`type Service` | See the source definition and the subsystem ownership contract. |
+| [`Login`](../../server/internal/control/control.go#L25)<br>`const Login = "gx_login"` | See the source definition and the subsystem ownership contract. |
+| [`World`](../../server/internal/control/control.go#L26)<br>`const World = "gx_world"` | See the source definition and the subsystem ownership contract. |
+| [`Services`](../../server/internal/control/control.go#L29)<br>`func Services() []Service` | See the source definition and the subsystem ownership contract. |
+| [`Label`](../../server/internal/control/control.go#L31)<br>`func (s Service) Label() string` | See the source definition and the subsystem ownership contract. |
+| [`State`](../../server/internal/control/control.go#L38)<br>`type State` | See the source definition and the subsystem ownership contract. |
+| [`Stopped`](../../server/internal/control/control.go#L41)<br>`const Stopped = "Stopped"` | See the source definition and the subsystem ownership contract. |
+| [`Starting`](../../server/internal/control/control.go#L42)<br>`const Starting = "Starting"` | See the source definition and the subsystem ownership contract. |
+| [`Ready`](../../server/internal/control/control.go#L43)<br>`const Ready = "Ready"` | See the source definition and the subsystem ownership contract. |
+| [`Stopping`](../../server/internal/control/control.go#L44)<br>`const Stopping = "Stopping"` | See the source definition and the subsystem ownership contract. |
+| [`Failed`](../../server/internal/control/control.go#L45)<br>`const Failed = "Failed"` | See the source definition and the subsystem ownership contract. |
+| [`Unknown`](../../server/internal/control/control.go#L46)<br>`const Unknown = "Unknown"` | See the source definition and the subsystem ownership contract. |
+| [`Status`](../../server/internal/control/control.go#L49)<br>`type Status` | See the source definition and the subsystem ownership contract. |
+| [`Action`](../../server/internal/control/control.go#L59)<br>`type Action` | See the source definition and the subsystem ownership contract. |
+| [`Start`](../../server/internal/control/control.go#L62)<br>`const Start = "Start"` | See the source definition and the subsystem ownership contract. |
+| [`Stop`](../../server/internal/control/control.go#L63)<br>`const Stop = "Stop"` | See the source definition and the subsystem ownership contract. |
+| [`Restart`](../../server/internal/control/control.go#L64)<br>`const Restart = "Restart"` | See the source definition and the subsystem ownership contract. |
+| [`ForceStop`](../../server/internal/control/control.go#L65)<br>`const ForceStop = "Force stop"` | See the source definition and the subsystem ownership contract. |
+| [`Manager`](../../server/internal/control/control.go#L68)<br>`type Manager` | See the source definition and the subsystem ownership contract. |
+| [`New`](../../server/internal/control/control.go#L75)<br>`func New(root string) *Manager` | See the source definition and the subsystem ownership contract. |
+| [`Installation`](../../server/internal/control/control.go#L80)<br>`func Installation() (*Manager, error)` | Installation opens the portable root containing the controller's build directory. |
+| [`Root`](../../server/internal/control/control.go#L91)<br>`func (m *Manager) Root() string` | See the source definition and the subsystem ownership contract. |
+| [`exeName`](../../server/internal/control/control.go#L93)<br>`func exeName(service Service) string` | See the source definition and the subsystem ownership contract. |
+| [`binary`](../../server/internal/control/control.go#L101)<br>`func (m *Manager) binary(service Service) string` | See the source definition and the subsystem ownership contract. |
+| [`CheckInstallation`](../../server/internal/control/control.go#L106)<br>`func (m *Manager) CheckInstallation() error` | CheckInstallation verifies the executables required by the full dashboard. |
+| [`checkExecutables`](../../server/internal/control/control.go#L110)<br>`func (m *Manager) checkExecutables(targets []Service) error` | See the source definition and the subsystem ownership contract. |
+| [`lock`](../../server/internal/control/control.go#L124)<br>`func (m *Manager) lock(ctx context.Context) (func(), error)` | See the source definition and the subsystem ownership contract. |
+| [`current`](../../server/internal/control/control.go#L134)<br>`func (m *Manager) current(ctx context.Context, service Service, found []int) Status` | See the source definition and the subsystem ownership contract. |
+| [`Snapshot`](../../server/internal/control/control.go#L156)<br>`func (m *Manager) Snapshot(ctx context.Context) map[Service]Status` | See the source definition and the subsystem ownership contract. |
+| [`Apply`](../../server/internal/control/control.go#L177)<br>`func (m *Manager) Apply(ctx context.Context, action Action, targets []Service, progress func(Service, Status)) error` | Apply serializes GUI and CLI changes to this installation. Restart starts only services whose old processes were verified stopped. |
+| [`start`](../../server/internal/control/control.go#L259)<br>`func (m *Manager) start(ctx context.Context, service Service) error` | See the source definition and the subsystem ownership contract. |
+| [`stop`](../../server/internal/control/control.go#L332)<br>`func (m *Manager) stop(ctx context.Context, service Service, force bool) error` | See the source definition and the subsystem ownership contract. |
+| [`lastStderr`](../../server/internal/control/control.go#L377)<br>`func lastStderr(path string) string` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -536,11 +755,13 @@ type State string
 
 ```go
 type Status struct {
-	State    State
-	PID      int
-	Endpoint string
-	Players  int
-	Detail   string
+	State     State
+	PID       int
+	Endpoint  string
+	Players   int
+	Shield    netx.ShieldStatus
+	Detail    string
+	Processes int
 }
 ```
 
@@ -550,9 +771,10 @@ type Action string
 
 ```go
 type Manager struct {
-	root    string
-	mu      sync.Mutex
-	failure map[Service]string
+	root         string
+	mu           sync.Mutex
+	failure      map[Service]string
+	startTimeout time.Duration
 }
 ```
 
@@ -617,13 +839,55 @@ type LogReader struct {
 
 </details>
 
+### network.go
+
+[server/internal/control/network.go](../../server/internal/control/network.go#L1)
+
+Direct GX dependencies: `server/internal/config`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`NetworkSettings`](../../server/internal/control/network.go#L16)<br>`type NetworkSettings` | See the source definition and the subsystem ownership contract. |
+| [`NetworkSettings`](../../server/internal/control/network.go#L22)<br>`func (m *Manager) NetworkSettings() (NetworkSettings, map[string]bool, error)` | See the source definition and the subsystem ownership contract. |
+| [`parseListenEndpoint`](../../server/internal/control/network.go#L45)<br>`func parseListenEndpoint(name, endpoint string) (net.IP, int, error)` | See the source definition and the subsystem ownership contract. |
+| [`validateNetworkSettings`](../../server/internal/control/network.go#L58)<br>`func validateNetworkSettings(settings NetworkSettings) error` | See the source definition and the subsystem ownership contract. |
+| [`endpointAvailable`](../../server/internal/control/network.go#L81)<br>`func endpointAvailable(endpoint string) bool` | See the source definition and the subsystem ownership contract. |
+| [`SaveNetworkSettings`](../../server/internal/control/network.go#L89)<br>`func (m *Manager) SaveNetworkSettings(ctx context.Context, settings NetworkSettings) error` | See the source definition and the subsystem ownership contract. |
+| [`suggestPorts`](../../server/internal/control/network.go#L127)<br>`func suggestPorts(available func(int) bool) (int, int, error)` | See the source definition and the subsystem ownership contract. |
+| [`SuggestPorts`](../../server/internal/control/network.go#L144)<br>`func SuggestPorts() (int, int, error)` | See the source definition and the subsystem ownership contract. |
+| [`LocalIPv4s`](../../server/internal/control/network.go#L150)<br>`func LocalIPv4s() []string` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type NetworkSettings struct {
+	LoginListen string
+	WorldListen string
+	PublicIP    string
+}
+```
+
+</details>
+
+### operator.go
+
+[server/internal/control/operator.go](../../server/internal/control/operator.go#L1)
+
+Direct GX dependencies: `server/internal/controlplane`, `server/internal/operatorwire`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`Operator`](../../server/internal/control/operator.go#L21)<br>`func (m *Manager) Operator(ctx context.Context, req operatorwire.Request) (operatorwire.Response, error)` | Operator uses the authoritative World for live writes and snapshots. The private console handles offline edits and account lookup. |
+| [`worldOperator`](../../server/internal/control/operator.go#L64)<br>`func (m *Manager) worldOperator(ctx context.Context, pids []int, req operatorwire.Request) (operatorwire.Response, error)` | See the source definition and the subsystem ownership contract. |
+
 ### process_linux.go
 
 [server/internal/control/process_linux.go](../../server/internal/control/process_linux.go#L1)
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`processes`](../../server/internal/control/process_linux.go#L9)<br>`func (m *Manager) processes() (map[Service][]int, error)` | See the source definition and the subsystem ownership contract. |
+| [`terminateOwned`](../../server/internal/control/process_linux.go#L13)<br>`func terminateOwned(pid int, expected string) error` | See the source definition and the subsystem ownership contract. |
+| [`scanGXProcesses`](../../server/internal/control/process_linux.go#L39)<br>`func scanGXProcesses() ([]gxProcess, error)` | See the source definition and the subsystem ownership contract. |
 
 ### process_windows.go
 
@@ -631,19 +895,62 @@ type LogReader struct {
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`processes`](../../server/internal/control/process_windows.go#L12)<br>`func (m *Manager) processes() (map[Service][]int, error)` | See the source definition and the subsystem ownership contract. |
+| [`imagePath`](../../server/internal/control/process_windows.go#L13)<br>`func imagePath(handle windows.Handle) (string, error)` | See the source definition and the subsystem ownership contract. |
+| [`processExited`](../../server/internal/control/process_windows.go#L20)<br>`func processExited(handle windows.Handle) bool` | See the source definition and the subsystem ownership contract. |
+| [`terminateOwned`](../../server/internal/control/process_windows.go#L25)<br>`func terminateOwned(pid int, path string) error` | See the source definition and the subsystem ownership contract. |
+| [`scanGXProcesses`](../../server/internal/control/process_windows.go#L57)<br>`func scanGXProcesses() ([]gxProcess, error)` | See the source definition and the subsystem ownership contract. |
+
+### reconnect.go
+
+[server/internal/control/reconnect.go](../../server/internal/control/reconnect.go#L1)
+
+Direct GX dependencies: `server/internal/config`, `server/internal/controlplane`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`gxProcess`](../../server/internal/control/reconnect.go#L16)<br>`type gxProcess` | See the source definition and the subsystem ownership contract. |
+| [`samePath`](../../server/internal/control/reconnect.go#L22)<br>`func samePath(a, b string) bool` | See the source definition and the subsystem ownership contract. |
+| [`SameInstallation`](../../server/internal/control/reconnect.go#L31)<br>`func SameInstallation(a, b string) bool` | SameInstallation compares portable roots using the platform's path rules. |
+| [`processes`](../../server/internal/control/reconnect.go#L33)<br>`func (m *Manager) processes() (map[Service][]int, error)` | See the source definition and the subsystem ownership contract. |
+| [`configuredEndpoint`](../../server/internal/control/reconnect.go#L47)<br>`func configuredEndpoint(settings map[string]string, service Service) string` | See the source definition and the subsystem ownership contract. |
+| [`overlappingEndpoints`](../../server/internal/control/reconnect.go#L58)<br>`func overlappingEndpoints(a, b string) bool` | See the source definition and the subsystem ownership contract. |
+| [`ConflictingInstallation`](../../server/internal/control/reconnect.go#L75)<br>`func (m *Manager) ConflictingInstallation(ctx context.Context) (*Manager, error)` | ConflictingInstallation verifies ownership of the configured ports. It reads live control endpoints without starting, stopping or adopting a service. |
+| [`conflictingInstallation`](../../server/internal/control/reconnect.go#L79)<br>`func (m *Manager) conflictingInstallation(ctx context.Context, selected map[Service]bool) (*Manager, error)` | See the source definition and the subsystem ownership contract. |
+| [`verifyOtherInstallation`](../../server/internal/control/reconnect.go#L118)<br>`func (m *Manager) verifyOtherInstallation(ctx context.Context, proc gxProcess) (*Manager, controlplane.ServiceStatus)` | See the source definition and the subsystem ownership contract. |
+| [`RunningInstallations`](../../server/internal/control/reconnect.go#L133)<br>`func (m *Manager) RunningInstallations(ctx context.Context) ([]string, error)` | RunningInstallations lists verified local owners regardless of port. A standalone dashboard can use this list without guessing another root. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type gxProcess struct {
+	service    Service
+	pid        int
+	executable string
+}
+```
+
+</details>
 
 ### settings.go
 
 [server/internal/control/settings.go](../../server/internal/control/settings.go#L1)
 
-Direct GX dependencies: `server/internal/config`.
+Direct GX dependencies: `server/internal/config`, `server/internal/operatorwire`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`RewardSettings`](../../server/internal/control/settings.go#L16)<br>`func (m *Manager) RewardSettings() (map[string]string, map[string]bool, error)` | RewardSettings returns the editable local values and tracks inherited overrides. |
-| [`SaveRewardSettings`](../../server/internal/control/settings.go#L36)<br>`func (m *Manager) SaveRewardSettings(ctx context.Context, mob, quest, kills string) error` | See the source definition and the subsystem ownership contract. |
-| [`replaceSetting`](../../server/internal/control/settings.go#L94)<br>`func replaceSetting(content, key, value, eol string) string` | Update the last assignment, which is the one the runtime parser uses. |
+| [`RewardSettings`](../../server/internal/control/settings.go#L13)<br>`func (m *Manager) RewardSettings() (map[string]string, map[string]bool, error)` | RewardSettings returns the editable local values and tracks inherited overrides. |
+| [`SaveRewardSettings`](../../server/internal/control/settings.go#L43)<br>`func (m *Manager) SaveRewardSettings(ctx context.Context, values map[string]string) error` | See the source definition and the subsystem ownership contract. |
+
+### shield.go
+
+[server/internal/control/shield.go](../../server/internal/control/shield.go#L1)
+
+Direct GX dependencies: `server/internal/controlplane`, `server/internal/netx`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`SetShield`](../../server/internal/control/shield.go#L15)<br>`func (m *Manager) SetShield(ctx context.Context, minutes int) error` | SetShield changes the two services as one operator action. An error after the first update attempts to restore its previous mode and reports any failure. |
 
 ## server/internal/controlplane
 
@@ -655,23 +962,28 @@ Tests: [controlplane_test.go](../../server/internal/controlplane/controlplane_te
 
 [server/internal/controlplane/controlplane.go](../../server/internal/controlplane/controlplane.go#L1)
 
-Package controlplane owns loopback diagnostics and authenticated local shutdown.
+Package controlplane owns loopback diagnostics and authenticated local operations.
 
-Direct GX dependencies: `server/internal/telemetry`.
+Direct GX dependencies: `server/internal/netx`, `server/internal/operatorwire`, `server/internal/telemetry`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`descriptor`](../../server/internal/controlplane/controlplane.go#L25)<br>`type descriptor` | See the source definition and the subsystem ownership contract. |
-| [`Server`](../../server/internal/controlplane/controlplane.go#L31)<br>`type Server` | See the source definition and the subsystem ownership contract. |
-| [`ServiceStatus`](../../server/internal/controlplane/controlplane.go#L41)<br>`type ServiceStatus` | ServiceStatus contains the operational data exposed to the local controller. |
-| [`loopback`](../../server/internal/controlplane/controlplane.go#L46)<br>`func loopback(addr string) bool` | See the source definition and the subsystem ownership contract. |
-| [`Start`](../../server/internal/controlplane/controlplane.go#L51)<br>`func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, observe ...func()) (*Server, error)` | See the source definition and the subsystem ownership contract. |
-| [`Address`](../../server/internal/controlplane/controlplane.go#L162)<br>`func (s *Server) Address() string` | See the source definition and the subsystem ownership contract. |
-| [`Close`](../../server/internal/controlplane/controlplane.go#L163)<br>`func (s *Server) Close()` | See the source definition and the subsystem ownership contract. |
-| [`localRequest`](../../server/internal/controlplane/controlplane.go#L180)<br>`func localRequest(ctx context.Context, root, service string, pid int, executable, method, path string) (*http.Response, error)` | See the source definition and the subsystem ownership contract. |
-| [`localClient`](../../server/internal/controlplane/controlplane.go#L208)<br>`var localClient` | See the source definition and the subsystem ownership contract. |
-| [`ReadStatus`](../../server/internal/controlplane/controlplane.go#L215)<br>`func ReadStatus(ctx context.Context, root, service string, pid int, executable string) (ServiceStatus, error)` | ReadStatus validates the descriptor against the running installation. |
-| [`RequestStop`](../../server/internal/controlplane/controlplane.go#L230)<br>`func RequestStop(ctx context.Context, root, service string, pid int, executable string) error` | RequestStop validates the PID and executable before sending the private token. |
+| [`descriptor`](../../server/internal/controlplane/controlplane.go#L30)<br>`type descriptor` | See the source definition and the subsystem ownership contract. |
+| [`Server`](../../server/internal/controlplane/controlplane.go#L36)<br>`type Server` | See the source definition and the subsystem ownership contract. |
+| [`ServiceStatus`](../../server/internal/controlplane/controlplane.go#L46)<br>`type ServiceStatus` | ServiceStatus contains the operational data exposed to the local controller. |
+| [`loopback`](../../server/internal/controlplane/controlplane.go#L52)<br>`func loopback(addr string) bool` | See the source definition and the subsystem ownership contract. |
+| [`Start`](../../server/internal/controlplane/controlplane.go#L57)<br>`func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, shield *netx.Shield, observe ...func()) (*Server, error)` | See the source definition and the subsystem ownership contract. |
+| [`StartWorld`](../../server/internal/controlplane/controlplane.go#L62)<br>`func StartWorld(ctx context.Context, addr string, cancel context.CancelFunc, status func() ServiceStatus, shield *netx.Shield, operator func(operatorwire.Request) (operatorwire.Response, error), observe ...func()) (*Server, error)` | StartWorld adds the authenticated World operator endpoint. |
+| [`start`](../../server/internal/controlplane/controlplane.go#L66)<br>`func start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, shield *netx.Shield, operator func(operatorwire.Request) (operatorwire.Response, error), observe []func()) (*Server, error)` | See the source definition and the subsystem ownership contract. |
+| [`Address`](../../server/internal/controlplane/controlplane.go#L236)<br>`func (s *Server) Address() string` | See the source definition and the subsystem ownership contract. |
+| [`Close`](../../server/internal/controlplane/controlplane.go#L237)<br>`func (s *Server) Close()` | See the source definition and the subsystem ownership contract. |
+| [`localRequest`](../../server/internal/controlplane/controlplane.go#L254)<br>`func localRequest(ctx context.Context, root, service string, pid int, executable, method, path string, body []byte) (*http.Response, error)` | See the source definition and the subsystem ownership contract. |
+| [`localClient`](../../server/internal/controlplane/controlplane.go#L286)<br>`var localClient` | See the source definition and the subsystem ownership contract. |
+| [`ReadStatus`](../../server/internal/controlplane/controlplane.go#L293)<br>`func ReadStatus(ctx context.Context, root, service string, pid int, executable string) (ServiceStatus, error)` | ReadStatus validates the descriptor against the running installation. |
+| [`RequestStop`](../../server/internal/controlplane/controlplane.go#L308)<br>`func RequestStop(ctx context.Context, root, service string, pid int, executable string) error` | RequestStop validates the PID and executable before sending the private token. |
+| [`RequestShield`](../../server/internal/controlplane/controlplane.go#L322)<br>`func RequestShield(ctx context.Context, root, service string, pid int, executable string, minutes int) (netx.ShieldStatus, error)` | RequestShield changes only the verified local service's temporary admission mode. Zero minutes returns it to the ordinary always-on network policy. |
+| [`operatorClient`](../../server/internal/controlplane/controlplane.go#L341)<br>`var operatorClient` | See the source definition and the subsystem ownership contract. |
+| [`RunOperator`](../../server/internal/controlplane/controlplane.go#L348)<br>`func RunOperator(ctx context.Context, root string, pid int, executable string, req operatorwire.Request) (operatorwire.Response, error)` | RunOperator binds the request to this installation's exact World process. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -697,12 +1009,29 @@ type Server struct {
 
 ```go
 type ServiceStatus struct {
-	Endpoint string `json:"endpoint"`
-	Players  int    `json:"players"`
+	Endpoint string            `json:"endpoint"`
+	Players  int               `json:"players"`
+	Shield   netx.ShieldStatus `json:"shield"`
 }
 ```
 
 </details>
+
+### descriptor_unix.go
+
+[server/internal/controlplane/descriptor_unix.go](../../server/internal/controlplane/descriptor_unix.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`protectDescriptor`](../../server/internal/controlplane/descriptor_unix.go#L6)<br>`func protectDescriptor(string) error` | os.CreateTemp creates the descriptor with 0600 permissions. |
+
+### descriptor_windows.go
+
+[server/internal/controlplane/descriptor_windows.go](../../server/internal/controlplane/descriptor_windows.go#L1)
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`protectDescriptor`](../../server/internal/controlplane/descriptor_windows.go#L5)<br>`func protectDescriptor(path string) error` | See the source definition and the subsystem ownership contract. |
 
 ## server/internal/crypto
 
@@ -838,7 +1167,7 @@ type Tag struct {
 
 Server TCP/TLS admission, keepalive, bounded frame parsing, rate limiting and ordered bounded output.
 
-Tests: [server_test.go](../../server/internal/netx/server_test.go), [writer_test.go](../../server/internal/netx/writer_test.go).
+Tests: [server_test.go](../../server/internal/netx/server_test.go), [shield_test.go](../../server/internal/netx/shield_test.go), [writer_test.go](../../server/internal/netx/writer_test.go).
 
 ### netx.go
 
@@ -884,14 +1213,15 @@ Direct GX dependencies: `server/internal/telemetry`.
 | [`admitted`](../../server/internal/netx/server.go#L13)<br>`var admitted` | See the source definition and the subsystem ownership contract. |
 | [`rejected`](../../server/internal/netx/server.go#L14)<br>`var rejected` | See the source definition and the subsystem ownership contract. |
 | [`connections`](../../server/internal/netx/server.go#L15)<br>`var connections` | See the source definition and the subsystem ownership contract. |
-| [`Serve`](../../server/internal/netx/server.go#L19)<br>`func Serve(ctx context.Context, listener net.Listener, capacity, perIP int, handle func(net.Conn), admission ...*RateLimiter) error` | Serve bounds connections globally and by source. Cancellation closes sockets and waits for handlers to finish persisting before the caller closes storage. |
-| [`RateLimiter`](../../server/internal/netx/server.go#L110)<br>`type RateLimiter` | RateLimiter has bounded memory and fails closed when its source budget fills. Idle entries are reclaimed opportunistically, without background goroutines. |
-| [`bucket`](../../server/internal/netx/server.go#L118)<br>`type bucket` | See the source definition and the subsystem ownership contract. |
-| [`NewRateLimiter`](../../server/internal/netx/server.go#L123)<br>`func NewRateLimiter(capacity, burst int, interval time.Duration) *RateLimiter` | See the source definition and the subsystem ownership contract. |
-| [`Allow`](../../server/internal/netx/server.go#L126)<br>`func (l *RateLimiter) Allow(key string) bool` | See the source definition and the subsystem ownership contract. |
-| [`AllowN`](../../server/internal/netx/server.go#L127)<br>`func (l *RateLimiter) AllowN(key string, units int) bool` | See the source definition and the subsystem ownership contract. |
-| [`allow`](../../server/internal/netx/server.go#L128)<br>`func (l *RateLimiter) allow(key string, now time.Time) bool` | See the source definition and the subsystem ownership contract. |
-| [`allowN`](../../server/internal/netx/server.go#L129)<br>`func (l *RateLimiter) allowN(key string, units int, now time.Time) bool` | See the source definition and the subsystem ownership contract. |
+| [`Serve`](../../server/internal/netx/server.go#L19)<br>`func Serve(ctx context.Context, listener net.Listener, capacity, perIP int, handle func(net.Conn), admission *RateLimiter, shield *Shield) error` | Serve bounds connections globally and by source. Cancellation closes sockets and waits for handlers to finish persisting before the caller closes storage. |
+| [`RateLimiter`](../../server/internal/netx/server.go#L125)<br>`type RateLimiter` | RateLimiter has bounded memory and fails closed when its source budget fills. Idle entries are reclaimed opportunistically, without background goroutines. |
+| [`bucket`](../../server/internal/netx/server.go#L133)<br>`type bucket` | See the source definition and the subsystem ownership contract. |
+| [`NewRateLimiter`](../../server/internal/netx/server.go#L138)<br>`func NewRateLimiter(capacity, burst int, interval time.Duration) *RateLimiter` | See the source definition and the subsystem ownership contract. |
+| [`reset`](../../server/internal/netx/server.go#L141)<br>`func (l *RateLimiter) reset()` | See the source definition and the subsystem ownership contract. |
+| [`Allow`](../../server/internal/netx/server.go#L147)<br>`func (l *RateLimiter) Allow(key string) bool` | See the source definition and the subsystem ownership contract. |
+| [`AllowN`](../../server/internal/netx/server.go#L148)<br>`func (l *RateLimiter) AllowN(key string, units int) bool` | See the source definition and the subsystem ownership contract. |
+| [`allow`](../../server/internal/netx/server.go#L149)<br>`func (l *RateLimiter) allow(key string, now time.Time) bool` | See the source definition and the subsystem ownership contract. |
+| [`allowN`](../../server/internal/netx/server.go#L150)<br>`func (l *RateLimiter) allowN(key string, units int, now time.Time) bool` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -910,6 +1240,58 @@ type RateLimiter struct {
 type bucket struct {
 	tokens float64
 	at     time.Time
+}
+```
+
+</details>
+
+### shield.go
+
+[server/internal/netx/shield.go](../../server/internal/netx/shield.go#L1)
+
+Direct GX dependencies: `server/internal/telemetry`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`ShieldStandard`](../../server/internal/netx/shield.go#L12)<br>`const ShieldStandard = "standard"` | See the source definition and the subsystem ownership contract. |
+| [`ShieldUnderAttack`](../../server/internal/netx/shield.go#L13)<br>`const ShieldUnderAttack = "under_attack"` | See the source definition and the subsystem ownership contract. |
+| [`attackDuration`](../../server/internal/netx/shield.go#L14)<br>`const attackDuration = 10 * time.Minute` | See the source definition and the subsystem ownership contract. |
+| [`attackPerIP`](../../server/internal/netx/shield.go#L15)<br>`const attackPerIP = 16` | See the source definition and the subsystem ownership contract. |
+| [`shieldActive`](../../server/internal/netx/shield.go#L18)<br>`var shieldActive` | See the source definition and the subsystem ownership contract. |
+| [`shieldRejected`](../../server/internal/netx/shield.go#L19)<br>`var shieldRejected` | See the source definition and the subsystem ownership contract. |
+| [`shieldAutomatic`](../../server/internal/netx/shield.go#L20)<br>`var shieldAutomatic` | See the source definition and the subsystem ownership contract. |
+| [`ShieldStatus`](../../server/internal/netx/shield.go#L23)<br>`type ShieldStatus` | ShieldStatus is the current, time-bounded admission state of one service. |
+| [`Shield`](../../server/internal/netx/shield.go#L33)<br>`type Shield` | Shield adds a stricter source budget during an attack. It never replaces the ordinary global and per-source limits, and never terminates admitted players. |
+| [`NewShield`](../../server/internal/netx/shield.go#L43)<br>`func NewShield() *Shield` | See the source definition and the subsystem ownership contract. |
+| [`status`](../../server/internal/netx/shield.go#L47)<br>`func (s *Shield) status(now time.Time) ShieldStatus` | See the source definition and the subsystem ownership contract. |
+| [`Status`](../../server/internal/netx/shield.go#L59)<br>`func (s *Shield) Status() ShieldStatus` | See the source definition and the subsystem ownership contract. |
+| [`SetAttack`](../../server/internal/netx/shield.go#L67)<br>`func (s *Shield) SetAttack(duration time.Duration) error` | SetAttack accepts only short-lived operator requests; zero returns to the ordinary policy. The caller must authenticate before reaching this method. |
+| [`Admit`](../../server/internal/netx/shield.go#L90)<br>`func (s *Shield) Admit(source string) bool` | Admit is called before TLS and game handshakes. The stricter budget is charged only while Under Attack is active. |
+| [`PerIP`](../../server/internal/netx/shield.go#L101)<br>`func (s *Shield) PerIP(ordinary int) int` | See the source definition and the subsystem ownership contract. |
+| [`RecordReject`](../../server/internal/netx/shield.go#L108)<br>`func (s *Shield) RecordReject()` | See the source definition and the subsystem ownership contract. |
+| [`ObserveCapacity`](../../server/internal/netx/shield.go#L113)<br>`func (s *Shield) ObserveCapacity(source string)` | ObserveCapacity activates a temporary stricter mode only when a service is already full and rejects sustained new arrivals. It cannot trigger from a single burst below the capacity limit. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type ShieldStatus struct {
+	Mode                 string    `json:"mode"`
+	Until                time.Time `json:"until,omitempty"`
+	Automatic            bool      `json:"automatic,omitempty"`
+	RejectedTotal        int64     `json:"rejected_total"`
+	AutomaticActivations int64     `json:"automatic_activations"`
+}
+```
+
+```go
+type Shield struct {
+	mu              sync.Mutex
+	until           time.Time
+	automatic       bool
+	windowStart     time.Time
+	overloads       int
+	overloadSources map[string]struct{}
+	attackStarts    *RateLimiter
 }
 ```
 
@@ -945,6 +1327,85 @@ type Writer struct {
 	maxBytes int
 	closed   bool
 	err      error
+}
+```
+
+</details>
+
+## server/internal/operatorwire
+
+
+
+### model.go
+
+[server/internal/operatorwire/model.go](../../server/internal/operatorwire/model.go#L1)
+
+Package operatorwire defines the private local operator protocol.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`Account`](../../server/internal/operatorwire/model.go#L4)<br>`type Account` | See the source definition and the subsystem ownership contract. |
+| [`Character`](../../server/internal/operatorwire/model.go#L11)<br>`type Character` | See the source definition and the subsystem ownership contract. |
+| [`Stats`](../../server/internal/operatorwire/model.go#L19)<br>`type Stats` | See the source definition and the subsystem ownership contract. |
+| [`Request`](../../server/internal/operatorwire/model.go#L25)<br>`type Request` | See the source definition and the subsystem ownership contract. |
+| [`Response`](../../server/internal/operatorwire/model.go#L41)<br>`type Response` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type Account struct {
+	ID     uint32
+	Name   string
+	GM     bool
+	Points uint32
+}
+```
+
+```go
+type Character struct {
+	ID      uint32
+	Name    string
+	Level   uint16
+	Deleted bool
+	Online  bool
+}
+```
+
+```go
+type Stats struct {
+	Strength, Dexterity, Rec, Intelligence, Wisdom, Luck uint16
+	StatPoints, SkillPoints                              uint16
+	Gold, EXP, Kills                                     uint32
+}
+```
+
+```go
+type Request struct {
+	Action                       string
+	Query                        string
+	AccountID, CharacterID       uint32
+	Name, Password               string
+	GM                           bool
+	Points                       uint32
+	ExpectedAccount              *Account
+	Stats, ExpectedStats         *Stats
+	ConfirmName                  string
+	MobRate, QuestRate, KillRate string
+	DropRate                     *string `json:"drop_rate,omitempty"`
+	GoldRate                     *string `json:"gold_rate,omitempty"`
+	WorldDropRate                *string `json:"world_drop_rate,omitempty"`
+}
+```
+
+```go
+type Response struct {
+	Accounts       []Account
+	More           bool
+	Account        *Account
+	Characters     []Character
+	Stats          *Stats
+	Online         bool
+	MinEXP, MaxEXP uint32
 }
 ```
 
@@ -1025,185 +1486,184 @@ Direct GX dependencies: `internal/itemstack`, `internal/proto`, `internal/textwi
 | [`LevelUpOther`](../../server/internal/packet/packet.go#L80)<br>`const LevelUpOther = 0x051E` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
 | [`TargetMobGetState`](../../server/internal/packet/packet.go#L81)<br>`const TargetMobGetState = 0x0304` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
 | [`TargetMobHpUpdate`](../../server/internal/packet/packet.go#L82)<br>`const TargetMobHpUpdate = 0x0305` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`TargetClear`](../../server/internal/packet/packet.go#L83)<br>`const TargetClear = 0x030A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`UseVehicle`](../../server/internal/packet/packet.go#L84)<br>`const UseVehicle = 0x0216` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. empty request; response ok:u8, isOnVehicle:u8 |
-| [`ItemBagToBag`](../../server/internal/packet/packet.go#L85)<br>`const ItemBagToBag = 0x0204` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`AddItem`](../../server/internal/packet/packet.go#L86)<br>`const AddItem = 0x0205` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`RemoveItem`](../../server/internal/packet/packet.go#L87)<br>`const RemoveItem = 0x0206` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`SetStatPoint`](../../server/internal/packet/packet.go#L88)<br>`const SetStatPoint = 0x0208` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`StatsReset`](../../server/internal/packet/packet.go#L89)<br>`const StatsReset = 0x0214` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. success:u8, statPoint:u16, str,rec,int,wis,dex,luc:u16 |
-| [`LearnNewSkill`](../../server/internal/packet/packet.go#L90)<br>`const LearnNewSkill = 0x0209` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterEnteredPortal`](../../server/internal/packet/packet.go#L91)<br>`const CharacterEnteredPortal = 0x020A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterMapTeleport`](../../server/internal/packet/packet.go#L92)<br>`const CharacterMapTeleport = 0x020B` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`UserKillCountUpdate`](../../server/internal/packet/packet.go#L93)<br>`const UserKillCountUpdate = 0x020E` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterShape`](../../server/internal/packet/packet.go#L94)<br>`const CharacterShape = 0x0303` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChangeAppearance`](../../server/internal/packet/packet.go#L96)<br>`const ChangeAppearance = 0x0226` | Request bag,slot,hair,face,height,sex:u8; reply charId:u32,hair,face,height,sex:u8. |
-| [`ChangeSexDenied`](../../server/internal/packet/packet.go#L97)<br>`const ChangeSexDenied = 0x0228` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. empty: client shows SysMsg 862 |
-| [`WorldDay`](../../server/internal/packet/packet.go#L98)<br>`const WorldDay = 0x0404` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterMove`](../../server/internal/packet/packet.go#L99)<br>`const CharacterMove = 0x0501` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterReviveHitpoints`](../../server/internal/packet/packet.go#L100)<br>`const CharacterReviveHitpoints = 0x0505` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32, hp,mp,sp:u32 |
-| [`CharacterUserAutoAttack`](../../server/internal/packet/packet.go#L101)<br>`const CharacterUserAutoAttack = 0x0502` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterMobAutoAttack`](../../server/internal/packet/packet.go#L102)<br>`const CharacterMobAutoAttack = 0x0503` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterDeath`](../../server/internal/packet/packet.go#L103)<br>`const CharacterDeath = 0x0504` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32, deathType:u8, killerId:u32 |
-| [`CharacterMotion`](../../server/internal/packet/packet.go#L104)<br>`const CharacterMotion = 0x0506` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterEquipment`](../../server/internal/packet/packet.go#L105)<br>`const CharacterEquipment = 0x0507` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MapAddItem`](../../server/internal/packet/packet.go#L106)<br>`const MapAddItem = 0x0401` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MapRemoveItem`](../../server/internal/packet/packet.go#L107)<br>`const MapRemoveItem = 0x0402` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterReviveInit`](../../server/internal/packet/packet.go#L108)<br>`const CharacterReviveInit = 0x0406` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32 |
-| [`MobEnter`](../../server/internal/packet/packet.go#L109)<br>`const MobEnter = 0x0601` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MobLeave`](../../server/internal/packet/packet.go#L110)<br>`const MobLeave = 0x0602` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MobMove`](../../server/internal/packet/packet.go#L111)<br>`const MobMove = 0x0603` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MobAttackCharacter`](../../server/internal/packet/packet.go#L112)<br>`const MobAttackCharacter = 0x0605` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. result:u8, mobId:u32, charId:u32, dmgHp,dmgSp,dmgMp:u16 |
-| [`MobDeath`](../../server/internal/packet/packet.go#L113)<br>`const MobDeath = 0x0606` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MobPeriodicDamage`](../../server/internal/packet/packet.go#L114)<br>`const MobPeriodicDamage = 0x0607` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. mobId:u32, skillId:u16, skillLevel:u8, dmgHp,dmgSp,dmgMp:u16 |
-| [`MobCurrentHitpoints`](../../server/internal/packet/packet.go#L115)<br>`const MobCurrentHitpoints = 0x0610` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. mobId:u32, currentHp:u32 |
-| [`MapNpcEnter`](../../server/internal/packet/packet.go#L116)<br>`const MapNpcEnter = 0x0E01` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MapNpcLeave`](../../server/internal/packet/packet.go#L117)<br>`const MapNpcLeave = 0x0E02` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MapNpcMove`](../../server/internal/packet/packet.go#L118)<br>`const MapNpcMove = 0x0E03` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MapNpcAttackPlayer`](../../server/internal/packet/packet.go#L119)<br>`const MapNpcAttackPlayer = 0x0E05` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`MapNpcAttackMob`](../../server/internal/packet/packet.go#L120)<br>`const MapNpcAttackMob = 0x0E06` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`UseItem`](../../server/internal/packet/packet.go#L121)<br>`const UseItem = 0x050A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterMaxEnergy`](../../server/internal/packet/packet.go#L122)<br>`const CharacterMaxEnergy = 0x050B` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`SkillUsedSpMp`](../../server/internal/packet/packet.go#L123)<br>`const SkillUsedSpMp = 0x050C` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`SkillCastStarted`](../../server/internal/packet/packet.go#L124)<br>`const SkillCastStarted = 0x0510` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`BuffAdd`](../../server/internal/packet/packet.go#L125)<br>`const BuffAdd = 0x050D` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. id:u32, skillId:u16, skillLevel:u8, countdownSeconds:u32 |
-| [`BuffRemove`](../../server/internal/packet/packet.go#L126)<br>`const BuffRemove = 0x050E` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. objectId:u32 |
-| [`SkillKeep`](../../server/internal/packet/packet.go#L127)<br>`const SkillKeep = 0x050F` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. objectId:u32, skillId:u16, skillLevel:u8, hp,mp,sp:u16 |
-| [`CharacterMaxHpMpSp`](../../server/internal/packet/packet.go#L128)<br>`const CharacterMaxHpMpSp = 0x051F` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterCurrentHitpoints`](../../server/internal/packet/packet.go#L129)<br>`const CharacterCurrentHitpoints = 0x0521` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterAdditionalStats`](../../server/internal/packet/packet.go#L130)<br>`const CharacterAdditionalStats = 0x0526` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`TeleportSavePositionList`](../../server/internal/packet/packet.go#L131)<br>`const TeleportSavePositionList = 0x0225` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`BlessInit`](../../server/internal/packet/packet.go#L132)<br>`const BlessInit = 0x0211` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestList`](../../server/internal/packet/packet.go#L133)<br>`const QuestList = 0x0901` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestStart`](../../server/internal/packet/packet.go#L134)<br>`const QuestStart = 0x0902` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestEnd`](../../server/internal/packet/packet.go#L135)<br>`const QuestEnd = 0x0903` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestStartAlt`](../../server/internal/packet/packet.go#L136)<br>`const QuestStartAlt = 0x0904` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestCounter`](../../server/internal/packet/packet.go#L137)<br>`const QuestCounter = 0x0905` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestChoose`](../../server/internal/packet/packet.go#L138)<br>`const QuestChoose = 0x0907` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestAbandon`](../../server/internal/packet/packet.go#L139)<br>`const QuestAbandon = 0x0908` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`NpcTalk`](../../server/internal/packet/packet.go#L140)<br>`const NpcTalk = 0x0E04` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`QuestFinishedList`](../../server/internal/packet/packet.go#L141)<br>`const QuestFinishedList = 0x0906` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatNormal`](../../server/internal/packet/packet.go#L142)<br>`const ChatNormal = 0x1101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatWorld`](../../server/internal/packet/packet.go#L143)<br>`const ChatWorld = 0x1103` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatError`](../../server/internal/packet/packet.go#L144)<br>`const ChatError = 0x1106` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatMap`](../../server/internal/packet/packet.go#L145)<br>`const ChatMap = 0x1111` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatRaid`](../../server/internal/packet/packet.go#L146)<br>`const ChatRaid = 0x1112` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. raid leader/sub-leader notice: u32 sender, u8 length, text |
-| [`WarehouseItemList`](../../server/internal/packet/packet.go#L147)<br>`const WarehouseItemList = 0x0711` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ShopSell`](../../server/internal/packet/packet.go#L148)<br>`const ShopSell = 0x0703` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`SkillUseNoTarget`](../../server/internal/packet/packet.go#L149)<br>`const SkillUseNoTarget = 0x0511` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. a skill on a user (CUser::ChkTargetUser) |
-| [`SkillPartyMember`](../../server/internal/packet/packet.go#L150)<br>`const SkillPartyMember = 0x0513` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. a party heal/buff reaching one member |
-| [`ResurrectRequest`](../../server/internal/packet/packet.go#L151)<br>`const ResurrectRequest = 0x0553` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. 1-byte body |
-| [`ItemRepair`](../../server/internal/packet/packet.go#L152)<br>`const ItemRepair = 0x0554` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. bag, slot -> bag, slot, money |
-| [`ReturnToTown`](../../server/internal/packet/packet.go#L153)<br>`const ReturnToTown = 0x0556` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. no body; bind point after 10 s |
-| [`GuildCreateFailed`](../../server/internal/packet/packet.go#L156)<br>`const GuildCreateFailed = 0x0D01` | Guilds (CUser::PacketGuild and the CGuild senders). |
-| [`GuildDisband`](../../server/internal/packet/packet.go#L157)<br>`const GuildDisband = 0x0D03` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildDisbandAgree`](../../server/internal/packet/packet.go#L158)<br>`const GuildDisbandAgree = 0x0D04` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildInvite`](../../server/internal/packet/packet.go#L159)<br>`const GuildInvite = 0x0D05` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildInviteAnswer`](../../server/internal/packet/packet.go#L160)<br>`const GuildInviteAnswer = 0x0D06` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildApply`](../../server/internal/packet/packet.go#L161)<br>`const GuildApply = 0x0D07` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildJoinResult`](../../server/internal/packet/packet.go#L162)<br>`const GuildJoinResult = 0x0D08` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildLeave`](../../server/internal/packet/packet.go#L163)<br>`const GuildLeave = 0x0D09` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildExpel`](../../server/internal/packet/packet.go#L164)<br>`const GuildExpel = 0x0D0A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildStatus`](../../server/internal/packet/packet.go#L165)<br>`const GuildStatus = 0x0D0C` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildListBegin`](../../server/internal/packet/packet.go#L166)<br>`const GuildListBegin = 0x0D0D` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildListEnd`](../../server/internal/packet/packet.go#L167)<br>`const GuildListEnd = 0x0D0E` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildDisbanded`](../../server/internal/packet/packet.go#L168)<br>`const GuildDisbanded = 0x0D11` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildOnlineList`](../../server/internal/packet/packet.go#L169)<br>`const GuildOnlineList = 0x0D12` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildOfflineList`](../../server/internal/packet/packet.go#L170)<br>`const GuildOfflineList = 0x0D13` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildMemberAdded`](../../server/internal/packet/packet.go#L171)<br>`const GuildMemberAdded = 0x0D14` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildApplicantList`](../../server/internal/packet/packet.go#L172)<br>`const GuildApplicantList = 0x0D16` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildApplicant`](../../server/internal/packet/packet.go#L173)<br>`const GuildApplicant = 0x0D17` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildApplicantRemoved`](../../server/internal/packet/packet.go#L174)<br>`const GuildApplicantRemoved = 0x0D18` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildRemark`](../../server/internal/packet/packet.go#L175)<br>`const GuildRemark = 0x0D20` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildRankingNotice`](../../server/internal/packet/packet.go#L176)<br>`const GuildRankingNotice = 0x0D26` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. map u16, type u8 |
-| [`GuildRankingPoints`](../../server/internal/packet/packet.go#L177)<br>`const GuildRankingPoints = 0x0D27` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. points, country max, its guild id |
-| [`GuildRankingList`](../../server/internal/packet/packet.go#L178)<br>`const GuildRankingList = 0x0D37` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. count, (guild id, points, rank) |
-| [`GuildBankResult`](../../server/internal/packet/packet.go#L179)<br>`const GuildBankResult = 0x0D28` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildBankList`](../../server/internal/packet/packet.go#L180)<br>`const GuildBankList = 0x0D29` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildBankPlaced`](../../server/internal/packet/packet.go#L181)<br>`const GuildBankPlaced = 0x0D31` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildBankTaken`](../../server/internal/packet/packet.go#L182)<br>`const GuildBankTaken = 0x0D32` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildCreate`](../../server/internal/packet/packet.go#L183)<br>`const GuildCreate = 0x0D21` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildCreateAgree`](../../server/internal/packet/packet.go#L184)<br>`const GuildCreateAgree = 0x0D22` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildEtin`](../../server/internal/packet/packet.go#L185)<br>`const GuildEtin = 0x0D23` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildNpcList`](../../server/internal/packet/packet.go#L186)<br>`const GuildNpcList = 0x0D24` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. count, (type u16, level u8, slot u8) |
-| [`GuildNpcUpgrade`](../../server/internal/packet/packet.go#L187)<br>`const GuildNpcUpgrade = 0x0D25` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. C->S type u16, level u8; S->C result, type, level, slot |
-| [`GuildHouseKeepEtin`](../../server/internal/packet/packet.go#L188)<br>`const GuildHouseKeepEtin = 0x0D33` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. keep etin u32 |
-| [`GuildHouseBuy`](../../server/internal/packet/packet.go#L189)<br>`const GuildHouseBuy = 0x0D34` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. result u8, money u32 |
-| [`GuildDonate`](../../server/internal/packet/packet.go#L190)<br>`const GuildDonate = 0x0D35` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. count, (bag, slot) of the etin items consumed |
-| [`GuildList`](../../server/internal/packet/packet.go#L191)<br>`const GuildList = 0x0D2F` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GuildNew`](../../server/internal/packet/packet.go#L192)<br>`const GuildNew = 0x0D30` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatGuild`](../../server/internal/packet/packet.go#L193)<br>`const ChatGuild = 0x1104` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatWhisper`](../../server/internal/packet/packet.go#L194)<br>`const ChatWhisper = 0x1102` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatShout`](../../server/internal/packet/packet.go#L195)<br>`const ChatShout = 0x1107` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatWorldShout`](../../server/internal/packet/packet.go#L196)<br>`const ChatWorldShout = 0x1108` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`SkillDetectInfo`](../../server/internal/packet/packet.go#L197)<br>`const SkillDetectInfo = 0x0558` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. attr:u32, level:u16, mode:u8 |
-| [`CharacterResurrect`](../../server/internal/packet/packet.go#L199)<br>`const CharacterResurrect = 0x0551` | charId:u32, 5-byte blob 04 46 AF 37 01 (verbatim), x,y,z:f32. |
-| [`SkillUse`](../../server/internal/packet/packet.go#L200)<br>`const SkillUse = 0x0517` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`SkillExtraDamage`](../../server/internal/packet/packet.go#L201)<br>`const SkillExtraDamage = 0x051A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CharacterMountShape`](../../server/internal/packet/packet.go#L202)<br>`const CharacterMountShape = 0x051D` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. characterId:u32, shape:u8 |
-| [`CharacterDeathState`](../../server/internal/packet/packet.go#L203)<br>`const CharacterDeathState = 0x051C` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32, 0x07, 0x02 |
-| [`AccountPoints`](../../server/internal/packet/packet.go#L204)<br>`const AccountPoints = 0x2601` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`PointBuy`](../../server/internal/packet/packet.go#L205)<br>`const PointBuy = 0x2602` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`PointGiftSend`](../../server/internal/packet/packet.go#L206)<br>`const PointGiftSend = 0x2603` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`PointStoredItemList`](../../server/internal/packet/packet.go#L207)<br>`const PointStoredItemList = 0x2606` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`PointStoredItemGet`](../../server/internal/packet/packet.go#L208)<br>`const PointStoredItemGet = 0x2607` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CashPoint`](../../server/internal/packet/packet.go#L209)<br>`const CashPoint = 0x2605` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`BankItemList`](../../server/internal/packet/packet.go#L210)<br>`const BankItemList = 0xB101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`LoginHandshake`](../../server/internal/packet/packet.go#L211)<br>`const LoginHandshake = 0xA101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`LoginRequest`](../../server/internal/packet/packet.go#L212)<br>`const LoginRequest = 0xA102` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ServerList`](../../server/internal/packet/packet.go#L213)<br>`const ServerList = 0xA201` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`SelectServer`](../../server/internal/packet/packet.go#L214)<br>`const SelectServer = 0xA202` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GameHandshake`](../../server/internal/packet/packet.go#L215)<br>`const GameHandshake = 0xA301` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`Ping`](../../server/internal/packet/packet.go#L216)<br>`const Ping = 0xA303` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatNormalAdmin`](../../server/internal/packet/packet.go#L217)<br>`const ChatNormalAdmin = 0xF101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ChatWorldAdmin`](../../server/internal/packet/packet.go#L218)<br>`const ChatWorldAdmin = 0xF103` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GmCommandError`](../../server/internal/packet/packet.go#L219)<br>`const GmCommandError = 0xF501` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GmCommandGetItem`](../../server/internal/packet/packet.go#L220)<br>`const GmCommandGetItem = 0xF702` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`EnchantAdd`](../../server/internal/packet/packet.go#L221)<br>`const EnchantAdd = 0x0805` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ItemCompose`](../../server/internal/packet/packet.go#L222)<br>`const ItemCompose = 0x0806` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GemAdd`](../../server/internal/packet/packet.go#L223)<br>`const GemAdd = 0x0801` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GemRemove`](../../server/internal/packet/packet.go#L224)<br>`const GemRemove = 0x0802` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CloakAdd`](../../server/internal/packet/packet.go#L225)<br>`const CloakAdd = 0x0803` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`CloakRemove`](../../server/internal/packet/packet.go#L226)<br>`const CloakRemove = 0x0804` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GemAddPossibility`](../../server/internal/packet/packet.go#L227)<br>`const GemAddPossibility = 0x0809` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`GemRemovePossibility`](../../server/internal/packet/packet.go#L228)<br>`const GemRemovePossibility = 0x080A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeRequest`](../../server/internal/packet/packet.go#L229)<br>`const ExchangeRequest = 0x0A01` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeAnswer`](../../server/internal/packet/packet.go#L230)<br>`const ExchangeAnswer = 0x0A02` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeStart`](../../server/internal/packet/packet.go#L231)<br>`const ExchangeStart = 0x0A03` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeEnd`](../../server/internal/packet/packet.go#L232)<br>`const ExchangeEnd = 0x0A04` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeReady`](../../server/internal/packet/packet.go#L233)<br>`const ExchangeReady = 0x0A05` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeAdd`](../../server/internal/packet/packet.go#L234)<br>`const ExchangeAdd = 0x0A06` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeRemove`](../../server/internal/packet/packet.go#L235)<br>`const ExchangeRemove = 0x0A07` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeAddMoney`](../../server/internal/packet/packet.go#L236)<br>`const ExchangeAddMoney = 0x0A08` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeAddDest`](../../server/internal/packet/packet.go#L237)<br>`const ExchangeAddDest = 0x0A09` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ExchangeConfirm`](../../server/internal/packet/packet.go#L238)<br>`const ExchangeConfirm = 0x0A0A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
-| [`ErrTooLarge`](../../server/internal/packet/packet.go#L241)<br>`var ErrTooLarge` | See the source definition and the subsystem ownership contract. |
-| [`ErrStringTooLarge`](../../server/internal/packet/packet.go#L242)<br>`var ErrStringTooLarge` | See the source definition and the subsystem ownership contract. |
-| [`Writer`](../../server/internal/packet/packet.go#L245)<br>`type Writer` | Writer builds one frame; the length prefix is filled in by Bytes. |
-| [`New`](../../server/internal/packet/packet.go#L250)<br>`func New(opcode Opcode) *Writer` | See the source definition and the subsystem ownership contract. |
-| [`Count`](../../server/internal/packet/packet.go#L257)<br>`func (w *Writer) Count(v uint16)` | See the source definition and the subsystem ownership contract. |
-| [`U8`](../../server/internal/packet/packet.go#L264)<br>`func (w *Writer) U8(v uint8)` | See the source definition and the subsystem ownership contract. |
-| [`U16`](../../server/internal/packet/packet.go#L265)<br>`func (w *Writer) U16(v uint16)` | See the source definition and the subsystem ownership contract. |
-| [`U32`](../../server/internal/packet/packet.go#L266)<br>`func (w *Writer) U32(v uint32)` | See the source definition and the subsystem ownership contract. |
-| [`I32`](../../server/internal/packet/packet.go#L267)<br>`func (w *Writer) I32(v int32)` | See the source definition and the subsystem ownership contract. |
-| [`U64`](../../server/internal/packet/packet.go#L268)<br>`func (w *Writer) U64(v uint64)` | See the source definition and the subsystem ownership contract. |
-| [`F32`](../../server/internal/packet/packet.go#L269)<br>`func (w *Writer) F32(v float32)` | See the source definition and the subsystem ownership contract. |
-| [`Bytes`](../../server/internal/packet/packet.go#L270)<br>`func (w *Writer) Bytes(v []byte)` | See the source definition and the subsystem ownership contract. |
-| [`Bool`](../../server/internal/packet/packet.go#L271)<br>`func (w *Writer) Bool(v bool)` | See the source definition and the subsystem ownership contract. |
-| [`FixedString`](../../server/internal/packet/packet.go#L281)<br>`func (w *Writer) FixedString(value string, size int)` | FixedString writes value null-padded to size bytes; an oversized value makes Finish fail instead of truncating silently. |
-| [`Len`](../../server/internal/packet/packet.go#L292)<br>`func (w *Writer) Len() int` | See the source definition and the subsystem ownership contract. |
-| [`Finish`](../../server/internal/packet/packet.go#L295)<br>`func (w *Writer) Finish() ([]byte, error)` | Finish returns the frame with its length prefix set. |
-| [`MustFinish`](../../server/internal/packet/packet.go#L307)<br>`func (w *Writer) MustFinish() []byte` | MustFinish is for frames whose shape is fixed and cannot overflow. |
-| [`ErrShort`](../../server/internal/packet/packet.go#L315)<br>`var ErrShort` | See the source definition and the subsystem ownership contract. |
-| [`U16`](../../server/internal/packet/packet.go#L317)<br>`func U16(b []byte) (uint16, error)` | See the source definition and the subsystem ownership contract. |
-| [`U32`](../../server/internal/packet/packet.go#L324)<br>`func U32(b []byte) (uint32, error)` | See the source definition and the subsystem ownership contract. |
-| [`F32`](../../server/internal/packet/packet.go#L331)<br>`func F32(b []byte) (float32, error)` | See the source definition and the subsystem ownership contract. |
-| [`FixedText`](../../server/internal/packet/packet.go#L337)<br>`func FixedText(b []byte) string` | FixedText decodes NUL-terminated UTF-8 with a legacy ANSI fallback. |
-| [`NewReader`](../../server/internal/packet/packet.go#L339)<br>`func NewReader(p []byte) *proto.Reader` | See the source definition and the subsystem ownership contract. |
-| [`BaseOpcode`](../../server/internal/packet/packet.go#L340)<br>`func BaseOpcode(v uint16) Opcode` | See the source definition and the subsystem ownership contract. |
-| [`GXForgeQuote`](../../server/internal/packet/packet.go#L342)<br>`const GXForgeQuote = 0x7F03` | See the source definition and the subsystem ownership contract. |
-| [`GXPartyInviteName`](../../server/internal/packet/packet.go#L345)<br>`const GXPartyInviteName = 0x7F15` | GXPartyInviteName is the global /party <name> invitation request. |
-| [`RaidLevel`](../../server/internal/packet/packet.go#L348)<br>`const RaidLevel = 0x0C13` | RaidLevel is the original member level notice, parallel to PartyLevel. |
+| [`InspectEquipment`](../../server/internal/packet/packet.go#L83)<br>`const InspectEquipment = 0x0307` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`TargetClear`](../../server/internal/packet/packet.go#L84)<br>`const TargetClear = 0x030A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`UseVehicle`](../../server/internal/packet/packet.go#L85)<br>`const UseVehicle = 0x0216` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. empty request; response ok:u8, isOnVehicle:u8 |
+| [`ItemBagToBag`](../../server/internal/packet/packet.go#L86)<br>`const ItemBagToBag = 0x0204` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`AddItem`](../../server/internal/packet/packet.go#L87)<br>`const AddItem = 0x0205` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`RemoveItem`](../../server/internal/packet/packet.go#L88)<br>`const RemoveItem = 0x0206` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`SetStatPoint`](../../server/internal/packet/packet.go#L89)<br>`const SetStatPoint = 0x0208` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`StatsReset`](../../server/internal/packet/packet.go#L90)<br>`const StatsReset = 0x0214` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. success:u8, statPoint:u16, str,rec,int,wis,dex,luc:u16 |
+| [`LearnNewSkill`](../../server/internal/packet/packet.go#L91)<br>`const LearnNewSkill = 0x0209` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterEnteredPortal`](../../server/internal/packet/packet.go#L92)<br>`const CharacterEnteredPortal = 0x020A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterMapTeleport`](../../server/internal/packet/packet.go#L93)<br>`const CharacterMapTeleport = 0x020B` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`UserKillCountUpdate`](../../server/internal/packet/packet.go#L94)<br>`const UserKillCountUpdate = 0x020E` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterShape`](../../server/internal/packet/packet.go#L95)<br>`const CharacterShape = 0x0303` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChangeAppearance`](../../server/internal/packet/packet.go#L97)<br>`const ChangeAppearance = 0x0226` | Request bag,slot,hair,face,height,sex:u8; reply charId:u32,hair,face,height,sex:u8. |
+| [`ChangeSexDenied`](../../server/internal/packet/packet.go#L98)<br>`const ChangeSexDenied = 0x0228` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. empty: client shows SysMsg 862 |
+| [`WorldDay`](../../server/internal/packet/packet.go#L99)<br>`const WorldDay = 0x0404` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterMove`](../../server/internal/packet/packet.go#L100)<br>`const CharacterMove = 0x0501` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterReviveHitpoints`](../../server/internal/packet/packet.go#L101)<br>`const CharacterReviveHitpoints = 0x0505` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32, hp,mp,sp:u32 |
+| [`CharacterUserAutoAttack`](../../server/internal/packet/packet.go#L102)<br>`const CharacterUserAutoAttack = 0x0502` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterMobAutoAttack`](../../server/internal/packet/packet.go#L103)<br>`const CharacterMobAutoAttack = 0x0503` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterDeath`](../../server/internal/packet/packet.go#L104)<br>`const CharacterDeath = 0x0504` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32, deathType:u8, killerId:u32 |
+| [`CharacterMotion`](../../server/internal/packet/packet.go#L105)<br>`const CharacterMotion = 0x0506` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterEquipment`](../../server/internal/packet/packet.go#L106)<br>`const CharacterEquipment = 0x0507` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MapAddItem`](../../server/internal/packet/packet.go#L107)<br>`const MapAddItem = 0x0401` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MapRemoveItem`](../../server/internal/packet/packet.go#L108)<br>`const MapRemoveItem = 0x0402` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterReviveInit`](../../server/internal/packet/packet.go#L109)<br>`const CharacterReviveInit = 0x0406` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32 |
+| [`MobEnter`](../../server/internal/packet/packet.go#L110)<br>`const MobEnter = 0x0601` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MobLeave`](../../server/internal/packet/packet.go#L111)<br>`const MobLeave = 0x0602` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MobMove`](../../server/internal/packet/packet.go#L112)<br>`const MobMove = 0x0603` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MobAttackCharacter`](../../server/internal/packet/packet.go#L113)<br>`const MobAttackCharacter = 0x0605` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. result:u8, mobId:u32, charId:u32, dmgHp,dmgSp,dmgMp:u16 |
+| [`MobDeath`](../../server/internal/packet/packet.go#L114)<br>`const MobDeath = 0x0606` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MobPeriodicDamage`](../../server/internal/packet/packet.go#L115)<br>`const MobPeriodicDamage = 0x0607` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. mobId:u32, skillId:u16, skillLevel:u8, dmgHp,dmgSp,dmgMp:u16 |
+| [`MobCurrentHitpoints`](../../server/internal/packet/packet.go#L116)<br>`const MobCurrentHitpoints = 0x0610` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. mobId:u32, currentHp:u32 |
+| [`MapNpcEnter`](../../server/internal/packet/packet.go#L117)<br>`const MapNpcEnter = 0x0E01` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MapNpcLeave`](../../server/internal/packet/packet.go#L118)<br>`const MapNpcLeave = 0x0E02` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MapNpcMove`](../../server/internal/packet/packet.go#L119)<br>`const MapNpcMove = 0x0E03` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MapNpcAttackPlayer`](../../server/internal/packet/packet.go#L120)<br>`const MapNpcAttackPlayer = 0x0E05` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`MapNpcAttackMob`](../../server/internal/packet/packet.go#L121)<br>`const MapNpcAttackMob = 0x0E06` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`UseItem`](../../server/internal/packet/packet.go#L122)<br>`const UseItem = 0x050A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterMaxEnergy`](../../server/internal/packet/packet.go#L123)<br>`const CharacterMaxEnergy = 0x050B` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`SkillUsedSpMp`](../../server/internal/packet/packet.go#L124)<br>`const SkillUsedSpMp = 0x050C` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`SkillCastStarted`](../../server/internal/packet/packet.go#L125)<br>`const SkillCastStarted = 0x0510` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`BuffAdd`](../../server/internal/packet/packet.go#L126)<br>`const BuffAdd = 0x050D` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. id:u32, skillId:u16, skillLevel:u8, countdownSeconds:u32 |
+| [`BuffRemove`](../../server/internal/packet/packet.go#L127)<br>`const BuffRemove = 0x050E` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. objectId:u32 |
+| [`SkillKeep`](../../server/internal/packet/packet.go#L128)<br>`const SkillKeep = 0x050F` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. objectId:u32, skillId:u16, skillLevel:u8, hp,mp,sp:u16 |
+| [`CharacterMaxHpMpSp`](../../server/internal/packet/packet.go#L129)<br>`const CharacterMaxHpMpSp = 0x051F` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterCurrentHitpoints`](../../server/internal/packet/packet.go#L130)<br>`const CharacterCurrentHitpoints = 0x0521` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterAdditionalStats`](../../server/internal/packet/packet.go#L131)<br>`const CharacterAdditionalStats = 0x0526` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`TeleportSavePositionList`](../../server/internal/packet/packet.go#L132)<br>`const TeleportSavePositionList = 0x0225` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`BlessInit`](../../server/internal/packet/packet.go#L133)<br>`const BlessInit = 0x0211` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestList`](../../server/internal/packet/packet.go#L134)<br>`const QuestList = 0x0901` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestStart`](../../server/internal/packet/packet.go#L135)<br>`const QuestStart = 0x0902` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestEnd`](../../server/internal/packet/packet.go#L136)<br>`const QuestEnd = 0x0903` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestStartAlt`](../../server/internal/packet/packet.go#L137)<br>`const QuestStartAlt = 0x0904` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestCounter`](../../server/internal/packet/packet.go#L138)<br>`const QuestCounter = 0x0905` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestChoose`](../../server/internal/packet/packet.go#L139)<br>`const QuestChoose = 0x0907` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestAbandon`](../../server/internal/packet/packet.go#L140)<br>`const QuestAbandon = 0x0908` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`NpcTalk`](../../server/internal/packet/packet.go#L141)<br>`const NpcTalk = 0x0E04` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`QuestFinishedList`](../../server/internal/packet/packet.go#L142)<br>`const QuestFinishedList = 0x0906` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatNormal`](../../server/internal/packet/packet.go#L143)<br>`const ChatNormal = 0x1101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatWorld`](../../server/internal/packet/packet.go#L144)<br>`const ChatWorld = 0x1103` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatError`](../../server/internal/packet/packet.go#L145)<br>`const ChatError = 0x1106` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatMap`](../../server/internal/packet/packet.go#L146)<br>`const ChatMap = 0x1111` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatRaid`](../../server/internal/packet/packet.go#L147)<br>`const ChatRaid = 0x1112` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. raid leader/sub-leader notice: u32 sender, u8 length, text |
+| [`WarehouseItemList`](../../server/internal/packet/packet.go#L148)<br>`const WarehouseItemList = 0x0711` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ShopSell`](../../server/internal/packet/packet.go#L149)<br>`const ShopSell = 0x0703` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`SkillUseNoTarget`](../../server/internal/packet/packet.go#L150)<br>`const SkillUseNoTarget = 0x0511` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. a skill on a user (CUser::ChkTargetUser) |
+| [`SkillPartyMember`](../../server/internal/packet/packet.go#L151)<br>`const SkillPartyMember = 0x0513` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. a party heal/buff reaching one member |
+| [`ResurrectRequest`](../../server/internal/packet/packet.go#L152)<br>`const ResurrectRequest = 0x0553` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. 1-byte body |
+| [`ItemRepair`](../../server/internal/packet/packet.go#L153)<br>`const ItemRepair = 0x0554` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. bag, slot -> bag, slot, money |
+| [`ReturnToTown`](../../server/internal/packet/packet.go#L154)<br>`const ReturnToTown = 0x0556` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. no body; bind point after 10 s |
+| [`GuildCreateFailed`](../../server/internal/packet/packet.go#L157)<br>`const GuildCreateFailed = 0x0D01` | Guilds (CUser::PacketGuild and the CGuild senders). |
+| [`GuildDisband`](../../server/internal/packet/packet.go#L158)<br>`const GuildDisband = 0x0D03` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildDisbandAgree`](../../server/internal/packet/packet.go#L159)<br>`const GuildDisbandAgree = 0x0D04` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildApply`](../../server/internal/packet/packet.go#L160)<br>`const GuildApply = 0x0D07` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildJoinResult`](../../server/internal/packet/packet.go#L161)<br>`const GuildJoinResult = 0x0D08` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildLeave`](../../server/internal/packet/packet.go#L162)<br>`const GuildLeave = 0x0D09` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildExpel`](../../server/internal/packet/packet.go#L163)<br>`const GuildExpel = 0x0D0A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildStatus`](../../server/internal/packet/packet.go#L164)<br>`const GuildStatus = 0x0D0C` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildListBegin`](../../server/internal/packet/packet.go#L165)<br>`const GuildListBegin = 0x0D0D` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildListEnd`](../../server/internal/packet/packet.go#L166)<br>`const GuildListEnd = 0x0D0E` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildDisbanded`](../../server/internal/packet/packet.go#L167)<br>`const GuildDisbanded = 0x0D11` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildOnlineList`](../../server/internal/packet/packet.go#L168)<br>`const GuildOnlineList = 0x0D12` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildOfflineList`](../../server/internal/packet/packet.go#L169)<br>`const GuildOfflineList = 0x0D13` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildMemberAdded`](../../server/internal/packet/packet.go#L170)<br>`const GuildMemberAdded = 0x0D14` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildApplicantList`](../../server/internal/packet/packet.go#L171)<br>`const GuildApplicantList = 0x0D16` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildApplicant`](../../server/internal/packet/packet.go#L172)<br>`const GuildApplicant = 0x0D17` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildApplicantRemoved`](../../server/internal/packet/packet.go#L173)<br>`const GuildApplicantRemoved = 0x0D18` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildRemark`](../../server/internal/packet/packet.go#L174)<br>`const GuildRemark = 0x0D20` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildRankingNotice`](../../server/internal/packet/packet.go#L175)<br>`const GuildRankingNotice = 0x0D26` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. map u16, type u8 |
+| [`GuildRankingPoints`](../../server/internal/packet/packet.go#L176)<br>`const GuildRankingPoints = 0x0D27` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. points, country max, its guild id |
+| [`GuildRankingList`](../../server/internal/packet/packet.go#L177)<br>`const GuildRankingList = 0x0D37` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. count, (guild id, points, rank) |
+| [`GuildBankResult`](../../server/internal/packet/packet.go#L178)<br>`const GuildBankResult = 0x0D28` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildBankList`](../../server/internal/packet/packet.go#L179)<br>`const GuildBankList = 0x0D29` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildBankPlaced`](../../server/internal/packet/packet.go#L180)<br>`const GuildBankPlaced = 0x0D31` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildBankTaken`](../../server/internal/packet/packet.go#L181)<br>`const GuildBankTaken = 0x0D32` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildCreate`](../../server/internal/packet/packet.go#L182)<br>`const GuildCreate = 0x0D21` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildCreateAgree`](../../server/internal/packet/packet.go#L183)<br>`const GuildCreateAgree = 0x0D22` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildEtin`](../../server/internal/packet/packet.go#L184)<br>`const GuildEtin = 0x0D23` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildNpcList`](../../server/internal/packet/packet.go#L185)<br>`const GuildNpcList = 0x0D24` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. count, (type u16, level u8, slot u8) |
+| [`GuildNpcUpgrade`](../../server/internal/packet/packet.go#L186)<br>`const GuildNpcUpgrade = 0x0D25` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. C->S type u16, level u8; S->C result, type, level, slot |
+| [`GuildHouseKeepEtin`](../../server/internal/packet/packet.go#L187)<br>`const GuildHouseKeepEtin = 0x0D33` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. keep etin u32 |
+| [`GuildHouseBuy`](../../server/internal/packet/packet.go#L188)<br>`const GuildHouseBuy = 0x0D34` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. result u8, money u32 |
+| [`GuildDonate`](../../server/internal/packet/packet.go#L189)<br>`const GuildDonate = 0x0D35` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. count, (bag, slot) of the etin items consumed |
+| [`GuildList`](../../server/internal/packet/packet.go#L190)<br>`const GuildList = 0x0D2F` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GuildNew`](../../server/internal/packet/packet.go#L191)<br>`const GuildNew = 0x0D30` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatGuild`](../../server/internal/packet/packet.go#L192)<br>`const ChatGuild = 0x1104` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatWhisper`](../../server/internal/packet/packet.go#L193)<br>`const ChatWhisper = 0x1102` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatShout`](../../server/internal/packet/packet.go#L194)<br>`const ChatShout = 0x1107` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatWorldShout`](../../server/internal/packet/packet.go#L195)<br>`const ChatWorldShout = 0x1108` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`SkillDetectInfo`](../../server/internal/packet/packet.go#L196)<br>`const SkillDetectInfo = 0x0558` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. attr:u32, level:u16, mode:u8 |
+| [`CharacterResurrect`](../../server/internal/packet/packet.go#L198)<br>`const CharacterResurrect = 0x0551` | charId:u32, 5-byte blob 04 46 AF 37 01 (verbatim), x,y,z:f32. |
+| [`SkillUse`](../../server/internal/packet/packet.go#L199)<br>`const SkillUse = 0x0517` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`SkillExtraDamage`](../../server/internal/packet/packet.go#L200)<br>`const SkillExtraDamage = 0x051A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CharacterMountShape`](../../server/internal/packet/packet.go#L201)<br>`const CharacterMountShape = 0x051D` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. characterId:u32, shape:u8 |
+| [`CharacterDeathState`](../../server/internal/packet/packet.go#L202)<br>`const CharacterDeathState = 0x051C` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. charId:u32, 0x07, 0x02 |
+| [`AccountPoints`](../../server/internal/packet/packet.go#L203)<br>`const AccountPoints = 0x2601` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`PointBuy`](../../server/internal/packet/packet.go#L204)<br>`const PointBuy = 0x2602` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`PointGiftSend`](../../server/internal/packet/packet.go#L205)<br>`const PointGiftSend = 0x2603` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`PointStoredItemList`](../../server/internal/packet/packet.go#L206)<br>`const PointStoredItemList = 0x2606` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`PointStoredItemGet`](../../server/internal/packet/packet.go#L207)<br>`const PointStoredItemGet = 0x2607` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CashPoint`](../../server/internal/packet/packet.go#L208)<br>`const CashPoint = 0x2605` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`BankItemList`](../../server/internal/packet/packet.go#L209)<br>`const BankItemList = 0xB101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`LoginHandshake`](../../server/internal/packet/packet.go#L210)<br>`const LoginHandshake = 0xA101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`LoginRequest`](../../server/internal/packet/packet.go#L211)<br>`const LoginRequest = 0xA102` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ServerList`](../../server/internal/packet/packet.go#L212)<br>`const ServerList = 0xA201` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`SelectServer`](../../server/internal/packet/packet.go#L213)<br>`const SelectServer = 0xA202` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GameHandshake`](../../server/internal/packet/packet.go#L214)<br>`const GameHandshake = 0xA301` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`Ping`](../../server/internal/packet/packet.go#L215)<br>`const Ping = 0xA303` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatNormalAdmin`](../../server/internal/packet/packet.go#L216)<br>`const ChatNormalAdmin = 0xF101` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ChatWorldAdmin`](../../server/internal/packet/packet.go#L217)<br>`const ChatWorldAdmin = 0xF103` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GmCommandError`](../../server/internal/packet/packet.go#L218)<br>`const GmCommandError = 0xF501` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GmCommandGetItem`](../../server/internal/packet/packet.go#L219)<br>`const GmCommandGetItem = 0xF702` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`EnchantAdd`](../../server/internal/packet/packet.go#L220)<br>`const EnchantAdd = 0x0805` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ItemCompose`](../../server/internal/packet/packet.go#L221)<br>`const ItemCompose = 0x0806` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GemAdd`](../../server/internal/packet/packet.go#L222)<br>`const GemAdd = 0x0801` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GemRemove`](../../server/internal/packet/packet.go#L223)<br>`const GemRemove = 0x0802` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CloakAdd`](../../server/internal/packet/packet.go#L224)<br>`const CloakAdd = 0x0803` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`CloakRemove`](../../server/internal/packet/packet.go#L225)<br>`const CloakRemove = 0x0804` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GemAddPossibility`](../../server/internal/packet/packet.go#L226)<br>`const GemAddPossibility = 0x0809` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`GemRemovePossibility`](../../server/internal/packet/packet.go#L227)<br>`const GemRemovePossibility = 0x080A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeRequest`](../../server/internal/packet/packet.go#L228)<br>`const ExchangeRequest = 0x0A01` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeAnswer`](../../server/internal/packet/packet.go#L229)<br>`const ExchangeAnswer = 0x0A02` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeStart`](../../server/internal/packet/packet.go#L230)<br>`const ExchangeStart = 0x0A03` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeEnd`](../../server/internal/packet/packet.go#L231)<br>`const ExchangeEnd = 0x0A04` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeReady`](../../server/internal/packet/packet.go#L232)<br>`const ExchangeReady = 0x0A05` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeAdd`](../../server/internal/packet/packet.go#L233)<br>`const ExchangeAdd = 0x0A06` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeRemove`](../../server/internal/packet/packet.go#L234)<br>`const ExchangeRemove = 0x0A07` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeAddMoney`](../../server/internal/packet/packet.go#L235)<br>`const ExchangeAddMoney = 0x0A08` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeAddDest`](../../server/internal/packet/packet.go#L236)<br>`const ExchangeAddDest = 0x0A09` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ExchangeConfirm`](../../server/internal/packet/packet.go#L237)<br>`const ExchangeConfirm = 0x0A0A` | Opcodes. Comments carry the confirmed wire shapes recorded while the server was written against captures of the real 5.4 client. |
+| [`ErrTooLarge`](../../server/internal/packet/packet.go#L240)<br>`var ErrTooLarge` | See the source definition and the subsystem ownership contract. |
+| [`ErrStringTooLarge`](../../server/internal/packet/packet.go#L241)<br>`var ErrStringTooLarge` | See the source definition and the subsystem ownership contract. |
+| [`Writer`](../../server/internal/packet/packet.go#L244)<br>`type Writer` | Writer builds one frame; the length prefix is filled in by Bytes. |
+| [`New`](../../server/internal/packet/packet.go#L249)<br>`func New(opcode Opcode) *Writer` | See the source definition and the subsystem ownership contract. |
+| [`Count`](../../server/internal/packet/packet.go#L256)<br>`func (w *Writer) Count(v uint16)` | See the source definition and the subsystem ownership contract. |
+| [`U8`](../../server/internal/packet/packet.go#L263)<br>`func (w *Writer) U8(v uint8)` | See the source definition and the subsystem ownership contract. |
+| [`U16`](../../server/internal/packet/packet.go#L264)<br>`func (w *Writer) U16(v uint16)` | See the source definition and the subsystem ownership contract. |
+| [`U32`](../../server/internal/packet/packet.go#L265)<br>`func (w *Writer) U32(v uint32)` | See the source definition and the subsystem ownership contract. |
+| [`I32`](../../server/internal/packet/packet.go#L266)<br>`func (w *Writer) I32(v int32)` | See the source definition and the subsystem ownership contract. |
+| [`U64`](../../server/internal/packet/packet.go#L267)<br>`func (w *Writer) U64(v uint64)` | See the source definition and the subsystem ownership contract. |
+| [`F32`](../../server/internal/packet/packet.go#L268)<br>`func (w *Writer) F32(v float32)` | See the source definition and the subsystem ownership contract. |
+| [`Bytes`](../../server/internal/packet/packet.go#L269)<br>`func (w *Writer) Bytes(v []byte)` | See the source definition and the subsystem ownership contract. |
+| [`Bool`](../../server/internal/packet/packet.go#L270)<br>`func (w *Writer) Bool(v bool)` | See the source definition and the subsystem ownership contract. |
+| [`FixedString`](../../server/internal/packet/packet.go#L280)<br>`func (w *Writer) FixedString(value string, size int)` | FixedString writes value null-padded to size bytes; an oversized value makes Finish fail instead of truncating silently. |
+| [`Len`](../../server/internal/packet/packet.go#L291)<br>`func (w *Writer) Len() int` | See the source definition and the subsystem ownership contract. |
+| [`Finish`](../../server/internal/packet/packet.go#L294)<br>`func (w *Writer) Finish() ([]byte, error)` | Finish returns the frame with its length prefix set. |
+| [`MustFinish`](../../server/internal/packet/packet.go#L306)<br>`func (w *Writer) MustFinish() []byte` | MustFinish is for frames whose shape is fixed and cannot overflow. |
+| [`ErrShort`](../../server/internal/packet/packet.go#L314)<br>`var ErrShort` | See the source definition and the subsystem ownership contract. |
+| [`U16`](../../server/internal/packet/packet.go#L316)<br>`func U16(b []byte) (uint16, error)` | See the source definition and the subsystem ownership contract. |
+| [`U32`](../../server/internal/packet/packet.go#L323)<br>`func U32(b []byte) (uint32, error)` | See the source definition and the subsystem ownership contract. |
+| [`F32`](../../server/internal/packet/packet.go#L330)<br>`func F32(b []byte) (float32, error)` | See the source definition and the subsystem ownership contract. |
+| [`FixedText`](../../server/internal/packet/packet.go#L336)<br>`func FixedText(b []byte) string` | FixedText decodes NUL-terminated UTF-8 with a legacy ANSI fallback. |
+| [`NewReader`](../../server/internal/packet/packet.go#L338)<br>`func NewReader(p []byte) *proto.Reader` | See the source definition and the subsystem ownership contract. |
+| [`BaseOpcode`](../../server/internal/packet/packet.go#L339)<br>`func BaseOpcode(v uint16) Opcode` | See the source definition and the subsystem ownership contract. |
+| [`GXForgeQuote`](../../server/internal/packet/packet.go#L341)<br>`const GXForgeQuote = 0x7F03` | See the source definition and the subsystem ownership contract. |
+| [`GXPartyInviteName`](../../server/internal/packet/packet.go#L344)<br>`const GXPartyInviteName = 0x7F15` | GXPartyInviteName is the global /party <name> invitation request. |
+| [`RaidLevel`](../../server/internal/packet/packet.go#L347)<br>`const RaidLevel = 0x0C13` | RaidLevel is the original member level notice, parallel to PartyLevel. |
 
 <details><summary>Type definitions and owned fields</summary>
 

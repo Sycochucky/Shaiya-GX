@@ -90,6 +90,9 @@ func (a *App) drawStatus(w, h int) {
 		}
 		a.clearTooltipUnderPanel(x, y, width, ui.StatusHeight)
 		a.statusUI.Draw(a.sprites, a.font, w, h, a.statusState())
+		if description := a.msg.Get(a.statusUI.AttributeMessageAt(a.lastMouseX, a.lastMouseY, w, h)); description != "" {
+			a.tooltipContent = tooltipContent{tooltip: []itemDetailLine{{description, white}}}
+		}
 	}
 }
 

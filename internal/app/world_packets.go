@@ -70,6 +70,19 @@ func (a *App) applyWorldPacket(p []byte) {
 	if a.state == nil {
 		return
 	}
+	if proto.Op(p) == proto.InspectEquipment {
+		a.confirmedInspect(p)
+		return
+	}
+	if proto.Op(p) == proto.GXEquipRefusal {
+		if typ, id, err := proto.DecodeEquipRefusal(p); err == nil {
+			if item := a.itemsItem(typ, id); item != nil {
+				// EP5.4 0x4df4dd uses native SysMsg 229 in error chat style 17.
+				a.systemMessage(17, 229, map[string]string{"i": item.Name})
+			}
+		}
+		return
+	}
 	wasRaid := a.state.Party.Raid
 	previousForm := a.state.PlayerForms[a.state.SelfID]
 	var equipmentSoundType uint8
@@ -217,14 +230,28 @@ func (a *App) applyWorldPacket(p []byte) {
 }
 
 func (a *App) applyGuildFeedback(p []byte, op proto.Opcode) {
-	if op == proto.GuildInvite {
-		a.guild.expires = a.clock + 30
-	}
 	switch op {
 	case proto.GuildListBegin, proto.GuildList, proto.GuildListEnd, proto.GuildNew, proto.GuildDisbanded:
 		a.guild.directoryDirty = true
 	case proto.GuildOnlineList, proto.GuildOfflineList, proto.GuildMemberAdded, proto.GuildApplicantList, proto.GuildApplicant, proto.GuildApplicantRemoved, proto.GuildStatus, proto.GuildJoinResult, proto.GuildCreate, proto.GuildLeave, proto.GuildExpel:
 		a.guild.rosterDirty = true
+	}
+	switch op {
+	case proto.GuildApply:
+		messages := [...]string{a.tr(12345), a.tr(12346), a.tr(12347)}
+		result := a.state.Guild.ApplyResult
+		message := a.tr(12348)
+		if int(result) < len(messages) {
+			message = messages[result]
+		}
+		a.questMessage(message)
+	case proto.GuildJoinResult:
+		switch a.state.Guild.JoinResult {
+		case 0:
+			a.localizedNotice(17, 385, nil)
+		case 1:
+			a.localizedNotice(17, 384, nil)
+		}
 	}
 	a.confirmedDuel(p)
 	a.confirmedGuildDuel(p)
@@ -262,6 +289,13 @@ func (a *App) applyWorldPresentation(p []byte, op proto.Opcode) {
 }
 
 func (a *App) applyInventoryFeedback(p []byte, op proto.Opcode, previousAppearance scene.Appearance) {
+	if op == proto.GXEconomySettings {
+		a.blacksmith.quote = forgeQuoteView{}
+		if a.state.Economy.Rejected {
+			a.shop.pending, a.inventory.pending, a.compose.pending = false, false, false
+			a.questMessage("The price or fee changed. Review the updated quote and try again.")
+		}
+	}
 	if op == proto.UseItem && proto.NewReader(p).U32() == a.state.SelfID {
 		a.inventory.pending = false
 		if !a.compose.pending {

@@ -60,9 +60,8 @@ func TestContactUsesFirstPositiveMarkerAndActionToken(t *testing.T) {
 	}
 }
 
-// Game.exe 0x57cd80/0x57d7c0: the animation byte of a damaging skill picks
-// ch_skill001/003/004/005/008, a physical debuff always uses 001, and ranged
-// weapons add ef_cst_crobow01.
+// Game.exe selects the release cue by animation on the physical path and
+// adds ef_cst_crobow01 for ranged weapons.
 func TestSkillReleaseSounds(t *testing.T) {
 	for _, tc := range []struct {
 		animation              uint16
@@ -77,7 +76,10 @@ func TestSkillReleaseSounds(t *testing.T) {
 		{101, 1, 1, 1, nil},
 		{105, 1, 1, 1, nil},
 		{110, 1, 1, 1, nil},
-		{103, 1, 3, 1, []string{"ch_skill001.ogg"}},
+		{103, 1, 3, 1, []string{"ch_skill004.ogg"}},
+		{101, 1, 3, 1, nil},
+		{101, 1, 3, 13, []string{"ef_cst_crobow01.ogg"}},
+		{103, 3, 3, 13, nil},
 		{0, 1, 1, 13, []string{"ef_cst_crobow01.ogg"}},
 		{0, 2, 1, 14, []string{"ef_cst_crobow01.ogg"}},
 		{102, 1, 1, 64, []string{"ch_skill003.ogg", "ef_cst_crobow01.ogg"}},

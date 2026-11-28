@@ -2,7 +2,9 @@ package app
 
 import (
 	"github.com/Spelunkern/Shaiya-GX/internal/data/effect"
+	"github.com/Spelunkern/Shaiya-GX/internal/data/sdata"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
+	"github.com/Spelunkern/Shaiya-GX/internal/scene"
 )
 
 // Skill damage is presentation only. HP and resources follow server snapshots.
@@ -33,25 +35,24 @@ func (a *App) confirmedSkillFeedback(op proto.Opcode) {
 		}
 		source, target, value = r.Source, r.Target, r.HP
 		critical = r.Result == 1
-		if source != a.state.SelfID && target != a.state.SelfID && target != a.state.Target {
-			return
-		}
-		if r.Result < 3 {
+		visible := source == a.state.SelfID || target == a.state.SelfID || target == a.state.Target
+		if visible && r.Result < 3 {
 			a.showDrainRecovery(r.Source, r.HealedHP, r.HealedSP, r.HealedMP, critical)
 		}
-		if a.wv != nil {
-			d, ok := a.skillDefinition(r.ID, r.Level)
+		d, ok := a.skillDefinition(r.ID, r.Level)
+		if a.wv != nil && ok {
 			secondary := op == proto.SkillPartyMember || op == proto.SkillMobOther
-			if ok && a.queuePhysicalSkill(r, d, secondary) {
+			if a.queuePhysicalSkill(r, d, secondary) || a.deliverMeleeSkillHit(r, d, secondary) {
 				return
+			}
+			if d.Effect == 1 || d.Effect == 3 || d.Effect == 5 {
+				a.playCharacterDamageVoice(r.Target, r.Result, r.HP)
 			}
 		}
 		if r.Result == 3 {
 			label = lblMiss
-		} else {
-			if d, ok := a.skillDefinition(r.ID, r.Level); ok && d.Effect == 2 {
-				label = lblHealing
-			}
+		} else if ok && d.Effect == 2 {
+			label = lblHealing
 		}
 	case proto.SkillUserExtraDamage, proto.SkillExtraDamage:
 		r := a.state.LastSkillExtra
@@ -106,4 +107,30 @@ func (a *App) confirmedSkillFeedback(op proto.Opcode) {
 		kind = combatHealHP
 	}
 	a.showCombatNumber(target, value, critical, label == lblMiss, kind)
+}
+
+// A landed direct melee skill shares weapon contact, reaction and death
+// handling with a basic strike. Area recipient packets carry the damage but
+// do not start another weapon impact at each target.
+func (a *App) deliverMeleeSkillHit(r proto.SkillResult, d sdata.Skill, secondary bool) bool {
+	if r.Level == 0 || r.Level == 100 || r.Target == 0 || r.Target == r.Source || r.Result > 1 || r.HP == 0 ||
+		(d.Attack != 1 && d.Attack != 2) || (d.Effect != 1 && d.Effect != 3 && d.Effect != 5) {
+		return false
+	}
+	weapon := a.playerWeapon(r.Source)
+	if rangedFamily(weapon) != 0 {
+		return false
+	}
+	var actor *scene.Character
+	var hit string
+	if !secondary {
+		actor = a.playerActor(r.Source)
+		slot := scene.SkillAction(d.Animation, d.Attack, d.Effect, weapon, a.attackVariant)
+		if !actor.PlayingAction(slot) {
+			actor = nil
+		}
+		_, hit = scene.WeaponSounds(weapon, r.Result == 1, a.attackVariant)
+	}
+	a.deliverAttackResult(proto.AttackResult{Source: r.Source, Target: r.Target, HP: r.HP, SP: r.SP, MP: r.MP, Result: r.Result}, actor, hit)
+	return true
 }

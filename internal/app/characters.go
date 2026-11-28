@@ -289,12 +289,6 @@ func (a *App) updateCharacters(in *platform.Input, w, h int, dt float64) {
 			}
 			return
 		}
-		if a.updateGuildInvite(in, w, h) {
-			if a.wv != nil && a.world != nil && a.state != nil {
-				a.updateWorld(&platform.Input{MouseX: in.MouseX, MouseY: in.MouseY, SuppressAutoRun: true}, dt)
-			}
-			return
-		}
 		if a.exchange.quantity != nil || a.exchange.moneyOpen {
 			a.updateExchangeModal(in)
 			if a.wv != nil && a.world != nil && a.state != nil {
@@ -408,8 +402,8 @@ func (a *App) drawCharacters(w, h int) {
 			line("Loading...", white)
 		}
 	case game.PhaseInWorld:
-		a.tooltip = nil
-		a.tooltipMuted = false
+		a.tooltipContent = tooltipContent{}
+		a.tooltipComparison = tooltipContent{}
 		if a.worldUIHidden() {
 			break
 		}
@@ -426,12 +420,14 @@ func (a *App) drawCharacters(w, h int) {
 		a.drawQuickPotions(w, h)
 		a.drawEvolutionBar(w, h)
 		a.drawRevolver(w, h)
+		a.drawQuestTracker(w, h)
 		a.drawShop(w, h)
 		a.drawExchange(w, h)
 		a.drawDuel(w, h)
 		a.drawGuildDuel(w, h)
 		a.drawGuildRanking(w, h)
 		a.drawInventory(w, h)
+		a.drawInspect(w, h)
 		a.drawSkills(w, h)
 		if a.subActionsOpen && a.subActionsUI != nil {
 			walking, autoRun := false, false

@@ -100,6 +100,7 @@ func (a *App) closeNPC() {
 // enterNPCService leaves the conversation for the NPC's own window.
 func (a *App) enterNPCService(e *game.Entity) {
 	a.shop.talk = false
+	a.inventory.servicePosition = ui.WindowPosition{}
 	if !a.npcHasService(e) {
 		a.closeNPC()
 		return

@@ -8,22 +8,78 @@ Open `build/gx_server_control[.exe]` inside the server folder. Login and World
 show their readiness, listening endpoints and available actions. The World
 status provides the in-game player count. Start All starts missing services.
 Stop and Restart request authenticated shutdown and wait for the process to
-exit. Keep matching versions of all server executables in the same folder.
+exit. Keep matching versions of the server executables in the same folder.
 
-Live Logs follows the existing rotating Login and World JSON logs. Filter by
-service or severity, pause auto-scroll, and select an entry for its full
-message. Closing the GUI leaves both services running.
+| Tab | Controls |
+| --- | --- |
+| Overview | Login and World lifecycle controls, player count and GX Shield. **Run Game** is in the header. |
+| Activity | Live logs with filters for sessions, staff and GM commands, PvP and monster kills, drops, pickups and gold. |
+| Accounts | Account creation, passwords, GM role, Item Mall points, character stats, offline character delete/restore, and account or IP bans. |
+| Settings | Global and per-map reward rates, map controls, event presets and drops, and economy settings. |
+| Setup | Choose the server installation or GX client and configure network settings. |
 
-Open **Settings** to edit reward rates. Save writes the three settings to
-`.local/runtime.env`, preserving other entries. Restart World to apply the
-changes. Inherited environment overrides are displayed and cannot be edited
-from the GUI.
+The dashboard looks for the paired GX client. If needed, choose the executable
+in **Setup**. To use local animated artwork, put **gx-banner.gif** in the server
+folder's **.local** directory. The dashboard displays its built-in art when there
+is no local GIF.
 
-| Setting | Runtime key | Default and valid values |
+Each installation has its own runtime database, settings and ports. Switching
+installations leaves the other processes in place. The controller verifies
+executable paths, detects overlapping ports and avoids running multiple Worlds
+against one mutable database. When closing the dashboard, choose whether to
+keep its services running or stop them. Reopening reconnects to running services.
+
+GX Shield adds an **Under Attack** control to the dashboard.
+Standard network limits are always on. Under Attack tightens new connections to
+30 per source IP per minute and at most 16 simultaneous connections per IP for
+both Login and World, without disconnecting existing players. The operator can
+activate it for 30 minutes or return to standard limits. A service at its global
+connection limit automatically activates Under Attack for ten minutes after 64
+additional capacity rejections from at least four IPs within ten seconds. The mode expires on its own;
+it resets to standard if a service restarts. If the two services report different
+modes, the dashboard offers to apply Under Attack to both.
+
+The shield acts inside GX after TCP reaches the host. It cannot absorb a flood
+that saturates the server's network link. Public deployments still need upstream
+TCP DDoS protection for both game ports, with the origin restricted to that
+provider. GX uses the socket's remote IP and does not parse PROXY protocol. If
+a TCP proxy hides client addresses, all players share its per-IP budget. Verify
+source-IP preservation before relying on those limits. Do not expose the local
+control endpoint or its bearer tokens to the internet.
+
+For a private rollout, install matching Login, World and Control binaries in a
+separate folder with a disposable SQLite copy and isolated ports. Connect a
+client, enter World, enable Under Attack and confirm that the current session
+continues and a normal new login still succeeds. Test standard and stricter
+limits with controlled local connections, including several players behind one
+shared public IP. Check the shield status and rejection counters on both cores,
+then return to standard limits and verify normal reconnects. Restart each core
+and confirm that its mode resets to standard. Do not direct load tests at a
+public or personal runtime.
+
+An account ban revokes its pending World entry and disconnects only its active
+session. An IP ban blocks the exact source address seen by Login and World and
+disconnects current World sessions from that address. An IP can be shared by
+several players. Bans persist until lifted, and the controls work while the
+servers are running.
+
+Activity follows the Login, World and operator logs. Filter by category,
+service or severity and select an entry for its full message.
+
+Saved reward rates apply to new events while World is running and persist for
+the next start. Save preserves unrelated keys in the runtime environment file.
+Per-map rates inherit the World defaults for fields left empty. Economy
+changes for vendor prices or reroll fees require the matching GX client to show
+and confirm the live quote.
+
+| Setting | Runtime key | Default |
 | --- | --- | --- |
-| Monster EXP | `RAPTURE_MOB_EXP_PERCENT` | 100%. Whole percentages from 0 to 10,000, applied to solo, party, raid and offline monster kill EXP. |
-| Quest EXP | `RAPTURE_QUEST_EXP_PERCENT` | 100%. Whole percentages from 0 to 10,000, applied to quest completion EXP. |
-| PvP rank kills | `RAPTURE_PVP_KILL_MULTIPLIER` | 1×. Whole multipliers from 1 to 100 for eligible rank credit, subject to the existing rank cap. PvP quest and faction blessing credit count actual qualifying kills. |
+| Monster EXP | RAPTURE_MOB_EXP_PERCENT | 100% |
+| Quest EXP | RAPTURE_QUEST_EXP_PERCENT | 100% |
+| PvP rank kills | RAPTURE_PVP_KILL_MULTIPLIER | 1× eligible rank credit, capped by normal rank limits |
+| Monster loot chance | RAPTURE_MOB_DROP_PERCENT | 100% of the normal chance |
+| Monster gold payout | RAPTURE_MOB_GOLD_PERCENT | 100% of the normal payout |
+| Global event loot chance | RAPTURE_WORLD_DROP_PERCENT | 100% of the configured chance |
 
 ## Terminal console
 
@@ -49,6 +105,14 @@ Existing `RAPTURE_*` configuration names and SQLite filenames are retained for c
 
 Defaults listen on `127.0.0.1:30800` (login) and `127.0.0.1:30810` (world). To accept another computer, set the following before starting the controller.
 
+The **Setup** tab's network panel provides local and remote presets,
+numeric IPv4 validation, detected local IPv4 choices and a free-port search.
+Stop both services before saving. The remote preset binds both services to
+`0.0.0.0`; enter the IPv4 address clients can actually reach. For an Internet
+server this is the public/NAT address, not `0.0.0.0` and not `127.0.0.1`.
+Smart ports check the host at selection and save time, but another process can
+still win the port before GX starts.
+
 Windows PowerShell (replace the example IP with your server's reachable IPv4 address):
 
 ```powershell
@@ -66,6 +130,12 @@ RAPTURE_PUBLIC_IP=192.168.1.20 ./build/gx_console
 ```
 
 Allow inbound TCP 30800/30810 on the server firewall. Connect the client with `-login 192.168.1.20:30800`. If using another world port, also pass `-world-port PORT` to the GX client. `RAPTURE_PUBLIC_IP` is the address advertised to the client for world, so it must be reachable from the client's computer; `0.0.0.0` is a listen wildcard, not an advertised address.
+
+GX Server Control does not change Windows Firewall, configure router/NAT port
+forwarding, discover the WAN address or provide upstream volumetric protection.
+Public operators must allow/forward both selected TCP ports and protect/restrict
+the origin upstream. Use a separate installation and port pair for every
+simultaneously running GX server.
 
 For persistent overrides create `.local/runtime.env` in the server directory. Explicit environment values take priority. `RAPTURE_DATA_DIR`, `RAPTURE_DB_PATH` and `RAPTURE_DB_SEED` select data/runtime/seed locations independently. Relative paths in overrides are resolved against the server folder when using the controllers. Prefer absolute paths for direct headless launches with explicit overrides.
 
@@ -131,7 +201,7 @@ Forge costs use the native ReqIg table without Vg/level discounts or the old
 free-cost environment override. GX World loads `ItemEnchant.ini` from `data/game`. The shipped
 cap is +20. `MaxLevel` configures both equipment types and
 `WeaponMaxLevel` or `DefenseMaxLevel` can override it up to +49.
-Restart GX World after editing the file in GX Studio.
+Back up `ItemEnchant.ini` before editing it. Restart GX World to load the changes.
 The client receives the server bonus tables for its tooltips. See the [feature wiki](wiki/README.md) for exact rules,
 item content fields, extraction, recreation and drop persistence.
 
@@ -174,7 +244,8 @@ or both factions. Keep the file with the server data when upgrading. See the
 GX World reads the nine gameplay catalogs from `data/game` at startup.
 These files take precedence over the retired SQLite definition tables.
 Existing migration histories and rows are retained for upgrades and export.
-Use GX Studio for structured edits and verified file backups.
+For NpcQuest, use the [standalone GX Studio](gx-studio.md). For other game
+files, keep a copy of the original and edit the file directly.
 
 To carry a customized SQLite catalog into a file-based installation, export
 from a verified SQLite backup into a new directory. Supply the matching

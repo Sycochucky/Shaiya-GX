@@ -45,7 +45,6 @@ func (a *App) receiveSkillDash(d proto.SkillDash) {
 		v.requestedSkill = nil
 		v.requestedSkills = nil
 		v.jumping = false
-		v.attackPose = false
 	}
 }
 func (a *App) updateSkillDashes() bool {

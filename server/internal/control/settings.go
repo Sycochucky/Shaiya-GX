@@ -2,14 +2,11 @@ package control
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/operatorwire"
 )
 
 // RewardSettings returns the editable local values and tracks inherited overrides.
@@ -18,23 +15,33 @@ func (m *Manager) RewardSettings() (map[string]string, map[string]bool, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	keys := []string{config.MobEXPKey, config.QuestEXPKey, config.PvPKillKey}
 	defaults := config.DefaultRewardRates()
-	fallbacks := []uint32{defaults.MobEXPPercent, defaults.QuestEXPPercent, defaults.PvPKills}
-	effective := make(map[string]string, len(keys))
-	override := make(map[string]bool, len(keys))
-	for i, key := range keys {
+	fields := []struct {
+		key      string
+		fallback uint32
+	}{
+		{config.MobEXPKey, defaults.MobEXPPercent},
+		{config.QuestEXPKey, defaults.QuestEXPPercent},
+		{config.PvPKillKey, defaults.PvPKills},
+		{config.MobDropKey, defaults.MobDropPercent},
+		{config.MobGoldKey, defaults.MobGoldPercent},
+		{config.WorldDropKey, defaults.WorldDropPercent},
+	}
+	effective := make(map[string]string, len(fields))
+	override := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		key := field.key
 		_, override[key] = os.LookupEnv(key)
 		effective[key] = config.RuntimeValue(values, key)
 		if effective[key] == "" {
-			effective[key] = strconv.FormatUint(uint64(fallbacks[i]), 10)
+			effective[key] = strconv.FormatUint(uint64(field.fallback), 10)
 		}
 	}
 	return effective, override, nil
 }
 
-func (m *Manager) SaveRewardSettings(ctx context.Context, mob, quest, kills string) error {
-	rates, err := config.ParseRewardRates(mob, quest, kills)
+func (m *Manager) SaveRewardSettings(ctx context.Context, values map[string]string) error {
+	_, err := config.ParseRewardRates(values)
 	if err != nil {
 		return err
 	}
@@ -43,69 +50,18 @@ func (m *Manager) SaveRewardSettings(ctx context.Context, mob, quest, kills stri
 		return err
 	}
 	defer release()
-	if _, err := config.ReadRuntimeEnv(m.root); err != nil {
-		return err
-	}
-	path := config.RuntimeEnvPath(m.root)
-	raw, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return err
-	}
-	content := string(raw)
-	eol := "\n"
-	if strings.Contains(content, "\r\n") {
-		eol = "\r\n"
-	}
-	for _, item := range []struct {
-		key string
-		val uint32
-	}{
-		{config.MobEXPKey, rates.MobEXPPercent},
-		{config.QuestEXPKey, rates.QuestEXPPercent},
-		{config.PvPKillKey, rates.PvPKills},
-	} {
-		if _, overridden := os.LookupEnv(item.key); overridden {
-			continue
-		}
-		content = replaceSetting(content, item.key, fmt.Sprint(item.val), eol)
-	}
-	if content == string(raw) {
-		return nil
-	}
-	file, err := os.CreateTemp(filepath.Dir(path), ".runtime-env-*")
+	processes, err := m.processes()
 	if err != nil {
 		return err
 	}
-	defer os.Remove(file.Name())
-	_, writeErr := file.WriteString(content)
-	if writeErr == nil {
-		writeErr = file.Sync()
-	}
-	if err := errors.Join(writeErr, file.Close()); err != nil {
+	if len(processes[World]) > 0 {
+		drops, gold, eventDrops := values[config.MobDropKey], values[config.MobGoldKey], values[config.WorldDropKey]
+		_, err := m.worldOperator(ctx, processes[World], operatorwire.Request{
+			Action: "reward-rates", MobRate: values[config.MobEXPKey], QuestRate: values[config.QuestEXPKey],
+			KillRate: values[config.PvPKillKey], DropRate: &drops, GoldRate: &gold, WorldDropRate: &eventDrops,
+		})
 		return err
 	}
-	return os.Rename(file.Name(), path)
-}
-
-// Update the last assignment, which is the one the runtime parser uses.
-func replaceSetting(content, key, value, eol string) string {
-	lines := strings.Split(content, "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		name, _, found := strings.Cut(lines[i], "=")
-		if found && strings.TrimSpace(name) == key {
-			suffix := ""
-			if strings.HasSuffix(lines[i], "\r") {
-				suffix = "\r"
-			}
-			lines[i] = name + "=" + value + suffix
-			return strings.Join(lines, "\n")
-		}
-	}
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += eol
-	}
-	return content + key + "=" + value + eol
+	_, err = config.SaveRewardRates(m.root, values, config.InheritedRewardRates())
+	return err
 }

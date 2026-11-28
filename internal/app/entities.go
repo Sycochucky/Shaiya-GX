@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/Spelunkern/Shaiya-GX/internal/clientlog"
 	"github.com/Spelunkern/Shaiya-GX/internal/game"
@@ -24,6 +23,7 @@ type remoteActor struct {
 	climbing        bool
 	entity          *game.Entity
 	position        remotePosition
+	heading         remoteHeading
 	gestureSerial   uint64
 	moveSerial      uint64
 	moveMode        uint8
@@ -229,11 +229,8 @@ func (a *App) prepareRemotePlayers() {
 		if e.ClimbMode == 1 && !c.ActionActive() {
 			c.Time -= float32(a.frameDT)
 		}
-		angle := float64(e.Dir) / 65536 * 2 * math.Pi
-		fwd := render.V3{float32(math.Sin(angle)), 0, float32(math.Cos(angle))}
-		if c.ActionActive() && cached.facing.Len() > 0 {
-			fwd = cached.facing
-		} else {
+		packetFwd := entityForward(e.Dir)
+		if !c.ActionActive() {
 			cached.facing = render.V3{}
 		}
 		scale := (scene.Appearance{Height: sh.Height}).ScaleMatrix()
@@ -241,15 +238,8 @@ func (a *App) prepareRemotePlayers() {
 		if e.ClimbMode != 0 && !e.Dead && !e.Mounted {
 			pos = v.world.LadderVisual(pos, -1)
 		}
-		if d, ok := v.dashes[id]; ok {
-			pos = render.V3(d.Position(a.skillPhysicsTime() - d.Started))
-			cached.position.pos, cached.position.from, cached.position.to = pos, pos, pos
-			cached.position.duration = 0
-			fwd = render.V3(d.To).Sub(render.V3(d.From))
-			fwd[1] = 0
-			fwd = fwd.Norm()
-		}
-		if e.Mounted && e.Vehicle.State != proto.VehiclePassenger {
+		mountedDriver := e.Mounted && e.Vehicle.State != proto.VehiclePassenger
+		if mountedDriver {
 			if !cached.mountLoaded || cached.mountShape != e.MountShape {
 				cached.mountShape, cached.mountLoaded = e.MountShape, true
 				var err error
@@ -258,24 +248,38 @@ func (a *App) prepareRemotePlayers() {
 					clientlog.Warnf("player %d mount: %v", id, err)
 				}
 			}
-			if cached.mount != nil {
-				reverse := e.Motion&0x3f == 2
-				if moving && cached.travelDirection.Len() > 0 {
-					reverse = reverse || cached.travelDirection.Dot(fwd) < -.5
-					if !reverse {
-						fwd = cached.travelDirection
-					}
-				}
-				cached.mount.SetMotion(moving, walking, reverse, e.Motion&proto.MotionFlag80 != 0)
-				stepAction, stepTime := cached.mount.StepCursor()
-				cached.mount.Update(float32(a.frameDT))
-				a.updateMountSounds(cached.mount, stepAction, stepTime, sh.Race, e.X, e.Y, e.Z)
-				cached.mount.World = render.Basis(pos, fwd.Scale(-1), render.V3{0, 1, 0})
-				pos = mountRise(&cached.mountBlend, float32(a.frameDT), pos, cached.mount.Seat())
-				cached.mount.PrepareEffects(float32(a.frameDT), a.clientSettings().SkillEffects, true, &a.vehicle.effectBudget)
-			}
 		} else {
 			cached.mount, cached.mountLoaded, cached.mountBlend = nil, false, 0
+		}
+		reverse := e.Motion&0x3f == 2
+		wantFwd := packetFwd
+		if mountedDriver && cached.mount != nil && moving && cached.travelDirection.Len() > 0 {
+			reverse = reverse || cached.travelDirection.Dot(packetFwd) < -.5
+			if !reverse {
+				wantFwd = cached.travelDirection
+			}
+		}
+		var fwd render.V3
+		if d, ok := v.dashes[id]; ok {
+			pos = render.V3(d.Position(a.skillPhysicsTime() - d.Started))
+			cached.position.pos, cached.position.from, cached.position.to = pos, pos, pos
+			cached.position.duration = 0
+			dashDir := render.V3(d.To).Sub(render.V3(d.From))
+			dashDir[1] = 0
+			fwd = cached.heading.snap(dashDir, e, a.clock)
+		} else if c.ActionActive() && cached.facing.Len() > 0 {
+			fwd = cached.heading.snap(cached.facing, e, a.clock)
+		} else {
+			fwd = cached.heading.update(wantFwd, e, cached.position.snapped, a.clock)
+		}
+		if mountedDriver && cached.mount != nil {
+			cached.mount.SetMotion(moving, walking, reverse, e.Motion&proto.MotionFlag80 != 0)
+			stepAction, stepTime := cached.mount.StepCursor()
+			cached.mount.Update(float32(a.frameDT))
+			a.updateMountSounds(cached.mount, stepAction, stepTime, sh.Race, e.X, e.Y, e.Z)
+			cached.mount.World = render.Basis(pos, fwd.Scale(-1), render.V3{0, 1, 0})
+			pos = mountRise(&cached.mountBlend, float32(a.frameDT), pos, cached.mount.Seat())
+			cached.mount.PrepareEffects(float32(a.frameDT), a.clientSettings().SkillEffects, true, &a.vehicle.effectBudget)
 		}
 		c.World = scale.Mul(render.Basis(pos, fwd.Scale(-1), render.V3{0, 1, 0}))
 		a.prepareSpirit(cached, e)
@@ -344,14 +348,9 @@ func (a *App) drawRemotePlayers() {
 		}
 	}
 	scene.PrepareCrowdCloth(v.visiblePlayerCloth, a.scene3d)
-	flush := func() {
-		v.crowdBatch.Draw(a.skinner, a.scene3d, v.crowdCharacters)
-		clear(v.crowdCharacters)
-		v.crowdCharacters = v.crowdCharacters[:0]
-	}
 	for i, character := range v.visiblePlayers {
 		if mount := v.visiblePlayerMounts[i]; mount != nil {
-			flush()
+			a.flushCharacterBatch()
 			mount.Draw(a.skinner, a.scene3d)
 			mount.DrawEffects(a.scene3d)
 		}
@@ -359,10 +358,20 @@ func (a *App) drawRemotePlayers() {
 			v.crowdCharacters = append(v.crowdCharacters, character)
 		}
 	}
-	flush()
+	a.flushCharacterBatch()
 	clear(v.visiblePlayers)
 	clear(v.visiblePlayerMounts)
 	clear(v.visiblePlayerCloth)
+}
+
+func (a *App) flushCharacterBatch() {
+	v := a.wv
+	if len(v.crowdCharacters) == 0 {
+		return
+	}
+	v.crowdBatch.Draw(a.skinner, a.scene3d, v.crowdCharacters)
+	clear(v.crowdCharacters)
+	v.crowdCharacters = v.crowdCharacters[:0]
 }
 
 // projectName maps a world point to the UI's top-left pixel coordinates.

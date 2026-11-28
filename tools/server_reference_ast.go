@@ -56,7 +56,7 @@ func main() {
 				if n == nil {
 					return ""
 				}
-				return string(raw[fset.Position(n.Pos()).Offset:fset.Position(n.End()).Offset])
+				return strings.ReplaceAll(string(raw[fset.Position(n.Pos()).Offset:fset.Position(n.End()).Offset]), "\r\n", "\n")
 			}
 			formatted := func(n ast.Node) string { var b bytes.Buffer; _ = printer.Fprint(&b, fset, n); return b.String() }
 			var imports []string
@@ -77,7 +77,7 @@ func main() {
 					}
 				}
 				if id, ok := e.(*ast.Ident); ok {
-					return filepath.Dir(path) + "." + id.Name
+					return filepath.ToSlash(filepath.Dir(path)) + "." + id.Name
 				}
 				return nodeText(e)
 			}
@@ -170,7 +170,7 @@ func main() {
 									}
 								}
 							}
-							if id, ok := c.Fun.(*ast.Ident); ok && id.Name == "NewWriter" && filepath.Dir(path) == "internal/proto" && len(c.Args) > 0 {
+							if id, ok := c.Fun.(*ast.Ident); ok && id.Name == "NewWriter" && filepath.ToSlash(filepath.Dir(path)) == "internal/proto" && len(c.Args) > 0 {
 								r.Ops = append(r.Ops, qualify(c.Args[0]))
 							}
 						}

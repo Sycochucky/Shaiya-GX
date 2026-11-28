@@ -23,7 +23,7 @@ func TestAnorEquipmentIgnoresCharacterMode(t *testing.T) {
 		pool.Exec("DELETE FROM PS_GameData_Chars WHERE CharID=?", id)
 	})
 	ch := db.Character{ID: id, Level: 60, Race: 0, Class: 5, Mode: 2}
-	s, _ := gmWireSession(t, ch, false)
+	s, packets := gmWireSession(t, ch, false)
 	item := db.Item{Bag: 1, Slot: 0, Type: 16, TypeID: 216, Count: 1}
 	if err := db.AddCharacterItem(id, &item); err != nil {
 		t.Fatal(err)
@@ -35,10 +35,21 @@ func TestAnorEquipmentIgnoresCharacterMode(t *testing.T) {
 	}
 	for mode := uint8(0); mode <= 3; mode++ {
 		s.char.Mode = mode
-		if reason := s.equipmentMoveFailure(1, 0, 0, 0); reason != "" {
+		if _, reason := s.equipmentMoveFailure(1, 0, 0, 0); reason != "" {
 			t.Fatalf("mode %d blocked equipment: %s", mode, reason)
 		}
 	}
+	s.char.Level = 1
+	s.handleItemBagToBag(proto.ItemMovePacket(1, 0, 0, 0))
+	move, err := proto.DecodeItemMove(waitWorldPacket(t, packets, proto.ItemBagToBag))
+	if err != nil || move[0].TypeID != item.TypeID || move[1].Type != 0 {
+		t.Fatalf("rejected move did not echo unchanged slots: %v, %v", move, err)
+	}
+	typ, itemID, err := proto.DecodeEquipRefusal(waitWorldPacket(t, packets, proto.GXEquipRefusal))
+	if err != nil || typ != item.Type || itemID != item.TypeID {
+		t.Fatalf("rejection lost item identity: %d/%d, %v", typ, itemID, err)
+	}
+	s.char.Level = 60
 	s.char.Mode = 2
 	s.handleItemBagToBag(proto.ItemMovePacket(1, 0, 0, 0))
 	stored, err := db.CharacterItems(id)

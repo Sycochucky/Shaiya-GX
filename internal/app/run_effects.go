@@ -1,6 +1,8 @@
 package app
 
 import (
+	"cmp"
+
 	"github.com/Spelunkern/Shaiya-GX/internal/movespeed"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"github.com/Spelunkern/Shaiya-GX/internal/render"
@@ -81,7 +83,7 @@ func (a *App) updateRunEffects() {
 		running := e.Motion&0x3f != 0 && e.Motion&0x3f != 2
 		pos := a.visualEntityPosition(e)
 		if runTrailEnabled(e.Speed, running, e.Mounted, e.Dead || e.Sitting, e.Concealed, v.world.SwimmingAt(pos[0], pos[1], pos[2])) {
-			spawn(id, e.Shape.Faction, pos, r.facing)
+			spawn(id, e.Shape.Faction, pos, cmp.Or(r.facing, r.heading.vector(e)))
 		}
 	}
 }

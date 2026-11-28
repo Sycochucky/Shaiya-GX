@@ -54,7 +54,7 @@ func (s *Session) userSkillCenter(def *db.SkillDef, target uint32) (*ConnectedPl
 func (s *Session) hostileUsersWithin(x, z, r float32) []*ConnectedPlayer {
 	var out []*ConnectedPlayer
 	for _, p := range PlayersOnMap(s.char.MapID) {
-		if p == s.player || !p.IsAlive() || p.immune.Load() || s.isTeam(p) {
+		if p == s.player || !p.IsAlive() || p.immune.Load() || s.isTeam(p) || !s.pvpWindowAllows(p) {
 			continue
 		}
 		px, pz := p.PositionXZ()

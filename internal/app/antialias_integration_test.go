@@ -42,6 +42,17 @@ func TestAntialiasSceneAndMenuGL(t *testing.T) {
 	if a.clientSettings().Antialias != ui.AntialiasOff {
 		t.Fatal("new installation enabled AA")
 	}
+	// A failed allocation leaves only the attempted dimensions. Keep drawing
+	// directly at that size and allocate a fresh target when the window resizes.
+	a.frameWidth, a.frameHeight = 960, 600
+	a.Draw(960, 600)
+	if a.frameTarget != nil {
+		t.Fatal("reallocated a rejected frame target without a resize")
+	}
+	a.Draw(959, 600)
+	if a.frameTarget == nil {
+		t.Fatal("did not recover from failed frame target allocation after resize")
+	}
 	if e = a.Preview("world-water"); e != nil {
 		t.Fatal(e)
 	}

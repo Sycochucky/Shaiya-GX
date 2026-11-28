@@ -135,6 +135,19 @@ func NewSprites(maxQuads int) (*Sprites, error) {
 	return s, nil
 }
 
+func (s *Sprites) Delete() {
+	if s == nil || s.prog == 0 {
+		return
+	}
+	s.ResetHoverDepth()
+	s.depth.Delete()
+	gl.DeleteVertexArrays(1, &s.vao)
+	gl.DeleteBuffers(1, &s.vbo)
+	gl.DeleteProgram(s.prog)
+	removeGPUBytes(uint64(s.cap * 6 * spriteVertexBytes))
+	*s = Sprites{}
+}
+
 // Begin starts a frame of w x h pixels.
 func (s *Sprites) Begin(w, h int) {
 	s.clipped = false

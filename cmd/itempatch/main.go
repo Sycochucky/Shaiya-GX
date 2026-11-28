@@ -16,7 +16,7 @@ import (
 func main() {
 	input := flag.String("input", "", "source Item.SData")
 	output := flag.String("output", "", "new output file")
-	source := flag.String("patches", "", "CSV: type,type_id,req_vg,stack,description OR type,type_id,req_vg,special")
+	source := flag.String("patches", "", "CSV definition patches (optional special, icon and name columns)")
 	retire := flag.Bool("retire-obsolete", false, "retire legacy utility definitions and update current tooltips in Item.SData")
 	retireCash := flag.Bool("retire-obsolete-cash", false, "remove retired utility products from Cash.SData")
 	flag.Parse()
@@ -57,7 +57,8 @@ func main() {
 		log.Fatal("missing patch header")
 	}
 	specialOnly := fmt.Sprint(rows[0]) == "[type type_id req_vg special]"
-	if !specialOnly && fmt.Sprint(rows[0]) != "[type type_id req_vg stack description]" {
+	visual := fmt.Sprint(rows[0]) == "[type type_id req_vg stack description special icon name]"
+	if !specialOnly && !visual && fmt.Sprint(rows[0]) != "[type type_id req_vg stack description]" {
 		log.Fatal("invalid patch header")
 	}
 	for _, row := range rows[1:] {
@@ -80,6 +81,11 @@ func main() {
 		} else {
 			patch.Stack = uint8(nums[3])
 			patch.Description = row[4]
+			if visual {
+				patch.Special = optionalPatchByte(row[5])
+				patch.Icon = optionalPatchByte(row[6])
+				patch.Name = row[7]
+			}
 		}
 		patches[sdata.ItemKey{Type: uint8(nums[0]), TypeID: uint8(nums[1])}] = patch
 	}
@@ -89,6 +95,18 @@ func main() {
 	}
 	writeOutput(*output, patched)
 	fmt.Printf("patched %d native definitions\n", len(patches))
+}
+
+func optionalPatchByte(text string) *uint8 {
+	if text == "" {
+		return nil
+	}
+	value, err := strconv.ParseUint(text, 10, 8)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b := uint8(value)
+	return &b
 }
 
 func writeOutput(output string, patched []byte) {

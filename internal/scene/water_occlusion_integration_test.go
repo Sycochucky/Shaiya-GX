@@ -154,7 +154,7 @@ func testWaterOcclusionMap(t *testing.T, stem string) {
 		}
 		w.Draw(s)
 		if s.WaterReflection != nil && w.HasWaterNormals() {
-			s.CaptureWaterBackground()
+			s.CaptureWaterBackgroundRegion(region)
 		}
 		w.DrawWater(s)
 		s.WaterReflection = nil

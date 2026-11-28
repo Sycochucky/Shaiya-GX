@@ -45,13 +45,25 @@ func clientMain() (code int) {
 	volume := flag.Float64("volume", 0.6, "master audio volume (0..1; screenshots are silent)")
 	verbose := flag.Bool("verbose", false, "include detailed client diagnostics")
 	debug := flag.Bool("gldebug", false, "OpenGL debug context")
+	glCheck := flag.Bool("gl-check", false, "check graphics startup without game data and exit")
+	noBindless := flag.Bool("gl-no-bindless", false, "use texture bindings instead of optional bindless draws")
+	noDrawParameters := flag.Bool("gl-no-draw-parameters", false, "use OpenGL 4.5 drawing without optional shader draw parameters")
 	shot := flag.String("screenshot", "", "render offscreen to this PNG and exit")
 	shotScreen := flag.String("screenshot-screen", "login", "offscreen scene: login | servers | chars | create | faction | world-*")
 	autoSelect := flag.Int("autoplay-select", -1, "with -autoplay: stop at character select on this slot")
 	autoCast := flag.Int("autoplay-cast-slot", 0, "with -autoplay: activate slot 1..10 and wait for cast start")
 	autoplay := flag.String("autoplay", "", "account to log in with (SHAIYA_PASSWORD) offscreen until in world, then save -screenshot")
 	flag.Parse()
-	clientlog.SetVerbose(*verbose)
+	clientlog.SetVerbose(*verbose || *glCheck)
+	graphics := render.InitOptions{Debug: *debug, DisableBindless: *noBindless, DisableDrawParameters: *noDrawParameters}
+	if *glCheck {
+		interactive = false
+		if err := checkGraphics(graphics); err != nil {
+			diagnostics.fail(err, false, nil)
+			return 1
+		}
+		return 0
+	}
 	interactive = *shot == "" && *autoplay == ""
 	if *dataDir == "" {
 		if exe, err := os.Executable(); err == nil {
@@ -70,14 +82,14 @@ func clientMain() (code int) {
 		return 1
 	}
 	diagnostics.data(*dataDir)
-	if err := run(*dataDir, app.Config{LoginAddr: *login, WorldPort: *worldPort, Version: proto.ClientVersion, Volume: *volume}, *width, *height, *debug, *shot, *shotScreen, *autoplay, *autoSelect, *autoCast); err != nil {
+	if err := run(*dataDir, app.Config{LoginAddr: *login, WorldPort: *worldPort, Version: proto.ClientVersion, Volume: *volume}, *width, *height, graphics, *shot, *shotScreen, *autoplay, *autoSelect, *autoCast); err != nil {
 		diagnostics.fail(err, interactive, nil)
 		return 1
 	}
 	return 0
 }
 
-func run(dataDir string, cfg app.Config, w, h int, debug bool, shot, shotScreen, autoUser string, autoSelect, autoCast int) error {
+func run(dataDir string, cfg app.Config, w, h int, graphics render.InitOptions, shot, shotScreen, autoUser string, autoSelect, autoCast int) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	arc, err := archive.OpenDirectory(dataDir)
@@ -96,13 +108,13 @@ func run(dataDir string, cfg app.Config, w, h int, debug bool, shot, shotScreen,
 			restoreSize = false
 		}
 	})
-	win, err := platform.Open(platform.Config{Title: "Shaiya GX", Width: w, Height: h, Debug: debug, VSync: true,
+	win, err := platform.Open(platform.Config{Title: "Shaiya GX", Width: w, Height: h, Debug: graphics.Debug, VSync: true,
 		Hidden: shot != "" || autoUser != "", RememberSize: true, RestoreSize: restoreSize})
 	if err != nil {
 		return err
 	}
 	defer win.Close()
-	if err := render.Init(debug); err != nil {
+	if err := render.InitWithOptions(graphics); err != nil {
 		return fmt.Errorf("initialize graphics: %w", err)
 	}
 	if shot != "" || autoUser != "" {

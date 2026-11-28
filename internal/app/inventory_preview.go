@@ -29,22 +29,26 @@ func (a *App) drawInventoryPreview(w, h int) {
 	if v.preview == nil {
 		return
 	}
-	a.sprites.Flush()
 	x, y := a.inventoryUI.Origin(w, h)
-	render.InViewport(x+54, y+33, 136, 217, h, func() {
+	a.drawEquipmentActor(v.preview, ap, x+54, y+33, 136, 217, w, h)
+}
+
+func (a *App) drawEquipmentActor(actor *scene.Character, ap scene.Appearance, x, y, width, height, w, h int) {
+	a.sprites.Flush()
+	render.InViewport(x, y, width, height, h, func() {
 		s := a.actorPreviewScene()
-		centerY, distance := v.preview.InventoryFrame(34*math.Pi/180, ap.HeightScale())
+		centerY, distance := actor.InventoryFrame(34*math.Pi/180, ap.HeightScale())
 		s.SetCameraView(render.V3{0, centerY, distance}, render.V3{0, centerY, 0}, render.V3{0, 1, 0})
-		s.Proj = render.PerspectiveFovLH(34*math.Pi/180, 136.0/217, .1, 100)
+		s.Proj = render.PerspectiveFovLH(34*math.Pi/180, float32(width)/float32(height), .1, 100)
 		s.FogStart, s.FogEnd = 10000, 20000
 		// Match the world character's frontal fill instead of lighting its back.
 		s.LightDir = render.V3{-1, -1, -1}
 		s.CharacterAmbient = 1
 		s.Begin()
 		scale := ap.ScaleMatrix()
-		v.preview.World = scale.Mul(render.Basis(render.V3{}, render.V3{0, 0, -1}, render.V3{0, 1, 0}))
-		v.preview.Update(float32(a.frameDT))
-		v.preview.Draw(a.skinner, &s)
+		actor.World = scale.Mul(render.Basis(render.V3{}, render.V3{0, 0, -1}, render.V3{0, 1, 0}))
+		actor.Update(float32(a.frameDT))
+		actor.Draw(a.skinner, &s)
 		s.End()
 	})
 	a.sprites.Begin(w, h)

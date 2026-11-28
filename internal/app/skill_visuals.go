@@ -67,15 +67,19 @@ func (a *App) startSkillResultEffects(r proto.SkillResult) {
 		return
 	}
 	flight, impact := skillEffectLibraries(r, d)
-	if r.Target == 0 && d.Target == 6 {
+	sound := skillResultEffectSound(r, d)
+	if d.Target == 6 && (r.Target == 0 || r.Result == 4) {
 		r.Target = r.Source
+	}
+	if flight == "" {
+		a.playEntitySound(r.Target, sound)
 	}
 	if r.Result == 4 && areaShowerSkill(r.ID) && d.Target == 7 && impact != "" {
 		a.startSkillAreaShower(r, d, impact)
 		return
 	}
 	if flight != "" {
-		a.startSkillProjectile(r, flight, impact)
+		a.startSkillProjectile(r, flight, impact, sound)
 	} else if impact != "" {
 		elapsed := float32(0)
 		if actor := a.playerActor(r.Source); actor != nil && actor.ActionActive() {
@@ -99,6 +103,22 @@ func (a *App) startSkillResultEffects(r proto.SkillResult) {
 	}
 }
 
+// Target-centered area announcements use mode 0. A caster-centered result
+// uses the target selector on the caster. Secondary recipient FX have no
+// spell cue in the original 0x5783d0/0x579390 handlers.
+func skillResultEffectSound(r proto.SkillResult, d sdata.Skill) string {
+	if r.Level == 0 || r.Level == 100 || d.Effect == 0 || d.Target < 1 || d.Target > 7 {
+		return ""
+	}
+	if r.Result <= 3 || r.Result == 4 && d.Target == 6 {
+		return effect.TargetSound(r.ID)
+	}
+	if r.Result == 4 && d.Target == 7 {
+		return effect.AreaSound(r.ID)
+	}
+	return ""
+}
+
 // Soul Burn's result arrives while the corpse is still in the view. Freeze
 // the impact at its feet so it stays there through the subsequent rebirth.
 func (a *App) startSoulBurnImpact(r proto.SkillResult) {
@@ -118,7 +138,6 @@ func (a *App) startSoulBurnImpact(r proto.SkillResult) {
 	m[12], m[13], m[14] = pos[0], pos[1], pos[2]
 	x.SetTransform(m)
 	a.wv.impacts = append(a.wv.impacts, skillImpact{instance: x, fixedWorld: &m, authoredLifetime: true})
-	a.playSound(effect.ImpactSound(file), pos[0], pos[2])
 }
 
 // Area, party and additional hits have already announced the cast; render an
@@ -194,11 +213,9 @@ func (a *App) startSkillImpactAt(target uint32, file string, sequence int, elaps
 	if len(a.wv.impacts) >= 32 {
 		return
 	}
-	pos, ok := a.effectPosition(target)
-	if !ok {
+	if _, ok := a.effectPosition(target); !ok {
 		return
 	}
-	a.playSound(effect.ImpactSound(file), pos[0], pos[2])
 	if x := a.loadSkillEffect(file, sequence); x != nil {
 		// Position before catching up; otherwise births use the world origin.
 		if m, ok := a.effectTargetMatrix(target); ok {

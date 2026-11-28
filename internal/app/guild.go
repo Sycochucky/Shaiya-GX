@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"github.com/Spelunkern/Shaiya-GX/internal/data/sdata"
 	"sort"
 	"strings"
@@ -13,8 +12,6 @@ import (
 )
 
 type guildView struct {
-	inviteSerial, replySerial                     uint64
-	applySerial, joinSerial                       uint64
 	createSerial, voteSerial, failureSerial       uint64
 	leaveSerial, disbandSerial, disbandVoteSerial uint64
 	disbandedSerial                               uint64
@@ -26,7 +23,6 @@ type guildView struct {
 	lifecycleDeadline                             float64
 	voting                                        bool
 	disbandVote                                   bool
-	expires                                       float64
 	open, rosterDirty                             bool
 	waiting                                       bool
 	offset                                        int
@@ -569,68 +565,6 @@ func (a *App) updateGuildConfirm(in *platform.Input, w, h int) bool {
 	return true
 }
 
-func (a *App) updateGuildInvite(in *platform.Input, w, h int) bool {
-	if a.guildMessage == nil || a.state == nil {
-		return false
-	}
-	g, v := &a.state.Guild, &a.guild
-	if g.InviteSerial != v.inviteSerial {
-		v.inviteSerial = g.InviteSerial
-		if g.InviteID != 0 && g.ID == 0 {
-			name := a.msg.Format(12296, map[string]string{"v": fmt.Sprint(g.InviteID)})
-			if e := a.state.Entities[g.InviteID]; e != nil && e.Shape != nil && e.Shape.Name != "" {
-				name = e.Shape.Name
-			}
-			a.guildMessage.Open(name+" invites you to a guild. Join?", true)
-			if v.expires == 0 {
-				v.expires = a.clock + 30
-			}
-		}
-	}
-	if g.ReplySerial != v.replySerial {
-		v.replySerial = g.ReplySerial
-		if g.LastReply.Result == 1 {
-			a.questMessageID(12111)
-		} else {
-			a.questMessageID(12112)
-		}
-	}
-	if g.ApplySerial != v.applySerial {
-		v.applySerial = g.ApplySerial
-		messages := [...]string{a.tr(12345), a.tr(12346), a.tr(12347)}
-		message := a.tr(12348)
-		if int(g.ApplyResult) < len(messages) {
-			message = messages[g.ApplyResult]
-		}
-		a.questMessage(message)
-	}
-	if g.JoinSerial != v.joinSerial {
-		v.joinSerial = g.JoinSerial
-		if g.JoinResult == 0 {
-			a.localizedNotice(17, 385, nil)
-		} else if g.JoinResult == 1 {
-			a.localizedNotice(17, 384, nil)
-		}
-	}
-	if !a.guildMessage.Visible {
-		return false
-	}
-	if g.ID != 0 || g.InviteID == 0 || a.clock >= v.expires {
-		a.guildMessage.Visible = false
-		g.InviteID = 0
-		return false
-	}
-	if answer := a.guildMessage.Update(in, w, h); answer != ui.MessageNone {
-		if err := a.world.Send(proto.GuildAnswerPacket(answer == ui.MessageOK)); err != nil {
-			a.backToLoginID(12106)
-			return true
-		}
-		// The server does not echo a declined invitation to its recipient.
-		g.InviteID = 0
-	}
-	return true
-}
-
 func (a *App) guildCommand(text string) bool {
 	fields := strings.Fields(text)
 	if len(fields) == 0 {
@@ -653,34 +587,5 @@ func (a *App) guildCommand(text string) bool {
 		a.questMessageID(12114)
 		return true
 	}
-	if !strings.EqualFold(fields[0], "/guildinvite") {
-		return false
-	}
-	if a.state.Guild.ID == 0 || a.state.Guild.Rank == 0 || a.state.Guild.Rank > 2 {
-		a.questMessageID(12115)
-		return true
-	}
-	e := a.state.Entities[a.state.Target]
-	if len(fields) > 1 {
-		e = nil
-		name := strings.Join(fields[1:], " ")
-		for _, candidate := range a.state.Entities {
-			if candidate.Kind == game.KindUser && candidate.Shape != nil && strings.EqualFold(candidate.Shape.Name, name) {
-				e = candidate
-				break
-			}
-		}
-	}
-	if e == nil || e.Kind != game.KindUser || e.ID == a.state.SelfID {
-		a.questMessageID(12116)
-		return true
-	}
-	if _, member := a.state.Guild.Members[e.ID]; member {
-		a.questMessageID(12117)
-		return true
-	}
-	if err := a.world.Send(proto.GuildInvitePacket(e.ID)); err != nil {
-		a.backToLoginID(12107)
-	}
-	return true
+	return false
 }

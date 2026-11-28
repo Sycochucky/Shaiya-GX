@@ -266,7 +266,26 @@ func (a *App) drawMarket(w, h int, def sdata.NPC) {
 }
 
 func (a *App) buyItem(index uint8, count uint16) {
-	if err := a.world.Send(proto.ShopBuyPacket(a.shop.npcID, index, count)); err != nil {
+	npcID := a.shop.npcID
+	request := proto.ShopBuyPacket(npcID, index, count)
+	quote := a.state.Economy
+	if quote.Revision != 0 && quote.BuyPercent != 100 && !houseMaps[a.state.MapID] {
+		unit, ok := a.merchantBuyQuote(index)
+		if !ok {
+			return
+		}
+		a.confirmEconomy(quote, priceConfirmation("Buy", count, unit), func() {
+			if a.shop.npcID == npcID && a.merchantOpen() {
+				a.sendBuyItem(proto.EconomyActionPacket(quote.Revision, unit, request))
+			}
+		})
+		return
+	}
+	a.sendBuyItem(request)
+}
+
+func (a *App) sendBuyItem(request []byte) {
+	if err := a.world.Send(request); err != nil {
 		a.backToLoginID(12185)
 		return
 	}
@@ -274,7 +293,30 @@ func (a *App) buyItem(index uint8, count uint16) {
 }
 
 func (a *App) sellItem(source [2]uint8, count uint16) {
-	if err := a.world.Send(proto.ShopSellPacket(source[0], source[1], count)); err != nil {
+	request := proto.ShopSellPacket(source[0], source[1], count)
+	quote := a.state.Economy
+	if quote.Revision != 0 && quote.SellPercent != 100 {
+		item, ok := a.state.Inventory[source]
+		if !ok {
+			return
+		}
+		def := a.itemsItem(item.Type, item.TypeID)
+		if def == nil {
+			return
+		}
+		unit := proto.ScaleVendorUnitPrice(uint32(max(def.SellPrice, 0)), quote.SellPercent)
+		a.confirmEconomy(quote, priceConfirmation("Sell", count, unit), func() {
+			if a.state.Inventory[source] == item && a.merchantOpen() {
+				a.sendSellItem(proto.EconomyActionPacket(quote.Revision, unit, request))
+			}
+		})
+		return
+	}
+	a.sendSellItem(request)
+}
+
+func (a *App) sendSellItem(request []byte) {
+	if err := a.world.Send(request); err != nil {
 		a.backToLoginID(12186)
 		return
 	}
@@ -289,6 +331,9 @@ func (v *shopView) overlay() bool { return v.questMode || v.talk }
 func (a *App) shopPriceText(def sdata.NPC, d *sdata.Item) string {
 	g := &a.state.Guild
 	if !houseMaps[a.state.MapID] || g.ID == 0 || def.MerchantType < 1 || def.MerchantType > 4 || g.HouseShopDiscount[def.MerchantType-1] == 0 {
+		if quote := a.state.Economy; quote.Revision != 0 && !houseMaps[a.state.MapID] {
+			return fmt.Sprintf("Buy: %d gold", proto.ScaleVendorUnitPrice(uint32(max(d.BuyPrice, 0)), quote.BuyPercent))
+		}
 		return fmt.Sprintf("Buy: %d gold", d.BuyPrice)
 	}
 	price := float64(max(d.BuyPrice, 0))

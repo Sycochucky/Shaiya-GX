@@ -158,7 +158,7 @@ func setupWorld(t *testing.T) string {
 		}
 		go func() {
 			defer close(done)
-			netx.Serve(ctx, listener, policy.Connections, policy.PerIP, func(conn net.Conn) { world.Serve(conn, logger, logger.Tagged("test")) }, netx.NewRateLimiter(4096, policy.Establishments, time.Minute))
+			netx.Serve(ctx, listener, policy.Connections, policy.PerIP, func(conn net.Conn) { world.Serve(conn, logger, logger.Tagged("test")) }, netx.NewRateLimiter(4096, policy.Establishments, time.Minute), nil)
 		}()
 		shutdownWorld = func() { cancel(); <-done; engine.Close(); logger.Close() }
 

@@ -2,6 +2,10 @@
 
 This log records delivered changes and data-package updates. Client data is hosted separately on Drive; changing it does not automatically produce a new executable release.
 
+## Unreleased
+
+- Move the data editor to the independent [GX Studio](https://github.com/Spelunkern/GX-Studio) project. Client builds and new GX packages omit the retired Go editor.
+
 ## gx-v0.1.16
 
 [Patch notes](docs/releases/gx-v0.1.16.md) · [Upgrade guide](docs/releases/gx-v0.1.16-upgrade.md).

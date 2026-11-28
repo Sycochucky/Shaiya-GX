@@ -65,7 +65,7 @@ func (s *Session) portalGate(target uint16) uint8 {
 	if !ok || z.CreateType != partyCreateType {
 		return 0
 	}
-	if !partyOpen(z, grbNow()) {
+	if !partyOpen(z, grbNow()) || !s.dungeonAdmission(target, time.Now()) {
 		return portalClosed
 	}
 	id, members := partyOfPlayer(s.player)
@@ -74,6 +74,9 @@ func (s *Session) portalGate(target uint16) uint8 {
 	}
 	if zone, ok := findInstance(target, id); ok && zone != s.char.MapID && len(PlayersOnMap(zone)) >= z.EnterMaxUser {
 		return portalPartyFull
+	}
+	if _, exists := findInstance(target, id); !exists && tuningForMap(target).Drain {
+		return portalClosed
 	}
 	if members < z.CreateMinUser {
 		return portalPartySmall
@@ -94,8 +97,15 @@ func (s *Session) enterPartyInstance(mapID uint16) (uint16, bool) {
 	if id == 0 {
 		return 0, false
 	}
+	if !s.dungeonAdmission(mapID, time.Now()) {
+		return 0, false
+	}
 	if zone, ok := findInstance(mapID, id); ok {
-		return zone, true
+		timing, _ := dungeonTiming(zone)
+		return zone, !timing.expired(time.Now())
+	}
+	if tuningForMap(mapID).Drain {
+		return 0, false
 	}
 	zone, err := createInstance(mapID, id)
 	if err != nil {
@@ -129,6 +139,12 @@ func TickInstances(now time.Time, log logPrinter) {
 	}
 	for zone, m := range zones {
 		if mapConfig.Zones[m].CreateType == grbCreateType || len(PlayersOnMap(zone)) > 0 {
+			continue
+		}
+		if timing, _ := dungeonTiming(zone); timing.expired(now) {
+			delete(instanceExpiry, zone)
+			destroyInstance(zone)
+			log.Printf("GX Server World party instance zone=%d map=%d reached its time limit", zone, m)
 			continue
 		}
 		at, set := instanceExpiry[zone]

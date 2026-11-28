@@ -90,15 +90,11 @@ func (a *App) contextActions(id uint32) []contextAction {
 			out = append(out, contextAction{label: "Guild duel", packet: proto.GuildDuelRequestPacket(id)})
 		}
 	}
-	if id != a.state.SelfID && a.state.Guild.ID != 0 && a.state.Guild.Rank > 0 && a.state.Guild.Rank <= 2 {
-		if e := a.state.Entities[id]; e != nil && e.GuildID == 0 {
-			if _, member := a.state.Guild.Members[id]; !member {
-				out = append(out, contextAction{label: "Invite to guild", packet: proto.GuildInvitePacket(id)})
-			}
-		}
-	}
 	if id != a.state.SelfID && a.chatEntityName(id) != "" {
 		out = append(out, contextAction{label: "Whisper", packet: nil})
+	}
+	if a.inspectUI != nil && a.inspectTarget(id) != nil {
+		out = append(out, contextAction{label: "Inspect"})
 	}
 	return out
 }
@@ -135,6 +131,8 @@ func (a *App) contextLabels(actions []contextAction) []string {
 			id = 5339
 		case "Whisper":
 			id = 5007
+		case "Inspect":
+			id = 5421
 		case "Create union":
 			id = 6500
 		case "Leave union":
@@ -150,9 +148,6 @@ func (a *App) contextLabels(actions []contextAction) []string {
 		case "Union whisper":
 			id = 6510
 		}
-		if action.label == "Invite to guild" {
-			id = 12227
-		}
 		labels[i] = a.tr(id)
 	}
 	return labels
@@ -160,6 +155,9 @@ func (a *App) contextLabels(actions []contextAction) []string {
 
 func (a *App) performContextAction(id uint32, action contextAction) {
 	switch action.label {
+	case "Inspect":
+		a.requestInspect(id)
+		return
 	case "View market":
 		a.viewPersonalMarket(id)
 		return

@@ -14,7 +14,7 @@ func TestGuildShopPurchaseAllowsAccountReconnect(t *testing.T) {
 	if login, err := db.TryGameLogin(account.UserID, "local", s.sessionID, "127.0.0.1"); err != nil || login.Status != 0 {
 		t.Fatalf("initial login failed: %+v %v", login, err)
 	}
-	if !acquireAccount(s.accountID, s.sessionID) {
+	if !s.acquireAccount(s.accountID, s.sessionID) {
 		t.Fatal("could not acquire account")
 	}
 	t.Cleanup(func() {

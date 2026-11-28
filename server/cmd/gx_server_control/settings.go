@@ -5,17 +5,15 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 )
 
-func (d *dashboard) openSettings() {
+func (d *dashboard) settingsView() fyne.CanvasObject {
 	values, overridden, err := d.manager.RewardSettings()
 	if err != nil {
-		dialog.ShowError(err, d.window)
-		return
+		return widget.NewLabel("Could not load settings: " + err.Error())
 	}
 	fields := []struct {
 		label string
@@ -26,6 +24,9 @@ func (d *dashboard) openSettings() {
 		{"Monster EXP (%)", config.MobEXPKey, "100 = 1×. Applies to solo, group and offline monster kill EXP.", widget.NewEntry()},
 		{"Quest EXP (%)", config.QuestEXPKey, "100 = 1×. Applies to quest completion EXP.", widget.NewEntry()},
 		{"PvP rank kills (×)", config.PvPKillKey, "1 = normal. Applies to rank and rank milestone progress.", widget.NewEntry()},
+		{"Monster loot chance (%)", config.MobDropKey, "100 = normal. 200 = double the chance per monster loot slot.", widget.NewEntry()},
+		{"Monster gold payout (%)", config.MobGoldKey, "Scales the gold amount before a party split. 0 turns off payouts.", widget.NewEntry()},
+		{"Global event loot chance (%)", config.WorldDropKey, "Scales the chance for each eligible global drop rule.", widget.NewEntry()},
 	}
 	items := make([]*widget.FormItem, 0, len(fields))
 	editable := false
@@ -40,20 +41,23 @@ func (d *dashboard) openSettings() {
 		}
 		items = append(items, &widget.FormItem{Text: field.label, Widget: field.entry, HintText: hint})
 	}
-	message := widget.NewLabel("Saved values apply the next time World starts.")
+	message := widget.NewLabel("Rates apply to new rewards immediately when World is running.")
 	message.Wrapping = fyne.TextWrapWord
 	save := widget.NewButton("Save rates", nil)
 	save.Importance = widget.HighImportance
 	setEnabled(save, editable)
-	settings := dialog.NewCustom("Server Settings", "Close",
-		container.NewVBox(widget.NewForm(items...), message, container.NewHBox(save)), d.window)
-	settings.Resize(fyne.NewSize(635, 350))
+	defaults := container.NewVScroll(container.NewPadded(container.NewVBox(
+		widget.NewForm(items...), message, container.NewHBox(save),
+	)))
 	save.OnTapped = func() {
 		save.Disable()
 		message.SetText("Saving rates…")
-		mob, quest, kills := strings.TrimSpace(fields[0].entry.Text), strings.TrimSpace(fields[1].entry.Text), strings.TrimSpace(fields[2].entry.Text)
+		values := make(map[string]string, len(fields))
+		for _, field := range fields {
+			values[field.key] = strings.TrimSpace(field.entry.Text)
+		}
 		go func() {
-			err := d.manager.SaveRewardSettings(d.ctx, mob, quest, kills)
+			err := d.manager.SaveRewardSettings(d.ctx, values)
 			if d.ctx.Err() != nil {
 				return
 			}
@@ -63,9 +67,16 @@ func (d *dashboard) openSettings() {
 					message.SetText(err.Error())
 					return
 				}
-				message.SetText("Rates saved. Restart World to apply them.")
+				message.SetText("Rates saved.")
 			})
 		}()
 	}
-	settings.Show()
+	return container.NewAppTabs(
+		container.NewTabItem("World defaults", defaults),
+		container.NewTabItem("Per-map rates", d.mapRewardSettings()),
+		container.NewTabItem("Map controls", d.mapTuningSettings(d.ctx)),
+		container.NewTabItem("Event presets", d.rewardEvents(d.ctx)),
+		container.NewTabItem("Event drops", d.scopedDropSettings(d.ctx)),
+		container.NewTabItem("Economy", d.economySettings(d.ctx)),
+	)
 }

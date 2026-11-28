@@ -343,11 +343,11 @@ func TestGuildLifecycle(t *testing.T) {
 		t.Fatalf("settlement: paid %v suspended %v", paid, suspended)
 	}
 
-	// Invitation by the master, accepted.
-	ss[0].guildInvite(outsider.char.ID)
-	outsider.guildInviteAnswer(true)
+	// The player initiates the application and the master approves it.
+	outsider.guildApply(g.ID)
+	ss[0].guildAnswerApplicant(true, outsider.char.ID)
 	if guildOf(outsider) != g || g.members[outsider.char.ID].Rank != guildRankMember {
-		t.Fatal("invited user did not join")
+		t.Fatal("approved applicant did not join")
 	}
 	// Application, accepted by the master.
 	applicant.guildApply(g.ID)

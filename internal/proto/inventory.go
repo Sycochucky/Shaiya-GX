@@ -55,6 +55,16 @@ func DecodeItemAdd(p []byte) (InventoryItem, error) {
 	return m, r.Err()
 }
 
+// GXEquipRefusal identifies the item for native SysMsg 229.
+const GXEquipRefusal Opcode = 0x7F2B
+
+func DecodeEquipRefusal(p []byte) (typ, id uint8, err error) {
+	if len(p) != 4 || Op(p) != GXEquipRefusal || p[2] == 0 || p[3] == 0 {
+		return 0, 0, fmt.Errorf("invalid equipment refusal")
+	}
+	return p[2], p[3], nil
+}
+
 // ItemMovePacket is 0x0204: source bag/slot, destination bag/slot.
 // Game.exe writer 0x598270; Rapture handleItemBagToBag.
 func ItemMovePacket(srcBag, srcSlot, dstBag, dstSlot uint8) []byte {

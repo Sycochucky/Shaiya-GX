@@ -19,7 +19,7 @@ func (a *App) Close() {
 	a.performance.meter.Delete()
 	a.performance.meter = nil
 	if a.world != nil && a.state != nil && a.state.Phase == game.PhaseInWorld &&
-		a.wv != nil && a.wv.mapID == a.state.MapID && a.wv.moving {
+		a.wv != nil && a.wv.mapID == a.state.MapID && (a.wv.moving || a.wv.turning) {
 		if err := a.world.Send(a.wv.movePacket(0)); err != nil {
 			log.Printf("final movement: %v", err)
 		}
@@ -42,6 +42,7 @@ func (a *App) Close() {
 	a.msaaTarget.Delete()
 	a.fxaa.Delete()
 	a.taa.Delete()
+	a.sprites.Delete()
 	a.scene3d.Delete()
 	if a.world != nil {
 		if err := a.world.Shutdown(10 * time.Second); err != nil {

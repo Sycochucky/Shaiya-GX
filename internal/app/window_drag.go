@@ -177,9 +177,22 @@ func (a *App) updateWindowDrag(in *platform.Input, w, h int) bool {
 			return false
 		}
 	}
+	if a.inspect.open && a.inspectUI != nil {
+		x, y := a.inspectUI.Origin(w, h)
+		if start(&a.inspectUI.Position, x, y, ui.InspectWidth, ui.InspectHeight, 20, 193) {
+			return true
+		}
+		if pointInside(in, x, y, ui.InspectWidth, ui.InspectHeight) {
+			return false
+		}
+	}
 	if a.inventory.open && a.inventoryUI != nil {
 		x, y := a.inventoryUI.Origin(w, h)
-		if _, _, docked := a.inventoryDockOrigin(w, h); !docked && startFrame(&a.inventoryUI.Position, x, y, ui.InventoryWidth, ui.InventoryHeight, func() bool { return a.inventoryUI.FreeAt(in.MouseX, in.MouseY, w, h, a.inventory.bag) }) {
+		position := &a.inventoryUI.Position
+		if _, _, docked := a.inventoryDockOrigin(w, h); docked {
+			position = &a.inventory.servicePosition
+		}
+		if startFrame(position, x, y, ui.InventoryWidth, ui.InventoryHeight, func() bool { return a.inventoryUI.FreeAt(in.MouseX, in.MouseY, w, h, a.inventory.bag) }) {
 			return true
 		}
 		if pointInside(in, x, y, ui.InventoryWidth, ui.InventoryHeight) {
@@ -322,6 +335,17 @@ func (a *App) updateWindowDrag(in *platform.Input, w, h int) bool {
 			return false
 		}
 	}
+	if a.questTracker.open && a.questTrackerUI != nil {
+		q := a.questTrackerUI
+		x, y := q.Origin(w, h)
+		// 0x4dc540 falls through to the native frame drag (0x526f30).
+		if startFrame(&q.Position, x, y, ui.QuestTrackerWidth, ui.QuestTrackerHeight, frameFree(q, x, y, func(rx, ry int) bool { return q.TitleAt(rx, ry) != 0 }, [4]int{224, 38, 13, 77})) {
+			return true
+		}
+		if pointInside(in, x, y, ui.QuestTrackerWidth, ui.QuestTrackerHeight) {
+			return false
+		}
+	}
 	xq, yq := ui.QuickPotionOrigin(a.quickPotions.Position, w, h)
 	// The frame and any empty cell move the bar; a filled cell is grabbed as a potion.
 	if cell := ui.QuickPotionCell(in.MouseX, in.MouseY, xq, yq); pointInside(in, xq, yq, 94, 54) && (cell < 0 || a.quickPotions.bindings[cell] == (sdata.ItemKey{})) && !a.barCovered(in, w, h) {
@@ -450,9 +474,11 @@ func pointInside(in *platform.Input, x, y, w, h int) bool {
 	return in.MouseX >= x && in.MouseX < x+w && in.MouseY >= y && in.MouseY < y+h
 }
 func (a *App) finishWindowDrag() {
-	if a.windowDrag.position != nil {
+	if position := a.windowDrag.position; position != nil {
 		a.windowDrag = windowDrag{}
-		a.saveUILayout()
+		if position != &a.inventory.servicePosition {
+			a.saveUILayout()
+		}
 	}
 }
 func (a *App) layoutPositions() map[string]*ui.WindowPosition {
@@ -503,6 +529,12 @@ func (a *App) layoutPositions() map[string]*ui.WindowPosition {
 	}
 	if a.questUI != nil {
 		out["quest"] = &a.questUI.Position
+	}
+	if a.questTrackerUI != nil {
+		out["quest_tracker"] = &a.questTrackerUI.Position
+	}
+	if a.inspectUI != nil {
+		out["inspect"] = &a.inspectUI.Position
 	}
 	if a.inventoryUI != nil {
 		out["inventory"] = &a.inventoryUI.Position

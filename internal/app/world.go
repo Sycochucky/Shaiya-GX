@@ -38,6 +38,7 @@ type worldView struct {
 	shadow                      *render.ShadowMap
 	shadowAttempted             bool
 	waterReflection             *render.WaterTarget
+	waterCapture                reflectionCapture
 	waterWidth, waterHeight     int
 	waterFailed                 bool
 	sunFlare                    sunFlare
@@ -59,6 +60,7 @@ type worldView struct {
 	visiblePlayerCloth          []*scene.Character
 	crowdCharacters             []*scene.Character
 	crowdBatch                  scene.CharacterBatch
+	mobPoseSamples              scene.PoseSamples
 	mobs                        map[uint32]*mobActor
 	transforms                  map[uint32]*transformActor
 	world                       *scene.World
@@ -80,7 +82,7 @@ type worldView struct {
 	combatHeading               render.V3 // heading to restore after facing an attack target
 	diagonalHeading             render.V3 // W+Q/W+E heading latched when the combo began (0x43bfa0, 0x71d08c)
 	eye                         render.V3 // desired eye; follows the position delta
-	moving                      bool
+	moving, turning             bool
 	walking                     bool
 	autoRun                     bool
 	travel                      bool
@@ -105,8 +107,6 @@ type worldView struct {
 	shakeOffset                 render.V3
 	firstDirection              render.V3
 	attackMoveUntil             float64
-	attackPose                  bool
-	attackActionID              uint64
 	jumping                     bool
 	jumpPending                 bool // jump clip started, impulse not yet applied
 	jumpActive, jumpMoved       bool // track the whole jump, including its landing frames
@@ -158,10 +158,11 @@ type worldView struct {
 }
 
 type worldDrawBreakdown struct {
-	WorldGeometry int `json:"main_map_geometry"`
-	Reflected     int `json:"reflection_pass"`
-	WorldScene    int `json:"total_world_scene"`
-	UI            int `json:"ui"`
+	WorldGeometry    int  `json:"main_map_geometry"`
+	Reflected        int  `json:"reflection_pass"`
+	ReflectionReused bool `json:"reflection_reused"`
+	WorldScene       int  `json:"total_world_scene"`
+	UI               int  `json:"ui"`
 }
 
 const (
@@ -378,7 +379,7 @@ func (a *App) stepWorld(in *platform.Input, dt float64, lastStep bool) {
 		v.autoRun = !v.autoRun
 	}
 	if !in.SuppressAutoRun && (in.Held('W') || in.Held('S') || in.Held('A') || in.Held('D') || in.Held('Q') || in.Held('E') || in.HasKey(platform.KeyNumLock) || v.autoRun) {
-		// Explicit movement abandons the attack action at once (0x43bfa0).
+		// Manual movement ends the ongoing attack order (0x43bfa0).
 		if !a.abandonAttack() {
 			return
 		}
@@ -432,7 +433,7 @@ func (a *App) stepWorld(in *platform.Input, dt float64, lastStep bool) {
 	if !v.jumpActive && !v.sitPending && !a.state.Self.Dead && !a.state.Self.Mounted && !swimming {
 		motion := uint8(0)
 		request := false
-		if a.state.Self.Sitting && (toggleSit || wantsMove || v.sitAttack != 0) {
+		if a.state.Self.Sitting && (toggleSit || keyboardPostureMovement(in, v.autoRun) || v.sitAttack != 0) {
 			motion = proto.MotionStandUp
 			request = true
 		} else if !a.state.Self.Sitting && toggleSit && !wantsMove {
@@ -503,7 +504,7 @@ func (a *App) stepWorld(in *platform.Input, dt float64, lastStep bool) {
 	if backEvade {
 		evadeMotion = proto.MotionBackstep
 	}
-	if evadeMotion != 0 && !in.HasKey(platform.KeySpace) && !v.jumpActive && !v.ladder.Active && !v.evading && !blocked && !swimming && !v.jumping && speed > 0 && !a.state.Self.Dead && !a.state.Self.Mounted && v.self != nil {
+	if evadeMotion != 0 && a.clock >= v.attackMoveUntil && !in.HasKey(platform.KeySpace) && !v.jumpActive && !v.ladder.Active && !v.evading && !blocked && !swimming && !v.jumping && speed > 0 && !a.state.Self.Dead && !a.state.Self.Mounted && v.self != nil {
 		action, _ := proto.LocomotionAction(evadeMotion)
 		v.evading = v.self.PlayAction(action, false)
 		if v.evading {
@@ -543,7 +544,7 @@ func (a *App) stepWorld(in *platform.Input, dt float64, lastStep bool) {
 		} else {
 			// MotionJump has no position. Flush unsent walking/running progress
 			// first, so the server grants the impulse at the same support surface.
-			if v.moving || dir.Len() > 0 {
+			if (v.moving || v.turning || dir.Len() > 0) && a.world != nil {
 				if err := a.world.Send(v.movePacket(v.motion &^ proto.MotionFlag80)); err != nil {
 					a.backToLoginID(12216)
 					return
@@ -637,13 +638,6 @@ func (a *App) stepWorld(in *platform.Input, dt float64, lastStep bool) {
 		}
 	}
 	if v.self != nil {
-		if v.attackPose && (!v.self.ActionActive() || v.self.ActionID() != v.attackActionID) {
-			v.attackPose = false
-		}
-		if moving && v.attackPose {
-			v.self.ReleaseAction()
-			v.attackPose = false
-		}
 		if moving && v.self.PlayingDamageReaction() {
 			v.self.ReleaseAction()
 		}
@@ -759,17 +753,23 @@ func (a *App) stepWorld(in *platform.Input, dt float64, lastStep bool) {
 	v.updateRenderedCamera(float32(dt))
 	// A slow frame can run several physics steps at once. Periodic packets
 	// must represent the position at the end of that frame, when they are sent.
-	periodic := lastStep && v.sendT <= 0
-	if moving != v.moving || motion != v.motion || ((moving || v.jumping) && periodic) || (v.waterDirty && (periodic || (swimming && v.pos[1] >= scene.SwimSurfaceY))) {
-		if err := a.world.Send(v.movePacket(motion)); err != nil {
-			a.backToLoginID(12218)
-			return
+	// EP5.4 0x43ef4c/0x43f0df + 0x436945..0x436ba8 also broadcasts stationary
+	// A/D turns periodically and flushes the final heading on release.
+	turning := !moving && !v.jumping && !climbFrame && !blocked && a.clock >= v.attackMoveUntil && speed > 0 && (dt > 0 || v.turning) && !a.state.Self.Dead && intent.turn != 0
+	periodic := lastStep && v.sendT <= 1e-8
+	turnChanged := lastStep && turning != v.turning
+	if moving != v.moving || motion != v.motion || turnChanged || ((moving || v.jumping || turning) && periodic) || (v.waterDirty && (periodic || (swimming && v.pos[1] >= scene.SwimSurfaceY))) {
+		if a.world != nil {
+			if err := a.world.Send(v.movePacket(motion)); err != nil {
+				a.backToLoginID(12218)
+				return
+			}
 		}
 		nextSample := 0.1
-		if periodic && moving == v.moving && motion == v.motion && (moving || v.jumping) {
-			nextSample = max(0, nextSample+v.sendT)
+		if periodic && moving == v.moving && motion == v.motion && !turnChanged && (moving || v.jumping || turning) {
+			nextSample = max(0, nextSample+min(0, v.sendT))
 		}
-		v.sendT, v.moving, v.motion = nextSample, moving, motion
+		v.sendT, v.moving, v.turning, v.motion = nextSample, moving, turning, motion
 		v.waterDirty = false
 	}
 	a.state.Self.X, a.state.Self.Y, a.state.Self.Z = v.pos[0], v.pos[1], v.pos[2]
@@ -788,6 +788,8 @@ func (a *App) drawWorldView(w, h int) {
 		return
 	}
 	v.draws = worldDrawBreakdown{}
+	v.crowdBatch.BeginFrame()
+	defer v.crowdBatch.EndFrame()
 	drawStart := render.DrawCalls()
 	eye, target := v.eye, v.target()
 	if v.cameraReady {
@@ -871,14 +873,16 @@ func (a *App) drawWorldView(w, h int) {
 	if waterVisible {
 		const reflectionDivisor = 2
 		width, height := max(1, w/reflectionDivisor), max(1, h/reflectionDivisor)
-		if v.waterReflection != nil && (v.waterWidth != width || v.waterHeight != height) {
-			v.waterReflection.Delete()
+		if v.waterWidth != width || v.waterHeight != height {
+			if v.waterReflection != nil {
+				v.waterReflection.Delete()
+			}
 			v.waterReflection, v.waterFailed = nil, false
+			v.waterWidth, v.waterHeight = width, height
 		}
 		if v.waterReflection == nil && !v.waterFailed {
 			var err error
 			v.waterReflection, err = render.NewWaterTarget(width, height)
-			v.waterWidth, v.waterHeight = width, height
 			if err != nil {
 				v.waterFailed = true
 				log.Printf("water reflection: %v", err)
@@ -888,27 +892,46 @@ func (a *App) drawWorldView(w, h int) {
 	beforeReflection := render.DrawCalls()
 	if v.waterReflection != nil && waterVisible && !underwater {
 		view := s.View
+		// Widen by two target texels for bilinear filtering and scissor rounding.
+		reflectionRegion = reflectionRegion.Expand(2/float32(v.waterWidth), 2/float32(v.waterHeight))
+		input := reflectionInput{
+			target: v.waterReflection, world: v.world, revision: v.world.StreamRevision(),
+			view: view, projection: s.Proj, sky: s.SkyProj, jitter: s.TemporalJitter,
+			region: reflectionRegion, fog: s.FogColor, fogStart: s.FogStart, fogEnd: s.FogEnd,
+			weather: v.weather.blend, settings: settings, personalLight: v.personalLight, reverseDepth: s.ReverseDepth,
+		}
 		mirror := render.Identity()
 		mirror[5] = -1
 		reflectedView := mirror.Mul(view)
 		reflectedEye := eye
 		reflectedEye[1] = -reflectedEye[1]
-		// Widen by two target texels for bilinear filtering and scissor rounding.
-		reflectionRegion = reflectionRegion.Expand(2/float32(v.waterWidth), 2/float32(v.waterHeight))
+		// Keep advancing reflected emitters even when the cached color is reused.
 		v.world.PrepareMapEffects(s, eye, scene.EffectCamera{Eye: reflectedEye, View: reflectedView, Projection: s.Proj})
-		v.waterReflection.CaptureRegion(s.FogColor, reflectionRegion, func() {
-			s.View, s.ClipPlane = reflectedView, [4]float32{0, 1, 0, 0}
-			s.CullProjection = reflectionRegion.CropProjection(s.Proj)
+		resident := v.world.Ready()
+		if resident && v.waterCapture.reuse(input, a.frameDT) {
+			v.draws.ReflectionReused = true
+		} else {
+			projection := reflectionRegion.CropProjection(s.Proj)
+			v.waterReflection.CaptureRegion(s.FogColor, reflectionRegion, func() {
+				s.View, s.ClipPlane = reflectedView, [4]float32{0, 1, 0, 0}
+				s.CullProjection = projection
+				s.Begin()
+				a.drawWorldContents(reflectedEye, false)
+				v.world.DrawTranslucentVANI(s)
+				v.world.RenderMapEffects(s)
+			})
+			s.CullProjection = render.M4{}
+			s.View, s.ClipPlane = view, [4]float32{}
 			s.Begin()
-			a.drawWorldContents(reflectedEye, false)
-			v.world.DrawTranslucentVANI(s)
-			v.world.RenderMapEffects(s)
-		})
-		s.CullProjection = render.M4{}
-		s.View, s.ClipPlane = view, [4]float32{}
-		s.Begin()
+			if resident {
+				v.waterCapture = reflectionCapture{input: input}
+			} else {
+				v.waterCapture = reflectionCapture{}
+			}
+		}
 		s.WaterReflection = v.waterReflection
 	} else if v.waterReflection != nil && waterVisible && underwater {
+		v.waterCapture = reflectionCapture{}
 		v.world.PrepareMapEffects(s, eye)
 		fogColor, fogStart, fogEnd := s.FogColor, s.FogStart, s.FogEnd
 		s.FogColor, s.FogStart, s.FogEnd = weatherColor, weatherNear, weatherFar
@@ -924,12 +947,15 @@ func (a *App) drawWorldView(w, h int) {
 		s.Begin()
 		s.WaterReflection, s.WaterBelow = v.waterReflection, true
 	} else {
+		v.waterCapture = reflectionCapture{}
 		v.world.PrepareMapEffects(s, eye)
 	}
 	v.draws.Reflected = render.DrawCalls() - beforeReflection
 	a.drawWorldContents(eye, underwater)
 	if s.WaterReflection != nil && !s.WaterBelow && v.world.HasWaterNormals() {
-		s.CaptureWaterBackground()
+		// Refraction has a shorter displacement than reflection and can use
+		// the same conservative region, including its filtering border.
+		s.CaptureWaterBackgroundRegion(reflectionRegion)
 	}
 	// Water Surface Effect controls reflection/refraction, not water visibility.
 	if surfaceVisible {
@@ -1140,6 +1166,7 @@ func (a *App) refreshSelf(v *worldView) {
 }
 
 func (a *App) releaseWorld() {
+	a.inspect = inspectView{}
 	a.revolver.cast = revolverCast{}
 	a.sprites.ResetHoverDepth()
 	a.combatNumbers = nil
@@ -1159,6 +1186,7 @@ func (a *App) releaseWorld() {
 		a.subActionsOpen = false
 		a.playerContext = playerContext{}
 		a.questLog = questLogView{}
+		a.resetQuestTracker()
 		a.questItemOffer = itemQuestOffer{}
 		if a.questConfirm != nil {
 			a.questConfirm.Visible = false
@@ -1182,9 +1210,6 @@ func (a *App) releaseWorld() {
 		}
 		if a.guildDuelMessage != nil {
 			a.guildDuelMessage.Visible = false
-		}
-		if a.guildMessage != nil {
-			a.guildMessage.Visible = false
 		}
 		if a.unionConfirm != nil {
 			a.unionConfirm.Visible = false

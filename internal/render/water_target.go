@@ -35,7 +35,7 @@ func NewWaterTarget(width, height int) (*WaterTarget, error) {
 	gl.NamedFramebufferRenderbuffer(t.fbo, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, t.depth)
 	if status := gl.CheckNamedFramebufferStatus(t.fbo, gl.FRAMEBUFFER); status != gl.FRAMEBUFFER_COMPLETE {
 		t.Delete()
-		return nil, fmt.Errorf("water target: framebuffer %#x", status)
+		return nil, fmt.Errorf("color/depth framebuffer %dx%d incomplete: status %#x", width, height, status)
 	}
 	t.bytes = uint64(width) * uint64(height) * 8
 	addGPUBytes(t.bytes)

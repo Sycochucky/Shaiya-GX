@@ -84,6 +84,11 @@ func TestSharedCombatCadenceUsesEveryNativeTierAndLiveHaste(t *testing.T) {
 }
 func TestPreparedReleaseDoesNotChargeASecondAttackInterval(t *testing.T) {
 	s := cadenceSession(t, 1)
+	known := &s.skills[0]
+	def := *db.MustDefs().Skill(known.SkillID, known.Level)
+	def.SkillID = 29 // Magic Arrow has a generated clip for its instant rank.
+	known.SkillID = def.SkillID
+	db.MustDefs().Skills[db.SkillKey{SkillID: def.SkillID, Level: known.Level}] = &def
 	s.handleUseSkill(packet.SkillUseNoTarget, proto.UseSkillPacket(1, s.char.ID, true))
 	if s.cast == nil || s.lastActionAt.IsZero() {
 		t.Fatal("prepared cast not started")
@@ -91,12 +96,22 @@ func TestPreparedReleaseDoesNotChargeASecondAttackInterval(t *testing.T) {
 	start := s.lastActionAt
 	s.cast.readyAt = time.Now().Add(-time.Second)
 	s.processPendingCast()
-	if s.cast != nil || s.char.CurrentHP <= 1 || s.lastActionAt != start {
+	if s.cast != nil || s.char.CurrentHP <= 1 || s.lastActionAt != start || s.ownClip() != 0 {
 		t.Fatal("prepared release restarted attack recovery")
 	}
 	interval, _ := skilltiming.Interval(s.speeds().attack)
 	if !s.combatActionReady(start.Add(interval)) {
 		t.Fatal("prepared cast charged two intervals")
+	}
+
+	instant := def
+	instant.SkillLevel, instant.ReadyTime = 3, 0
+	known.Level = instant.SkillLevel
+	db.MustDefs().Skills[db.SkillKey{SkillID: instant.SkillID, Level: instant.SkillLevel}] = &instant
+	s.lastActionAt = time.Now().Add(-2 * interval)
+	s.handleUseSkill(packet.SkillUseNoTarget, proto.UseSkillPacket(1, s.char.ID, true))
+	if s.cast != nil || s.ownClip() != 733*time.Millisecond {
+		t.Fatalf("instant rank should apply Magic Arrow's clip, got %v", s.ownClip())
 	}
 }
 
@@ -174,7 +189,7 @@ func TestOwnSkillClipHoldsTheNextAction(t *testing.T) {
 	if !s.combatActionReady(time.Now()) {
 		t.Fatal("a stale floor from an earlier action blocked a later one")
 	}
-	if skilltiming.ClipFloor(55, 1) != time.Second {
+	if skilltiming.ClipFloor(55) != time.Second {
 		t.Fatal("Rising Crash clip floor missing from the generated table")
 	}
 }

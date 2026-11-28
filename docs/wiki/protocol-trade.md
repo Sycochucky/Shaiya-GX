@@ -10,13 +10,13 @@ Client codecs operate on opcode + body; server packet.Writer emits length + opco
 
 **`0x0A01` — ExchangeRequest**
 
-Declarations: [packet.ExchangeRequest](../../server/internal/packet/packet.go#L229), [proto.ExchangeRequest](../../internal/proto/opcodes.go#L217).
+Declarations: [packet.ExchangeRequest](../../server/internal/packet/packet.go#L228), [proto.ExchangeRequest](../../internal/proto/opcodes.go#L215).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L181)
 
 **S→C serializers:** [handleTradeRequest (server/internal/world/trade.go)](../../server/internal/world/trade.go#L157)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L37), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L37), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -87,13 +87,13 @@ func DecodeExchangeID(p []byte) (uint32, error) { r := NewReader(p); id := r.U32
 
 **`0x0A02` — ExchangeAnswer**
 
-Declarations: [packet.ExchangeAnswer](../../server/internal/packet/packet.go#L230), [proto.ExchangeAnswer](../../internal/proto/opcodes.go#L218).
+Declarations: [packet.ExchangeAnswer](../../server/internal/packet/packet.go#L229), [proto.ExchangeAnswer](../../internal/proto/opcodes.go#L216).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L186)
 
 **S→C serializers:** [tradePacket (server/internal/world/trade.go)](../../server/internal/world/trade.go#L76)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L44), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L44), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -145,13 +145,13 @@ func DecodeExchangeByte(p []byte) (uint8, error) { r := NewReader(p); v := r.U8(
 
 **`0x0A03` — ExchangeStart**
 
-Declarations: [packet.ExchangeStart](../../server/internal/packet/packet.go#L231), [proto.ExchangeStart](../../internal/proto/opcodes.go#L219).
+Declarations: [packet.ExchangeStart](../../server/internal/packet/packet.go#L230), [proto.ExchangeStart](../../internal/proto/opcodes.go#L217).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
 **S→C serializers:** [buildTradeStart (server/internal/world/trade.go)](../../server/internal/world/trade.go#L136)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L51), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L51), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -191,13 +191,13 @@ func DecodeExchangeStart(p []byte) (id uint32, result uint8, err error) {
 
 **`0x0A04` — ExchangeEnd**
 
-Declarations: [packet.ExchangeEnd](../../server/internal/packet/packet.go#L232), [proto.ExchangeEnd](../../internal/proto/opcodes.go#L220).
+Declarations: [packet.ExchangeEnd](../../server/internal/packet/packet.go#L231), [proto.ExchangeEnd](../../internal/proto/opcodes.go#L218).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
 **S→C serializers:** [tradePacket (server/internal/world/trade.go)](../../server/internal/world/trade.go#L76)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L61), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L61), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -231,13 +231,13 @@ func DecodeExchangeByte(p []byte) (uint8, error) { r := NewReader(p); v := r.U8(
 
 **`0x0A05` — ExchangeReady**
 
-Declarations: [packet.ExchangeReady](../../server/internal/packet/packet.go#L233), [proto.ExchangeReady](../../internal/proto/opcodes.go#L221).
+Declarations: [packet.ExchangeReady](../../server/internal/packet/packet.go#L232), [proto.ExchangeReady](../../internal/proto/opcodes.go#L219).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L190)
 
 **S→C serializers:** [tradePacket (server/internal/world/trade.go)](../../server/internal/world/trade.go#L76)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L74), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L74), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -308,13 +308,13 @@ func Op(payload []byte) Opcode {
 
 **`0x0A06` — ExchangeAdd**
 
-Declarations: [packet.ExchangeAdd](../../server/internal/packet/packet.go#L234), [proto.ExchangeAdd](../../internal/proto/opcodes.go#L222).
+Declarations: [packet.ExchangeAdd](../../server/internal/packet/packet.go#L233), [proto.ExchangeAdd](../../internal/proto/opcodes.go#L220).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L194)
 
 **S→C serializers:** [handleTradeAdd (server/internal/world/trade.go)](../../server/internal/world/trade.go#L261)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L110), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L110), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -412,7 +412,7 @@ type ExchangeOwnItem struct {
 
 **`0x0A07` — ExchangeRemove**
 
-Declarations: [packet.ExchangeRemove](../../server/internal/packet/packet.go#L235), [proto.ExchangeRemove](../../internal/proto/opcodes.go#L223).
+Declarations: [packet.ExchangeRemove](../../server/internal/packet/packet.go#L234), [proto.ExchangeRemove](../../internal/proto/opcodes.go#L221).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L202)
 
@@ -442,13 +442,13 @@ func ExchangeRemovePacket(slot uint8) []byte {
 
 **`0x0A08` — ExchangeAddMoney**
 
-Declarations: [packet.ExchangeAddMoney](../../server/internal/packet/packet.go#L236), [proto.ExchangeAddMoney](../../internal/proto/opcodes.go#L224).
+Declarations: [packet.ExchangeAddMoney](../../server/internal/packet/packet.go#L235), [proto.ExchangeAddMoney](../../internal/proto/opcodes.go#L222).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L206)
 
 **S→C serializers:** [buildTradeMoney (server/internal/world/trade.go)](../../server/internal/world/trade.go#L315)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L97), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L97), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -508,13 +508,13 @@ type ExchangeMoneyUpdate struct {
 
 **`0x0A09` — ExchangeAddDest**
 
-Declarations: [packet.ExchangeAddDest](../../server/internal/packet/packet.go#L237), [proto.ExchangeAddDest](../../internal/proto/opcodes.go#L225).
+Declarations: [packet.ExchangeAddDest](../../server/internal/packet/packet.go#L236), [proto.ExchangeAddDest](../../internal/proto/opcodes.go#L223).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
 **S→C serializers:** [buildTradeAddDest (server/internal/world/trade.go)](../../server/internal/world/trade.go#L232)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L120), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L120), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -572,13 +572,13 @@ type ExchangeItem struct {
 
 **`0x0A0A` — ExchangeConfirm**
 
-Declarations: [packet.ExchangeConfirm](../../server/internal/packet/packet.go#L238), [proto.ExchangeConfirm](../../internal/proto/opcodes.go#L226).
+Declarations: [packet.ExchangeConfirm](../../server/internal/packet/packet.go#L237), [proto.ExchangeConfirm](../../internal/proto/opcodes.go#L224).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L211)
 
 **S→C serializers:** [tradePacket (server/internal/world/trade.go)](../../server/internal/world/trade.go#L76)
 
-**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L74), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
+**Client receive reducers:** [applyExchange (internal/game/exchange.go)](../../internal/game/exchange.go#L74), [Apply (internal/game/state.go)](../../internal/game/state.go#L647)
 
 ### Wire layouts and validation
 
@@ -661,7 +661,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L39), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L39), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -723,7 +723,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L49), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L49), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -757,7 +757,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L51), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L51), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -807,7 +807,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L55), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L55), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -841,7 +841,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L59), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L59), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -920,7 +920,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L68), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L68), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -996,7 +996,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L77), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L77), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -1073,7 +1073,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L86), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L86), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -1135,7 +1135,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L97), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L97), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -1211,7 +1211,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L139), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L139), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -1245,7 +1245,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [myShopList (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L420)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L107), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L107), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -1342,7 +1342,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L139), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L139), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -1376,7 +1376,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L132), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L132), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 
@@ -1453,7 +1453,7 @@ Source notes: Personal markets (setup market): the request and reply opcodes of 
 
 **S→C serializers:** [shopAck (server/internal/world/myshop.go)](../../server/internal/world/myshop.go#L95)
 
-**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L119), [Apply (internal/game/state.go)](../../internal/game/state.go#L631)
+**Client receive reducers:** [applyMyShop (internal/game/myshop.go)](../../internal/game/myshop.go#L119), [Apply (internal/game/state.go)](../../internal/game/state.go#L639)
 
 ### Wire layouts and validation
 

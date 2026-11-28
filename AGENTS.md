@@ -24,12 +24,10 @@ SQLite is the primary production database. Keep storage behind `server/internal/
 
 ## GX Studio
 
-GX Studio is a standalone desktop command in `cmd/gx_studio` with editing and
-recovery logic under `internal/studio`. Every editable property must show its
-readable name and the exact native field and/or SQLite column it changes.
-Preserve unmapped data, and route catalog writes through coordinated backups,
-verification and recovery. Keep the Studio GUI dependency out of GX Server
-commands. Use disposable file and database copies for verification.
+[GX Studio](https://github.com/Spelunkern/GX-Studio) is an independent companion
+editor for Shaiya GX. Studio source, builds, releases and issues belong in its
+repository. Keep the game and server build and packaging independent of the
+editor. Verify data compatibility with disposable file and database copies.
 
 ## Local safety and fixtures
 

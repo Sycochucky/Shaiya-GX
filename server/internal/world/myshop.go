@@ -512,6 +512,7 @@ func (s *Session) buyFromMyShop(idx, count uint8) {
 	s.send(buildSetMoney(s.char.Money), "0x0213 market purchase money")
 	other.send(sellerPacket, "0x0204 market sale item")
 	other.send(buildSetMoney(other.char.Money), "0x0213 market sale money")
+	other.goldActivity(b.Before.Money, "personal market sale")
 	reply(myShopBuyOK)
 	other.send(shopAck(opMyShopSold, func(w *packet.Writer) { w.U8(idx); w.U8(count); w.U32(uint32(total)) }), "0x2308 market sale")
 	s.log.Printf("GX Server World market sale seller=%d buyer=%d item=%d/%d count=%d total=%d", other.char.ID, s.char.ID, tpl.Type, tpl.TypeID, count, total)

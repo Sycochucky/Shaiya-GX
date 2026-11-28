@@ -77,6 +77,16 @@ func TryGameLogin(userID, passwordValue string, sessionID int64, userIP string) 
 			result.Status = -1
 			return nil
 		}
+		var banned bool
+		e = tx.QueryRowContext(c, `SELECT EXISTS(SELECT 1 FROM GX_OperatorAccountBans WHERE UserUID=?1)
+			OR EXISTS(SELECT 1 FROM GX_OperatorIPBans WHERE Address=?2)`, uid, userIP).Scan(&banned)
+		if e != nil {
+			return e
+		}
+		if banned {
+			result.Status = 2
+			return nil
+		}
 		if status >= 2 && status <= 6 {
 			var expired bool
 			e = tx.QueryRowContext(c, `SELECT datetime(BlockEndDate)<=CURRENT_TIMESTAMP FROM PS_UserData_Users_Block WHERE UserUID=?1`, uid).Scan(&expired)
@@ -247,9 +257,10 @@ func AccountByUID(userUID int32) (Account, error) {
 	defer cancel()
 	var a Account
 	var country int16
-	err = pool.QueryRowContext(c, `SELECT U.UserUID,U.UserID,U.Status,U.Admin,U.AdminLevel,U.Point,
+	err = pool.QueryRowContext(c, `SELECT U.UserUID,U.UserID,CASE WHEN B.UserUID IS NULL THEN U.Status ELSE 2 END,U.Admin,U.AdminLevel,U.Point,
 		COALESCE(S.Version,1),COALESCE(G.Country,2)
 		FROM PS_UserData_Users_Master U LEFT JOIN GX_AccountSecurity S ON S.UserUID=U.UserUID
+		LEFT JOIN GX_OperatorAccountBans B ON B.UserUID=U.UserUID
 		LEFT JOIN PS_GameData_UserMaxGrow G ON G.ServerID=?2 AND G.UserUID=U.UserUID
 		WHERE U.UserUID=?1 AND U.Leave=0`, userUID, config.ServerID).
 		Scan(&a.UserUID, &a.UserID, &a.Status, &a.Admin, &a.AdminLevel, &a.Point, &a.CredentialVersion, &country)

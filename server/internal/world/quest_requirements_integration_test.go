@@ -58,7 +58,13 @@ func TestQuestConfiguredStartGuardsCostAndRepeatInterval(t *testing.T) {
 	if s.findQuest(1) == nil || s.items[0].Count != 1 {
 		t.Fatal("qualifying party did not start the quest and consume one letter")
 	}
+	if !s.player.hasQuest(1) {
+		t.Fatal("new quest was not eligible immediately after commit")
+	}
 	s.handleQuestAbandon(proto.QuestAbandonPacket(1))
+	if s.player.hasQuest(1) {
+		t.Fatal("abandoned quest stayed eligible after commit")
+	}
 	if err := s.loadQuests(); err != nil {
 		t.Fatal(err)
 	}

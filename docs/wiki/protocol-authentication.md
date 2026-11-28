@@ -10,11 +10,11 @@ Client codecs operate on opcode + body; server packet.Writer emits length + opco
 
 **`0xA101` — LoginHandshake**
 
-Declarations: [packet.LoginHandshake](../../server/internal/packet/packet.go#L211), [proto.LoginHandshake](../../internal/proto/opcodes.go#L199).
+Declarations: [packet.LoginHandshake](../../server/internal/packet/packet.go#L210), [proto.LoginHandshake](../../internal/proto/opcodes.go#L197).
 
-**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L200)
+**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L210)
 
-**S→C serializers:** [handshake (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L103)
+**S→C serializers:** [handshake (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L113)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -24,7 +24,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>handshake — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L103)
+[Source definition](../../server/cmd/gx_login/main.go#L113)
 
 ```go
 func handshake() []byte {
@@ -63,11 +63,11 @@ func KeyReply(block []byte) ([]byte, error) {
 
 **`0xA102` — LoginRequest**
 
-Declarations: [packet.LoginRequest](../../server/internal/packet/packet.go#L212), [proto.LoginRequest](../../internal/proto/opcodes.go#L200).
+Declarations: [packet.LoginRequest](../../server/internal/packet/packet.go#L211), [proto.LoginRequest](../../internal/proto/opcodes.go#L198).
 
-**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L226)
+**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L243)
 
-**S→C serializers:** [loginReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L114)
+**S→C serializers:** [loginReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L124)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -77,7 +77,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>loginReply — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L114)
+[Source definition](../../server/cmd/gx_login/main.go#L124)
 
 ```go
 func loginReply(result uint8, userUID uint32, permission uint8, identity [16]byte) []byte {
@@ -113,7 +113,7 @@ func LoginRequestPacket(user, password string) []byte {
 
 **`0xA106` — LoginRequestEx**
 
-Declarations: [proto.LoginRequestEx](../../internal/proto/opcodes.go#L232).
+Declarations: [proto.LoginRequestEx](../../internal/proto/opcodes.go#L230).
 
 Source notes: Opcodes not named in Rapture's catalog. 0x5992f0 with its flag set: 33-byte password
 
@@ -129,11 +129,11 @@ The shape is decoded inline, delegated, or only declared. Use the linked adapter
 
 **`0xA201` — ServerList**
 
-Declarations: [packet.ServerList](../../server/internal/packet/packet.go#L213), [proto.ServerList](../../internal/proto/opcodes.go#L201).
+Declarations: [packet.ServerList](../../server/internal/packet/packet.go#L212), [proto.ServerList](../../internal/proto/opcodes.go#L199).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
-**S→C serializers:** [serverList (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L125)
+**S→C serializers:** [serverList (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L135)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -143,7 +143,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>serverList — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L125)
+[Source definition](../../server/cmd/gx_login/main.go#L135)
 
 ```go
 func serverList() []byte {
@@ -164,11 +164,11 @@ func serverList() []byte {
 
 **`0xA202` — SelectServer**
 
-Declarations: [packet.SelectServer](../../server/internal/packet/packet.go#L214), [proto.SelectServer](../../internal/proto/opcodes.go#L202).
+Declarations: [packet.SelectServer](../../server/internal/packet/packet.go#L213), [proto.SelectServer](../../internal/proto/opcodes.go#L200).
 
-**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L275)
+**C→S receive adapters:** [frame (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L292)
 
-**S→C serializers:** [selectServerReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L136)
+**S→C serializers:** [selectServerReply (server/cmd/gx_login/main.go)](../../server/cmd/gx_login/main.go#L146)
 
 **Client receive reducers:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -178,7 +178,7 @@ These are the exact source serializers/decoders. Parameter names and assignments
 
 <details><summary>selectServerReply — server/cmd/gx_login/main.go</summary>
 
-[Source definition](../../server/cmd/gx_login/main.go#L136)
+[Source definition](../../server/cmd/gx_login/main.go#L146)
 
 ```go
 func selectServerReply(status uint8) []byte {
@@ -214,9 +214,9 @@ func SelectServerPacket(serverID uint8, version uint32) []byte {
 
 **`0xA301` — GameHandshake**
 
-Declarations: [packet.GameHandshake](../../server/internal/packet/packet.go#L215), [proto.GameHandshake](../../internal/proto/opcodes.go#L203).
+Declarations: [packet.GameHandshake](../../server/internal/packet/packet.go#L214), [proto.GameHandshake](../../internal/proto/opcodes.go#L201).
 
-**C→S receive adapters:** [frame (server/internal/world/session.go)](../../server/internal/world/session.go#L607)
+**C→S receive adapters:** [frame (server/internal/world/session.go)](../../server/internal/world/session.go#L608)
 
 **S→C serializers:** [buildWorldHandshake (server/internal/world/protocol.go)](../../server/internal/world/protocol.go#L16)
 
@@ -261,9 +261,9 @@ func WorldHelloPacket(userUID uint32, token [16]byte) []byte {
 
 **`0xA303` — Ping**
 
-Declarations: [packet.Ping](../../server/internal/packet/packet.go#L216), [proto.Ping](../../internal/proto/opcodes.go#L204).
+Declarations: [packet.Ping](../../server/internal/packet/packet.go#L215), [proto.Ping](../../internal/proto/opcodes.go#L202).
 
-**C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L298)
+**C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L300)
 
 **S→C serializers:** [buildPing (server/internal/world/protocol.go)](../../server/internal/world/protocol.go#L101)
 

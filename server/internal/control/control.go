@@ -16,6 +16,7 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/controlplane"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/filelock"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/netx"
 )
 
 type Service string
@@ -28,6 +29,9 @@ const (
 func Services() []Service { return []Service{Login, World} }
 
 func (s Service) Label() string {
+	if s == operatorLog {
+		return "Operator"
+	}
 	if s == World {
 		return "World"
 	}
@@ -46,29 +50,33 @@ const (
 )
 
 type Status struct {
-	State    State
-	PID      int
-	Endpoint string
-	Players  int
-	Detail   string
+	State     State
+	PID       int
+	Endpoint  string
+	Players   int
+	Shield    netx.ShieldStatus
+	Detail    string
+	Processes int
 }
 
 type Action string
 
 const (
-	Start   Action = "Start"
-	Stop    Action = "Stop"
-	Restart Action = "Restart"
+	Start     Action = "Start"
+	Stop      Action = "Stop"
+	Restart   Action = "Restart"
+	ForceStop Action = "Force stop"
 )
 
 type Manager struct {
-	root    string
-	mu      sync.Mutex
-	failure map[Service]string
+	root         string
+	mu           sync.Mutex
+	failure      map[Service]string
+	startTimeout time.Duration
 }
 
 func New(root string) *Manager {
-	return &Manager{root: root, failure: make(map[Service]string)}
+	return &Manager{root: root, failure: make(map[Service]string), startTimeout: 40 * time.Second}
 }
 
 // Installation opens the portable root containing the controller's build directory.
@@ -97,6 +105,25 @@ func (m *Manager) binary(service Service) string {
 	return filepath.Join(m.root, "build", exeName(service))
 }
 
+// CheckInstallation verifies the executables required by the full dashboard.
+func (m *Manager) CheckInstallation() error {
+	return m.checkExecutables([]Service{Login, World, "gx_console"})
+}
+
+func (m *Manager) checkExecutables(targets []Service) error {
+	var missing []string
+	for _, service := range targets {
+		info, err := os.Stat(m.binary(service))
+		if err != nil || !info.Mode().IsRegular() {
+			missing = append(missing, exeName(service))
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("incomplete GX installation: missing %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 func (m *Manager) lock(ctx context.Context) (func(), error) {
 	directory := filepath.Join(m.root, "runtime", "control")
 	if err := os.MkdirAll(directory, 0700); err != nil {
@@ -121,11 +148,11 @@ func (m *Manager) current(ctx context.Context, service Service, found []int) Sta
 		pid := found[0]
 		status, err := controlplane.ReadStatus(ctx, m.root, string(service), pid, m.binary(service))
 		if err != nil || status.Endpoint == "" {
-			return Status{State: Unknown, PID: pid, Detail: "Process is running. Readiness is unavailable."}
+			return Status{State: Unknown, PID: pid, Processes: 1, Detail: "Process is running. Readiness is unavailable."}
 		}
-		return Status{State: Ready, PID: pid, Endpoint: status.Endpoint, Players: status.Players}
+		return Status{State: Ready, PID: pid, Processes: 1, Endpoint: status.Endpoint, Players: status.Players, Shield: status.Shield}
 	default:
-		return Status{State: Unknown, Detail: "Multiple processes match this installation."}
+		return Status{State: Unknown, Processes: len(found), Detail: "Multiple processes match this installation."}
 	}
 }
 
@@ -141,14 +168,7 @@ func (m *Manager) Snapshot(ctx context.Context) map[Service]Status {
 			status.Detail = processErr.Error()
 		}
 		if status.Endpoint == "" && configErr == nil {
-			key, fallback := "RAPTURE_LOGIN_LISTEN", "127.0.0.1:30800"
-			if service == World {
-				key, fallback = "RAPTURE_WORLD_LISTEN", "127.0.0.1:30810"
-			}
-			status.Endpoint = config.RuntimeValue(configured, key)
-			if status.Endpoint == "" {
-				status.Endpoint = fallback
-			}
+			status.Endpoint = configuredEndpoint(configured, service)
 		}
 		result[service] = status
 	}
@@ -158,7 +178,7 @@ func (m *Manager) Snapshot(ctx context.Context) map[Service]Status {
 // Apply serializes GUI and CLI changes to this installation. Restart starts
 // only services whose old processes were verified stopped.
 func (m *Manager) Apply(ctx context.Context, action Action, targets []Service, progress func(Service, Status)) error {
-	if action != Start && action != Stop && action != Restart {
+	if action != Start && action != Stop && action != Restart && action != ForceStop {
 		return fmt.Errorf("unknown action %q", action)
 	}
 	selected := make(map[Service]bool, len(targets))
@@ -173,6 +193,26 @@ func (m *Manager) Apply(ctx context.Context, action Action, targets []Service, p
 		return fmt.Errorf("acquire installation control: %w", err)
 	}
 	defer release()
+	if action == Start {
+		owner, err := m.conflictingInstallation(ctx, selected)
+		if err != nil {
+			return err
+		}
+		if owner != nil {
+			return fmt.Errorf("a running GX installation already owns these ports: %s", owner.Root())
+		}
+	}
+	if action == Start || action == Restart {
+		var starting []Service
+		for _, service := range Services() {
+			if selected[service] {
+				starting = append(starting, service)
+			}
+		}
+		if err := m.checkExecutables(starting); err != nil {
+			return err
+		}
+	}
 	var failures []error
 	if action != Start {
 		for _, service := range []Service{World, Login} {
@@ -182,16 +222,20 @@ func (m *Manager) Apply(ctx context.Context, action Action, targets []Service, p
 			if progress != nil {
 				progress(service, Status{State: Stopping})
 			}
-			if err := m.stop(ctx, service); err != nil {
+			if err := m.stop(ctx, service, action == ForceStop); err != nil {
 				failures = append(failures, fmt.Errorf("stop %s: %w", service.Label(), err))
 				delete(selected, service)
+			} else {
+				m.mu.Lock()
+				delete(m.failure, service)
+				m.mu.Unlock()
 			}
 			if progress != nil {
 				progress(service, m.Snapshot(ctx)[service])
 			}
 		}
 	}
-	if action != Stop {
+	if action == Start || action == Restart {
 		for _, service := range Services() {
 			if !selected[service] {
 				continue
@@ -249,7 +293,13 @@ func (m *Manager) start(ctx context.Context, service Service) error {
 	}
 	exited := make(chan error, 1)
 	go func() { exited <- cmd.Wait() }()
-	deadline, cancel := context.WithTimeout(ctx, 40*time.Second)
+	timeout := m.startTimeout
+	if service == World {
+		// World must finish loading map navigation and spawn data before it
+		// can advertise readiness. Cold Windows disks can take over 40s.
+		timeout = max(timeout, 120*time.Second)
+	}
+	deadline, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	tick := time.NewTicker(200 * time.Millisecond)
 	defer tick.Stop()
@@ -264,7 +314,16 @@ func (m *Manager) start(ctx context.Context, service Service) error {
 			}
 			return errors.New("process exited before reporting readiness")
 		case <-deadline.Done():
-			return fmt.Errorf("service did not report ready: %w", deadline.Err())
+			cause := fmt.Errorf("service did not report ready: %w", deadline.Err())
+			if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				return errors.Join(cause, fmt.Errorf("could not stop the launched process: %w", err))
+			}
+			select {
+			case <-exited:
+				return cause
+			case <-time.After(5 * time.Second):
+				return errors.Join(cause, errors.New("launched process exit could not be verified"))
+			}
 		case <-tick.C:
 			if status, err := controlplane.ReadStatus(deadline, m.root, string(service), cmd.Process.Pid, path); err == nil && status.Endpoint != "" {
 				return nil
@@ -273,7 +332,7 @@ func (m *Manager) start(ctx context.Context, service Service) error {
 	}
 }
 
-func (m *Manager) stop(ctx context.Context, service Service) error {
+func (m *Manager) stop(ctx context.Context, service Service, force bool) error {
 	processes, err := m.processes()
 	if err != nil {
 		return err
@@ -282,25 +341,34 @@ func (m *Manager) stop(ctx context.Context, service Service) error {
 	if len(found) == 0 {
 		return nil
 	}
-	if len(found) != 1 {
-		return errors.New("multiple matching processes")
-	}
-	pid := found[0]
-	if err := controlplane.RequestStop(ctx, m.root, string(service), pid, m.binary(service)); err != nil {
-		return err
+	if force {
+		for _, pid := range found {
+			if err := terminateOwned(pid, m.binary(service)); err != nil {
+				return err
+			}
+		}
+	} else {
+		if len(found) != 1 {
+			return errors.New("multiple matching processes")
+		}
+		if err := controlplane.RequestStop(ctx, m.root, string(service), found[0], m.binary(service)); err != nil {
+			return err
+		}
 	}
 	deadline, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	tick := time.NewTicker(250 * time.Millisecond)
 	defer tick.Stop()
+	var observationErr error
 	for {
 		select {
 		case <-deadline.Done():
-			return fmt.Errorf("could not verify process exit: %w", deadline.Err())
+			return fmt.Errorf("could not verify process exit: %w", errors.Join(deadline.Err(), observationErr))
 		case <-tick.C:
 			processes, err := m.processes()
 			if err != nil {
-				return err
+				observationErr = err
+				continue
 			}
 			if len(processes[service]) == 0 {
 				return nil

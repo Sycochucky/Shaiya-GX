@@ -11,6 +11,23 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/internal/ui"
 )
 
+func TestEquipRefusalUsesNativeUpperChat(t *testing.T) {
+	a := inputApp()
+	a.msg = text.SysMsg{229: "Cannot equip <i>"}
+	a.items = map[sdata.ItemKey]*sdata.Item{{Type: 16, TypeID: 2}: {Name: "Test Helmet"}}
+	w := proto.NewWriter(proto.GXEquipRefusal)
+	w.U8(16)
+	w.U8(2)
+	a.applyWorldPacket(w.Bytes())
+	if len(a.state.Chat) != 1 || len(a.screenNotices) != 0 {
+		t.Fatalf("equipment refusal must appear only in chat: %v, notices %v", a.state.Chat, a.screenNotices)
+	}
+	line := a.state.Chat[0]
+	if line.Text != "Cannot equip Test Helmet" || line.MessageID != 229 || line.Style != 17 {
+		t.Fatalf("wrong equipment notice: %+v", line)
+	}
+}
+
 func TestAcknowledgedEventsUseRuntimeMessagesAndNativePalette(t *testing.T) {
 	a := inputApp()
 	a.state.SelfID = 1

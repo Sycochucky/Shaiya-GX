@@ -29,6 +29,9 @@ type World struct {
 	writeErr     error
 }
 
+// NewWorld wraps an established world connection and starts its reader and writer.
+func NewWorld(c *netx.Conn) *World { return startWorld(c) }
+
 func startWorld(c *netx.Conn) *World {
 	ch := make(chan []byte, 256)
 	w := &World{conn: c, Packets: ch, done: make(chan struct{}), stop: make(chan struct{}), outbound: make(chan []byte, 128), writerDone: make(chan struct{})}

@@ -11,9 +11,6 @@ foreach ($program in @("shaiya", "shaiyacli", "assets")) {
     go build -o "build/$target.exe" "./cmd/$program"
     Check-Go
 }
-New-Item -ItemType Directory -Force "build/GX Studio" | Out-Null
-go build -trimpath -ldflags "-H windowsgui" -o "build/GX Studio/GX Studio.exe" ./cmd/gx_studio
-Check-Go
 Push-Location .
 try {
     & ./server/tools/build.ps1 -Gui

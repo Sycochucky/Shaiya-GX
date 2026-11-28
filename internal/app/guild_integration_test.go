@@ -9,7 +9,6 @@ import (
 
 	"github.com/Spelunkern/Shaiya-GX/internal/game"
 	"github.com/Spelunkern/Shaiya-GX/internal/platform"
-	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"github.com/Spelunkern/Shaiya-GX/internal/render"
 	"github.com/Spelunkern/Shaiya-GX/internal/testworld"
 	"github.com/Spelunkern/Shaiya-GX/internal/ui"
@@ -26,160 +25,6 @@ func TestGuildDirectoryAgainstRapture(t *testing.T) {
 	t.Logf("received complete Rapture guild directory (%d entries)", len(st.Guild.Directory))
 }
 
-func TestGuildInviteRefusedAgainstRapture(t *testing.T) {
-	if os.Getenv("SHAIYA_TEST_PARTNER") == "" {
-		t.Skip("requires two disposable accounts")
-	}
-	a, wa, _, waitA := testworld.Enter(t)
-	b, _, _, waitB := testworld.EnterAs(t, os.Getenv("SHAIYA_TEST_PARTNER"), os.Getenv("SHAIYA_TEST_PARTNER_PASSWORD"))
-	waitA(func() bool { return a.Entities[b.SelfID] != nil })
-	waitB(func() bool { return b.Entities[a.SelfID] != nil })
-	if a.Guild.ID != 0 {
-		t.Fatal("fixture should not belong to a guild")
-	}
-	// The context menu hides this request for non-admins. Send it explicitly
-	// to check that the server's rejection is reflected in the UI.
-	if err := wa.Send(proto.GuildInvitePacket(b.SelfID)); err != nil {
-		t.Fatal(err)
-	}
-	app := inputApp()
-	app.state, app.world = a, wa
-	app.guildMessage, _ = ui.NewMessage(inputTextures{})
-	deadline := time.Now().Add(8 * time.Second)
-	for a.Guild.ReplySerial == 0 {
-		app.pumpWorld()
-		if app.state == nil || time.Now().After(deadline) {
-			t.Fatal("no guild invitation rejection")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	app.updateGuildInvite(&platform.Input{}, 1024, 768)
-	if a.Guild.LastReply.Result != 0 || len(a.Chat) == 0 || a.Chat[len(a.Chat)-1].Text != "Guild invitation declined or unavailable." {
-		t.Fatalf("incorrect refusal state: %+v %+v", a.Guild.LastReply, a.Chat)
-	}
-}
-
-func TestGuildInviteAcceptAgainstRapture(t *testing.T) {
-	name := os.Getenv("SHAIYA_TEST_GUILD")
-	if name == "" || os.Getenv("SHAIYA_TEST_PARTNER") == "" {
-		t.Skip("requires disposable guild fixture")
-	}
-	a, wa, _, waitA := testworld.Enter(t)
-	b, wb, _, waitB := testworld.EnterAs(t, os.Getenv("SHAIYA_TEST_PARTNER"), os.Getenv("SHAIYA_TEST_PARTNER_PASSWORD"))
-	appA, appB := inputApp(), inputApp()
-	appA.state, appA.world = a, wa
-	appB.state, appB.world = b, wb
-	appB.guildMessage, _ = ui.NewMessage(inputTextures{})
-	waitA(func() bool {
-		return a.Entities[b.SelfID] != nil && a.Guild.ID != 0 && a.Guild.Rank == 1 && a.Guild.DirectoryReady
-	})
-	waitB(func() bool { return b.Entities[a.SelfID] != nil && b.Guild.DirectoryReady })
-	guildID := a.Guild.ID
-	if a.Guild.Name != name || a.Guild.Directory[guildID].Name != name || b.Guild.Directory[guildID].Name != name || a.Guild.Members[a.SelfID].Rank != 1 || b.Guild.ID != 0 {
-		t.Fatalf("fixture mismatch: master %+v partner %+v", a.Guild, b.Guild)
-	}
-	a.Target = b.SelfID
-	appA.worldControls(&platform.Input{MouseX: 300, MouseY: 20, RightPressed: true, RightDown: true}, 1024, 768)
-	actions := appA.contextActions(b.SelfID)
-	row := -1
-	for i, action := range actions {
-		if action.label == "Invite to guild" {
-			row = i
-		}
-	}
-	if !appA.playerContext.open || row < 0 {
-		t.Fatal("guild invitation action missing")
-	}
-	x, y := appA.playerContext.x+5, appA.playerContext.y+row*contextRowHeight+5
-	appA.worldControls(&platform.Input{MouseX: x, MouseY: y, Pressed: true, MouseDown: true}, 1024, 768)
-	appA.worldControls(&platform.Input{MouseX: x, MouseY: y, Clicked: true}, 1024, 768)
-	waitB(func() bool { return b.Guild.InviteSerial == 1 })
-	appB.updateGuildInvite(&platform.Input{}, 1024, 768)
-	if !appB.guildMessage.Visible || b.Guild.ID != 0 {
-		t.Fatal("missing prompt or premature guild membership")
-	}
-	appB.updateGuildInvite(&platform.Input{Keys: []platform.Key{platform.KeyEscape}}, 1024, 768)
-	waitA(func() bool { return a.Guild.ReplySerial == 1 })
-	if a.Guild.LastReply.Result != 0 || b.Guild.ID != 0 {
-		t.Fatal("guild invitation rejection")
-	}
-	appA.guildCommand("/guildinvite")
-	waitB(func() bool { return b.Guild.InviteSerial == 2 })
-	appB.updateGuildInvite(&platform.Input{}, 1024, 768)
-	appB.updateGuildInvite(&platform.Input{Keys: []platform.Key{platform.KeyEnter}}, 1024, 768)
-	if b.Guild.ID != 0 {
-		t.Fatal("guild membership changed before acknowledgement")
-	}
-	waitB(func() bool { return b.Guild.ID == guildID && len(b.Guild.Members) == 2 })
-	waitA(func() bool { return a.Guild.ReplySerial == 2 && len(a.Guild.Members) == 2 })
-	if a.Guild.LastReply.Result != 1 || b.Guild.Rank != 9 || b.Guild.Name != name || !a.Guild.Members[b.SelfID].Online {
-		t.Fatalf("guild membership mismatch: %+v %+v", a.Guild, b.Guild)
-	}
-	if a.Entities[b.SelfID].GuildID != guildID || guildCaption(a, a.Entities[b.SelfID].GuildID) != name {
-		t.Fatal("visible member did not acquire confirmed guild caption")
-	}
-	appA.guildUI, _ = ui.NewGuildPanel(inputTextures{})
-	appA.guildConfirm, _ = ui.NewMessage(inputTextures{})
-	appA.worldControls(&platform.Input{Chars: []rune{'g'}}, 1024, 768)
-	if !appA.guild.open {
-		t.Fatal("guild panel did not open")
-	}
-	appA.worldControls(&platform.Input{}, 1024, 768)
-	if len(appA.guild.roster) != 2 || appA.guild.roster[0].ID != a.SelfID || appA.guild.roster[1].ID != b.SelfID {
-		t.Fatalf("guild UI roster: %+v", appA.guild.roster)
-	}
-	x, y = appA.guildUI.Origin(1024, 768)
-	appA.worldControls(&platform.Input{MouseX: x + 45, MouseY: y + 140, Pressed: true, MouseDown: true}, 1024, 768)
-	appA.worldControls(&platform.Input{MouseX: x + 45, MouseY: y + 140, Clicked: true}, 1024, 768)
-	if appA.guild.selected != b.SelfID {
-		t.Fatal("guild UI did not select partner")
-	}
-	if err := wb.Shutdown(10 * time.Second); err != nil {
-		t.Fatal(err)
-	}
-	waitA(func() bool { return !a.Guild.Members[b.SelfID].Online })
-	b2, _, _, waitB2 := testworld.EnterAs(t, os.Getenv("SHAIYA_TEST_PARTNER"), os.Getenv("SHAIYA_TEST_PARTNER_PASSWORD"))
-	waitB2(func() bool { return b2.Guild.ID == guildID && len(b2.Guild.Members) == 2 && b2.Guild.DirectoryReady })
-	waitA(func() bool { return a.Guild.Members[b.SelfID].Online })
-	waitA(func() bool { return a.Entities[b.SelfID] != nil })
-	if b2.Guild.Name != name || b2.Guild.Rank != 9 {
-		t.Fatalf("guild not restored: %+v", b2.Guild)
-	}
-	click := func(cx int) {
-		appA.worldControls(&platform.Input{MouseX: x + cx, MouseY: y + 457, Pressed: true, MouseDown: true}, 1024, 768)
-		appA.worldControls(&platform.Input{MouseX: x + cx, MouseY: y + 457, Clicked: true}, 1024, 768)
-	}
-	click(40)
-	if a.Guild.Members[b.SelfID].Rank != 9 {
-		t.Fatal("rank changed before server acknowledgement")
-	}
-	waitA(func() bool { return a.Guild.Members[b.SelfID].Rank == 8 })
-	waitB2(func() bool { return b2.Guild.Rank == 8 })
-	appA.clock = 1
-	click(109)
-	waitA(func() bool { return a.Guild.Members[b.SelfID].Rank == 9 })
-	waitB2(func() bool { return b2.Guild.Rank == 9 })
-	click(178)
-	if !appA.guildConfirm.Visible {
-		t.Fatal("expel confirmation missing")
-	}
-	appA.updateGuildConfirm(&platform.Input{Keys: []platform.Key{platform.KeyEscape}}, 1024, 768)
-	if _, ok := a.Guild.Members[b.SelfID]; !ok {
-		t.Fatal("cancel removed member")
-	}
-	click(178)
-	appA.updateGuildConfirm(&platform.Input{Keys: []platform.Key{platform.KeyEnter}}, 1024, 768)
-	if _, ok := a.Guild.Members[b.SelfID]; !ok {
-		t.Fatal("expel applied before confirmation")
-	}
-	waitA(func() bool { _, ok := a.Guild.Members[b.SelfID]; return !ok })
-	waitB2(func() bool { return b2.Guild.ID == 0 })
-	if member := a.Entities[b.SelfID]; member != nil && member.GuildID != 0 {
-		t.Fatal("expelled visible member retained a guild caption")
-	}
-	t.Log("guild directory, invitations, roster, relog, rank changes and expulsion confirmed")
-}
-
 func TestGuildApplicationAgainstRapture(t *testing.T) {
 	name := os.Getenv("SHAIYA_TEST_GUILD")
 	if name == "" || os.Getenv("SHAIYA_TEST_PARTNER") == "" {
@@ -191,7 +36,6 @@ func TestGuildApplicationAgainstRapture(t *testing.T) {
 	appA.state, appA.world = a, wa
 	appB.state, appB.world = b, wb
 	appA.guildUI, _ = ui.NewGuildPanel(inputTextures{})
-	appB.guildMessage, _ = ui.NewMessage(inputTextures{})
 	appB.guildDirectoryUI, _ = ui.NewGuildDirectory(inputTextures{})
 	waitA(func() bool { return a.Guild.Rank == 1 && a.Guild.DirectoryReady })
 	waitB(func() bool { return b.Guild.DirectoryReady })

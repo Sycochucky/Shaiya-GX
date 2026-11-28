@@ -184,7 +184,7 @@ func TestNewDropRecreationSurvivesPickupAndRedrop(t *testing.T) {
 	defs.MobDrops[1] = []db.MobDrop{{ItemOrder: 1, Grade: 1, DropRate: 100}}
 	buildDropCatalog()
 	mob := &MapMob{MobID: 1, ID: 1, Level: 1, PosY: 15.7}
-	drops := rollMobDrops(s.char.MapID, mob, s.char.ID, s.char.ID, nil, s.log)
+	drops := rollMobDrops(s.char.MapID, mob, s.char.ID, s.char.ID, nil, currentRewardRates(), s.log)
 	if len(drops) != 1 {
 		t.Fatal("missing forced drop", len(drops))
 	}

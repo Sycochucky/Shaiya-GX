@@ -31,6 +31,8 @@ import (
 var nextConnection atomic.Int64
 var loginByIP = netx.NewRateLimiter(4096, 30, time.Minute)
 var loginByAccount = netx.NewRateLimiter(8192, 10, time.Minute)
+var handshakeByIP = netx.NewRateLimiter(4096, 30, time.Minute)
+var handshakeWork = netx.NewLimiter(32)
 
 func main() {
 	if err := run(); err != nil {
@@ -57,6 +59,12 @@ func run() error {
 	defer stop()
 	resetFailure := db.OnStorageFailure(func(err error) { logger.Errorf("storage unavailable; stopping service: %v", err); stop() })
 	defer resetFailure()
+	release, err := db.AcquireLogin(ctx)
+	if err != nil {
+		logger.Errorf("GX Login: %v", err)
+		return err
+	}
+	defer release()
 	defer db.Close()
 	logger.Printf("Starting GX Server Login")
 	if err := db.Open(db.UserData); err != nil {
@@ -65,6 +73,8 @@ func run() error {
 	}
 	loginByIP = netx.NewRateLimiter(4096, policy.IPAttempts, time.Minute)
 	loginByAccount = netx.NewRateLimiter(8192, policy.AccountAttempts, time.Minute)
+	handshakeByIP = netx.NewRateLimiter(4096, policy.IPAttempts, time.Minute)
+	shield := netx.NewShield()
 	listener, err := transport.Listen(config.LoginListen())
 	if err != nil {
 		logger.Errorf("GX Server Login failed to bind %s: %v", config.LoginListen(), err)
@@ -74,7 +84,7 @@ func run() error {
 
 	admin, err := controlplane.Start(ctx, "gx_login", os.Getenv("RAPTURE_LOGIN_DIAGNOSTICS"), stop, func() controlplane.ServiceStatus {
 		return controlplane.ServiceStatus{Endpoint: listener.Addr().String()}
-	}, db.Observe)
+	}, shield, db.Observe)
 	if err != nil {
 		listener.Close()
 		logger.Printf("local control startup failed: %v", err)
@@ -92,7 +102,7 @@ func run() error {
 		if err := handle(conn, log); err != nil {
 			log.Printf("login client error: %v", err)
 		}
-	}, netx.NewRateLimiter(4096, policy.Establishments, time.Minute)); err != nil {
+	}, netx.NewRateLimiter(4096, policy.Establishments, time.Minute), shield); err != nil {
 		logger.Printf("server accept error: %v", err)
 		return err
 	}
@@ -172,7 +182,12 @@ func handle(conn net.Conn, log *logx.Tag) error {
 		return err
 	}
 	c := &client{conn: conn, log: log}
-	remote, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	peer := netx.PeerIP(conn)
+	banned, err := db.OperatorIPBanned(peer)
+	if err != nil || banned {
+		return err
+	}
+	remote := peer.String()
 	log.Printf("GX Server Login client connected from %s", remote)
 	if err := c.write(handshake(), "0xA101 handshake"); err != nil {
 		return err
@@ -187,6 +202,10 @@ func handle(conn net.Conn, log *logx.Tag) error {
 		}
 		list, ok := frames.Push(buf[:n])
 		for _, frame := range list {
+			banned, err := db.OperatorIPBanned(peer)
+			if err != nil || banned {
+				return err
+			}
 			if err := c.frame(frame, remote); err != nil {
 				return err
 			}
@@ -207,8 +226,15 @@ func (c *client) frame(frame []byte, remote string) error {
 		if size == 0 || len(frame) < 5+size {
 			return fmt.Errorf("short RSA block")
 		}
+		if !handshakeByIP.Allow(remote) {
+			return fmt.Errorf("login handshake rate exceeded")
+		}
 		// The RSA plaintext and derived AES material are never logged.
-		c.material = crypto.DeriveLoginAESMaterial(crypto.DecryptLoginRSA(frame[5 : 5+size]))
+		material, err := deriveLoginMaterial(frame[5 : 5+size])
+		if err != nil {
+			return err
+		}
+		c.material = material
 		var key, iv [16]byte
 		copy(key[:], c.material[:16])
 		copy(iv[:], c.material[16:])
@@ -257,7 +283,7 @@ func (c *client) frame(frame []byte, remote string) error {
 			result = 1
 		} // same public failure as an unknown account
 		if result != 0 {
-			c.log.Printf("GX Server Login rejected username=%q status=%d result=%d", username, login.Status, result)
+			c.log.Event("Sign-in rejected", "activity", "player.login", "outcome", "rejected")
 			return c.write(loginReply(result, 0, permission, [16]byte{}), "0xA102 login failed")
 		}
 		c.userUID = uint32(login.UserUID)
@@ -271,6 +297,7 @@ func (c *client) frame(frame []byte, remote string) error {
 		if err := c.write(loginReply(0, c.userUID, permission, identity), "0xA102 login success"); err != nil {
 			return err
 		}
+		c.log.Event(fmt.Sprintf("%s signed in", username), "activity", "player.login", "account_id", c.userUID, "character", username, "outcome", "ok")
 		return c.write(serverList(), "0xA201 server list")
 	case packet.SelectServer:
 		if len(payload) < 7 || c.userUID == 0 {
@@ -285,4 +312,12 @@ func (c *client) frame(frame []byte, remote string) error {
 		return c.write(selectServerReply(status), "0xA202 select server")
 	}
 	return nil
+}
+
+func deriveLoginMaterial(encrypted []byte) ([32]byte, error) {
+	if !handshakeWork.Acquire() {
+		return [32]byte{}, fmt.Errorf("login handshake capacity exceeded")
+	}
+	defer handshakeWork.Release()
+	return crypto.DeriveLoginAESMaterial(crypto.DecryptLoginRSA(encrypted)), nil
 }

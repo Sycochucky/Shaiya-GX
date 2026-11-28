@@ -18,6 +18,13 @@ func postureToggle(in *platform.Input, actor *scene.Character) bool {
 	return false
 }
 
+// Only keyboard travel (including keyboard autorun and jump) stands a
+// seated character. Terrain travel and two-button mouse-run do not.
+func keyboardPostureMovement(in *platform.Input, autoRun bool) bool {
+	return !in.SuppressAutoRun && (autoRun || in.Held('W') || in.Held('S') ||
+		in.Held('A') || in.Held('D') || in.Held('Q') || in.Held('E') || in.HasKey(platform.KeySpace))
+}
+
 // Rapture retains auto-attack when a motion arrives. Stop it before sitting;
 // the posture itself remains pending until the echoed 0x0506 arrives.
 func (a *App) requestPosture(motion uint8) bool {

@@ -1,7 +1,8 @@
-// Package controlplane owns loopback diagnostics and authenticated local shutdown.
+// Package controlplane owns loopback diagnostics and authenticated local operations.
 package controlplane
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -9,7 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Spelunkern/Shaiya-GX/server/internal/telemetry"
+	"io"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -20,6 +21,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Spelunkern/Shaiya-GX/server/internal/netx"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/operatorwire"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/telemetry"
 )
 
 type descriptor struct {
@@ -39,8 +44,9 @@ type Server struct {
 
 // ServiceStatus contains the operational data exposed to the local controller.
 type ServiceStatus struct {
-	Endpoint string `json:"endpoint"`
-	Players  int    `json:"players"`
+	Endpoint string            `json:"endpoint"`
+	Players  int               `json:"players"`
+	Shield   netx.ShieldStatus `json:"shield"`
 }
 
 func loopback(addr string) bool {
@@ -48,7 +54,16 @@ func loopback(addr string) bool {
 	ip := net.ParseIP(host)
 	return err == nil && ip != nil && ip.IsLoopback()
 }
-func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, observe ...func()) (*Server, error) {
+func Start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, shield *netx.Shield, observe ...func()) (*Server, error) {
+	return start(ctx, service, addr, cancel, status, shield, nil, observe)
+}
+
+// StartWorld adds the authenticated World operator endpoint.
+func StartWorld(ctx context.Context, addr string, cancel context.CancelFunc, status func() ServiceStatus, shield *netx.Shield, operator func(operatorwire.Request) (operatorwire.Response, error), observe ...func()) (*Server, error) {
+	return start(ctx, "gx_world", addr, cancel, status, shield, operator, observe)
+}
+
+func start(ctx context.Context, service, addr string, cancel context.CancelFunc, status func() ServiceStatus, shield *netx.Shield, operator func(operatorwire.Request) (operatorwire.Response, error), observe []func()) (*Server, error) {
 	if addr == "" {
 		addr = "127.0.0.1:0"
 	}
@@ -86,6 +101,9 @@ func Start(ctx context.Context, service, addr string, cancel context.CancelFunc,
 	})
 	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+		if shield != nil {
+			shield.Status()
+		}
 		for _, sample := range observe {
 			sample()
 		}
@@ -101,7 +119,32 @@ func Start(ctx context.Context, service, addr string, cancel context.CancelFunc,
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(status())
+		current := status()
+		if shield != nil {
+			current.Shield = shield.Status()
+		}
+		json.NewEncoder(w).Encode(current)
+	})
+	mux.HandleFunc("POST /shield", func(w http.ResponseWriter, r *http.Request) {
+		if !authorize(r) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if ctx.Err() != nil || shield == nil {
+			http.Error(w, "shield unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		minutes, err := strconv.Atoi(r.URL.Query().Get("minutes"))
+		if err != nil || minutes < 0 || minutes > 60 {
+			http.Error(w, "minutes must be 0..60", http.StatusBadRequest)
+			return
+		}
+		if err := shield.SetAttack(time.Duration(minutes) * time.Minute); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(shield.Status())
 	})
 	mux.HandleFunc("POST /shutdown", func(w http.ResponseWriter, r *http.Request) {
 		if !authorize(r) {
@@ -112,6 +155,32 @@ func Start(ctx context.Context, service, addr string, cancel context.CancelFunc,
 		w.(http.Flusher).Flush()
 		cancel()
 	})
+	if operator != nil {
+		mux.HandleFunc("POST /operator", func(w http.ResponseWriter, r *http.Request) {
+			if !authorize(r) {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			if ctx.Err() != nil {
+				http.Error(w, "World is stopping", http.StatusServiceUnavailable)
+				return
+			}
+			data := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))
+			data.DisallowUnknownFields()
+			var req operatorwire.Request
+			if err := data.Decode(&req); err != nil || data.Decode(new(any)) != io.EOF {
+				http.Error(w, "invalid operator request", http.StatusBadRequest)
+				return
+			}
+			res, err := operator(req)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(res)
+		})
+	}
 	if os.Getenv("RAPTURE_PPROF") == "1" {
 		protect := func(handler http.HandlerFunc) http.HandlerFunc {
 			return func(w http.ResponseWriter, r *http.Request) {
@@ -144,6 +213,11 @@ func Start(ctx context.Context, service, addr string, cancel context.CancelFunc,
 		return nil, err
 	}
 	defer os.Remove(tmp.Name())
+	if err = protectDescriptor(tmp.Name()); err != nil {
+		tmp.Close()
+		listener.Close()
+		return nil, fmt.Errorf("protect local control identity: %w", err)
+	}
 	if _, err = tmp.Write(encoded); err == nil {
 		err = tmp.Close()
 	} else {
@@ -177,7 +251,7 @@ func (s *Server) Close() {
 	})
 }
 
-func localRequest(ctx context.Context, root, service string, pid int, executable, method, path string) (*http.Response, error) {
+func localRequest(ctx context.Context, root, service string, pid int, executable, method, path string, body []byte) (*http.Response, error) {
 	data, err := os.ReadFile(filepath.Join(root, "runtime", "control", service+".json"))
 	if err != nil {
 		return nil, err
@@ -197,11 +271,15 @@ func localRequest(ctx context.Context, root, service string, pid int, executable
 	if d.PID != pid || !sameExecutable || !loopback(d.Address) || len(d.Token) != 64 {
 		return nil, errors.New("local control identity mismatch")
 	}
-	req, err := http.NewRequestWithContext(ctx, method, "http://"+d.Address+path, nil)
+	req, err := http.NewRequestWithContext(ctx, method, "http://"+d.Address+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+d.Token)
+	if path == "/operator" {
+		req.Header.Set("Content-Type", "application/json")
+		return operatorClient.Do(req)
+	}
 	return localClient.Do(req)
 }
 
@@ -213,7 +291,7 @@ var localClient = &http.Client{
 
 // ReadStatus validates the descriptor against the running installation.
 func ReadStatus(ctx context.Context, root, service string, pid int, executable string) (ServiceStatus, error) {
-	resp, err := localRequest(ctx, root, service, pid, executable, http.MethodGet, "/status")
+	resp, err := localRequest(ctx, root, service, pid, executable, http.MethodGet, "/status", nil)
 	if err != nil {
 		return ServiceStatus{}, err
 	}
@@ -228,7 +306,7 @@ func ReadStatus(ctx context.Context, root, service string, pid int, executable s
 
 // RequestStop validates the PID and executable before sending the private token.
 func RequestStop(ctx context.Context, root, service string, pid int, executable string) error {
-	resp, err := localRequest(ctx, root, service, pid, executable, http.MethodPost, "/shutdown")
+	resp, err := localRequest(ctx, root, service, pid, executable, http.MethodPost, "/shutdown", nil)
 	if err != nil {
 		return err
 	}
@@ -237,4 +315,52 @@ func RequestStop(ctx context.Context, root, service string, pid int, executable 
 		return fmt.Errorf("shutdown refused: %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// RequestShield changes only the verified local service's temporary admission mode.
+// Zero minutes returns it to the ordinary always-on network policy.
+func RequestShield(ctx context.Context, root, service string, pid int, executable string, minutes int) (netx.ShieldStatus, error) {
+	if minutes < 0 || minutes > 60 {
+		return netx.ShieldStatus{}, errors.New("shield minutes must be 0..60")
+	}
+	resp, err := localRequest(ctx, root, service, pid, executable, http.MethodPost, fmt.Sprintf("/shield?minutes=%d", minutes), nil)
+	if err != nil {
+		return netx.ShieldStatus{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return netx.ShieldStatus{}, fmt.Errorf("shield change refused: HTTP %d", resp.StatusCode)
+	}
+	var state netx.ShieldStatus
+	if err := json.NewDecoder(resp.Body).Decode(&state); err != nil {
+		return netx.ShieldStatus{}, err
+	}
+	return state, nil
+}
+
+var operatorClient = &http.Client{
+	Timeout:       33 * time.Second,
+	Transport:     localClient.Transport,
+	CheckRedirect: localClient.CheckRedirect,
+}
+
+// RunOperator binds the request to this installation's exact World process.
+func RunOperator(ctx context.Context, root string, pid int, executable string, req operatorwire.Request) (operatorwire.Response, error) {
+	var result operatorwire.Response
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return result, err
+	}
+	defer clear(payload)
+	resp, err := localRequest(ctx, root, "gx_world", pid, executable, http.MethodPost, "/operator", payload)
+	if err != nil {
+		return result, fmt.Errorf("World operator request failed. Refresh the current values before retrying: %w", err)
+	}
+	defer resp.Body.Close()
+	data := io.LimitReader(resp.Body, 64<<10)
+	if resp.StatusCode != http.StatusOK {
+		detail, _ := io.ReadAll(data)
+		return result, fmt.Errorf("World operator HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(detail)))
+	}
+	return result, json.NewDecoder(data).Decode(&result)
 }

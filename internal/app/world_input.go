@@ -48,6 +48,7 @@ func (a *App) checkPendingActions() bool {
 // Independent panels can stay open together. Captured events never reach a
 // world target or logout; held movement keys remain available.
 func (a *App) worldControls(in *platform.Input, w, h int) platform.Input {
+	a.validateInspect()
 	vInventory := &a.inventory
 	defer func() {
 		if !in.MouseDown || in.Clicked || !vInventory.open {
@@ -214,7 +215,7 @@ func (a *App) worldControls(in *platform.Input, w, h int) platform.Input {
 		}
 	}
 
-	for index, update := range []func(*platform.Input, int, int) bool{a.updateDropDialog, a.updateMall, a.updatePersonalMarket, a.updateGuild, a.updateEvolutionBar, a.updateQuickPotions, a.updateRevolver, a.updateBarEditing, a.updateQuestLog, a.updateStatus, a.updateSubActions, a.updateSkills, a.updateInventory, a.updateDuel, a.updateExchange, a.updateShop, a.updateBottom, a.updateHUDPointer, a.updateChatPointer, a.updateBuffs, a.updateMinimap, a.updatePartyPointer} {
+	for index, update := range []func(*platform.Input, int, int) bool{a.updateDropDialog, a.updateMall, a.updatePersonalMarket, a.updateGuild, a.updateEvolutionBar, a.updateQuickPotions, a.updateRevolver, a.updateBarEditing, a.updateQuestLog, a.updateStatus, a.updateSubActions, a.updateSkills, a.updateInspect, a.updateInventory, a.updateDuel, a.updateExchange, a.updateShop, a.updateQuestTracker, a.updateBottom, a.updateHUDPointer, a.updateChatPointer, a.updateBuffs, a.updateMinimap, a.updatePartyPointer} {
 		if captured {
 			break
 		}

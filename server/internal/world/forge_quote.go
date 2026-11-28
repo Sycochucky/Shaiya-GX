@@ -30,12 +30,12 @@ func enchantRate(item db.Item, _ uint16) (uint32, bool) {
 		if step >= enchantConfig.WeaponCap {
 			return 0, false
 		}
-		return min(enchantConfig.WeaponRate[step], 1000000), true
+		return scaleEnchantChance(enchantConfig.WeaponRate[step], activeEconomy().WeaponEnchantPercent), true
 	}
 	if step >= enchantConfig.ArmorCap {
 		return 0, false
 	}
-	return min(enchantConfig.DefenseRate[step], 1000000), true
+	return scaleEnchantChance(enchantConfig.DefenseRate[step], activeEconomy().ArmorEnchantPercent), true
 }
 func (s *Session) forgeQuote(q proto.ForgeQuoteRequest) proto.ForgeQuote {
 	out := proto.ForgeQuote{Serial: q.Serial, Kind: q.Kind}

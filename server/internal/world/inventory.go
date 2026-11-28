@@ -6,6 +6,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/Spelunkern/Shaiya-GX/internal/proto"
+
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/packet"
 )
@@ -74,6 +76,13 @@ func writeSlot(w *packet.Writer, bag, slot uint8, it *db.Item) {
 	w.U16(it.Quality)
 	w.Bytes(it.Gems[:])
 	w.FixedString(it.CraftName, 21)
+}
+
+func buildEquipRefusal(item db.Item) []byte {
+	w := packet.New(packet.Opcode(proto.GXEquipRefusal))
+	w.U8(item.Type)
+	w.U8(item.TypeID)
+	return w.MustFinish()
 }
 
 func buildBagToBag(srcBag, srcSlot uint8, src *db.Item, destBag, destSlot uint8, dest *db.Item) []byte {
@@ -657,6 +666,7 @@ func (s *Session) handlePickupItem(p []byte) {
 			return
 		}
 		*ch = after
+		s.goldActivity(change.Before.Money, "ground pickup")
 		claim.Finish(0)
 		s.syncPlayer()
 
@@ -686,6 +696,9 @@ func (s *Session) handlePickupItem(p []byte) {
 	}
 
 	s.log.Printf("GX Server World picked up map_item_id=%d type=%d/%d remaining=%d", mi.ID, mi.Item.Type, mi.Item.TypeID, left)
+	activityForMap(realMap(ch.MapID)).pickups.Add(uint64(mi.Item.Count - left))
+	s.activity("loot.pickup", fmt.Sprintf("%s picked up %d × %s", ch.Name, mi.Item.Count-left, itemActivityName(mi.Item.Type, mi.Item.TypeID)),
+		"item_type", mi.Item.Type, "item_id", mi.Item.TypeID, "quantity", mi.Item.Count-left, "map_item_id", mi.ID)
 	s.questPickup(mi.Item.Type, mi.Item.TypeID)
 }
 
@@ -765,7 +778,7 @@ func (s *Session) handleItemBagToBag(p []byte) {
 	}
 	// Anything entering an equipment slot must pass CUser::EnableEquipment;
 	// a refused move echoes the unchanged slots.
-	if reason := s.equipmentMoveFailure(srcBag, srcSlot, destBag, destSlot); reason != "" {
+	if rejected, reason := s.equipmentMoveFailure(srcBag, srcSlot, destBag, destSlot); reason != "" {
 		var src, dest *db.Item
 		if i := findItem(s.items, srcBag, srcSlot); i >= 0 {
 			src = &s.items[i]
@@ -775,7 +788,7 @@ func (s *Session) handleItemBagToBag(p []byte) {
 		}
 		s.log.Printf("GX Server World refused equip (%d,%d)->(%d,%d): %s", srcBag, srcSlot, destBag, destSlot, reason)
 		s.send(buildBagToBag(srcBag, srcSlot, src, destBag, destSlot, dest), "0x0204 item move refused")
-		s.send(buildChatByName(packet.ChatMap, "System", "Cannot equip item: "+reason), "equipment refusal reason")
+		s.send(buildEquipRefusal(rejected), "0x7F2B equipment refused")
 		return
 	}
 	frame, ok := s.moveItem(srcBag, srcSlot, destBag, destSlot)
@@ -801,14 +814,15 @@ func (s *Session) handleItemBagToBag(p []byte) {
 // equipAllowed checks both directions of a move that touches the
 // equipment bag.
 func (s *Session) equipAllowed(srcBag, srcSlot, destBag, destSlot uint8) bool {
-	return s.equipmentMoveFailure(srcBag, srcSlot, destBag, destSlot) == ""
+	_, reason := s.equipmentMoveFailure(srcBag, srcSlot, destBag, destSlot)
+	return reason == ""
 }
 
-func (s *Session) equipmentMoveFailure(srcBag, srcSlot, destBag, destSlot uint8) string {
+func (s *Session) equipmentMoveFailure(srcBag, srcSlot, destBag, destSlot uint8) (db.Item, string) {
 	defs := db.MustDefs()
-	check := func(bag, slot uint8, item int) string {
+	check := func(bag, slot uint8, item int) (db.Item, string) {
 		if bag != 0 || item < 0 {
-			return ""
+			return db.Item{}, ""
 		}
 		it := s.items[item]
 		others := make([]db.Item, 0, len(s.items))
@@ -817,13 +831,13 @@ func (s *Session) equipmentMoveFailure(srcBag, srcSlot, destBag, destSlot uint8)
 				others = append(others, o)
 			}
 		}
-		return equipFailure(s.char, defs.Item(it.Type, it.TypeID), slot, others)
+		return it, equipFailure(s.char, defs.Item(it.Type, it.TypeID), slot, others)
 	}
 	if srcBag == 0 && destBag == 0 && srcSlot == destSlot {
-		return ""
+		return db.Item{}, ""
 	}
-	if reason := check(destBag, destSlot, findItem(s.items, srcBag, srcSlot)); reason != "" {
-		return reason
+	if item, reason := check(destBag, destSlot, findItem(s.items, srcBag, srcSlot)); reason != "" {
+		return item, reason
 	}
 	return check(srcBag, srcSlot, findItem(s.items, destBag, destSlot))
 }

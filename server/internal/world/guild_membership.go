@@ -2,101 +2,15 @@ package world
 
 import (
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
-	"github.com/Spelunkern/Shaiya-GX/server/internal/logx"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/packet"
-	"time"
 )
 
-func (s *Session) guildInvite(targetID uint32) {
-	me, ch := s.player, s.char
-	refuse := func() { s.send(guildResultID(packet.GuildInviteAnswer, 0, targetID), "0x0D06 guild invite refused") }
-	t := FindPlayerByID(targetID)
-	if t == nil || t == me || t.MapID() != ch.MapID || t.Faction() != s.faction {
-		refuse()
-		return
-	}
-	guildMu.Lock()
-	defer guildMu.Unlock()
-	g := me.guild.guild
-	if g == nil || g.members[ch.ID] == nil || g.members[ch.ID].Rank > guildRankAdmin {
-		refuse()
-		return
-	}
-	now := time.Now()
-	invited := t.guild.inviterID != 0 && now.Before(t.guild.inviteUntil)
-	if t.guild.guild != nil || t.guild.create != nil || invited || t.guild.applied != nil {
-		refuse()
-		return
-	}
-	t.guild.inviterID, t.guild.inviteUntil = ch.ID, now.Add(guildInviteTime)
-	t.Send(guildID32(packet.GuildInvite, ch.ID), "0x0D05 guild invitation")
-}
-
-// guildInviteAnswer (0x0D06): accept byte, answered to the inviter.
-func (s *Session) guildInviteAnswer(accept bool) {
-	me := s.player
-	guildMu.Lock()
-	defer guildMu.Unlock()
-	inviterID := me.guild.inviterID
-	valid := inviterID != 0 && time.Now().Before(me.guild.inviteUntil)
-	me.guild.inviterID, me.guild.inviteUntil = 0, time.Time{}
-	if !valid {
-		return
-	}
-	inviter := FindPlayerByID(inviterID)
-	if inviter == nil || inviter.MapID() != s.char.MapID {
-		return
-	}
-	if !accept {
-		inviter.Send(guildResultID(packet.GuildInviteAnswer, 0, inviterID), "0x0D06 guild invite declined")
-		return
-	}
-	g := inviter.guild.guild
-	if g == nil || g.members[inviterID] == nil || g.members[inviterID].Rank > guildRankAdmin || me.guild.guild != nil {
-		return
-	}
-	if !g.joinUser(me, s.logger) {
-		return
-	}
-	inviter.Send(guildResultID(packet.GuildInviteAnswer, 1, inviterID), "0x0D06 guild invite accepted")
-}
-
-// joinUser is CGuild::JoinUser: an online user joins at rank 9.
-func (g *guild) joinUser(p *ConnectedPlayer, log *logx.Logger) bool {
-	snap := p.Snapshot()
-	m := &guildMember{CharID: p.CharacterID, Name: snap.Name, Job: snap.Class, Level: snap.Level, Rank: guildRankMember, player: p}
-	if err := db.AddGuildChar(g.ID, m.CharID, m.Rank); err != nil {
-		log.Errorf("GX Server World guild join insert failed: %v", err)
-		return false
-	}
-	g.members[m.CharID] = m
-	guildOfChar[m.CharID] = g
-	p.guild.guild = g
-	p.Send(buildGuildJoined(1, g, m.Rank), "0x0D08 guild joined")
-	g.send(buildGuildMemberAdded(m), "0x0D14 guild member added", nil)
-	for _, f := range g.memberListPackets() {
-		p.Send(f, "0x0D12 guild members")
-	}
-	for _, f := range g.bankListPackets() {
-		p.Send(f, "0x0D29 guild bank")
-	}
-	if f := g.npcListPacket(); f != nil {
-		p.Send(f, "0x0D24 guild NPC levels")
-	}
-	if f := g.houseStatusPacket(); f != nil {
-		p.Send(f, "0x0D33 guild house owned")
-	}
-	return true
-}
-
-// buildGuildMemberAdded (0x0D14): online byte and the 29-byte member.
 func (s *Session) guildApply(guildID uint32) {
 	me, ch := s.player, s.char
 	guildMu.Lock()
 	defer guildMu.Unlock()
 	g := guildsByID[guildID]
-	invited := me.guild.inviterID != 0 && time.Now().Before(me.guild.inviteUntil)
-	if me.guild.guild != nil || me.guild.create != nil || invited || g == nil ||
+	if me.guild.guild != nil || me.guild.create != nil || g == nil ||
 		g.Country != s.faction || g.applicants[ch.ID] != nil {
 		s.send(guildResult(packet.GuildApply, 0), "0x0D07 guild apply refused")
 		return

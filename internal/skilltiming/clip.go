@@ -2,11 +2,9 @@ package skilltiming
 
 import "time"
 
-// ClipFloor is how long a skill's own animation runs. The original client
-// keeps the action busy until that animation ends (0x40ff40), so the next
-// action cannot start earlier. Animations play at 30 fps whatever the attack
-// speed, hence no tier argument. Skills with a cast time, weapon swings and
-// anything not in the generated table have no floor.
-func ClipFloor(skill uint16, level uint8) time.Duration {
-	return time.Duration(clipMilliseconds[uint32(skill)<<8|uint32(level)]) * time.Millisecond
+// ClipFloor returns the dedicated instant animation duration for skillID.
+// The caller uses the active definition to decide whether the cast path applies.
+// Weapon swings and skills without a generated clip return zero.
+func ClipFloor(skillID uint16) time.Duration {
+	return time.Duration(clipMilliseconds[skillID]) * time.Millisecond
 }

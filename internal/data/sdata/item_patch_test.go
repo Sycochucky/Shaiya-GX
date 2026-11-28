@@ -90,6 +90,17 @@ func TestRealForgePatchPreservesEveryOtherDefinition(t *testing.T) {
 		}
 		it.ReqVG = uint16(vg)
 		it.Description = r[4]
+		if len(r) > 5 && r[5] != "" {
+			special, _ := strconv.Atoi(r[5])
+			it.Special = uint8(special)
+		}
+		if len(r) > 6 && r[6] != "" {
+			icon, _ := strconv.Atoi(r[6])
+			it.Icon = uint8(icon)
+		}
+		if len(r) > 7 && r[7] != "" {
+			it.Name = r[7]
+		}
 		if stack > 1 {
 			it.Count = 255
 		}

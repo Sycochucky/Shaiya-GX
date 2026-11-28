@@ -4,10 +4,10 @@ package app
 
 import (
 	"github.com/Spelunkern/Shaiya-GX/internal/data/archive"
+	"github.com/Spelunkern/Shaiya-GX/internal/game"
 	"github.com/Spelunkern/Shaiya-GX/internal/platform"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"github.com/Spelunkern/Shaiya-GX/internal/render"
-	"github.com/Spelunkern/Shaiya-GX/internal/scene"
 	"os"
 	"runtime"
 	"testing"
@@ -42,31 +42,54 @@ func TestAttackPauseStopsPredictedMovementGL(t *testing.T) {
 	}
 	v := a.wv
 	a.clock = 10
-	v.attackMoveUntil = 10.5
 	v.sendT = 1000
-	v.moving = false
-	v.motion = 0
 	before := v.pos
-	a.updateWorld(&platform.Input{Down: "W"}, .1)
-	if v.pos[0] != before[0] || v.pos[2] != before[2] {
-		t.Fatal("prediction moved during attack recovery")
+	const mobID = 1729
+	a.state.Entities[mobID] = &game.Entity{ID: mobID, Kind: game.KindMob, X: before[0] + 1, Y: before[1], Z: before[2]}
+	a.state.Target = mobID
+	a.keepChasing(mobID)
+	attack := proto.NewWriter(proto.CharacterMobAutoAttack).Bytes()
+	a.state.LastAttack = proto.AttackResult{Source: a.state.SelfID, Target: mobID, HP: 1}
+	a.confirmedAnimation(attack)
+	if !v.self.ActionActive() {
+		t.Fatal("confirmed basic attack did not start an animation")
 	}
-	v.self.PlayAction(scene.AttackAction(1, 0), false)
-	v.attackPose = true
-	v.attackActionID = v.self.ActionID()
-	a.clock = 10.6
-	v.moving = true
-	v.motion = 1
-	v.sendT = 1000
-	a.updateWorld(&platform.Input{Down: "W"}, 1.0/60)
+	swing, recovery := v.self.ActionID(), v.attackMoveUntil
+	back := &platform.Input{Down: "S"}
+	for range 12 {
+		a.clock += 1.0 / 60
+		a.updateWorld(back, 1.0/60)
+	}
+	if v.attackSent || v.engagedID != 0 || v.approachTarget != 0 || a.state.Target != mobID {
+		t.Fatal("backpedal did not stop repeat attacks and keep the selection")
+	}
+	if !v.self.ActionActive() || v.self.ActionID() != swing || v.self.Time == 0 {
+		t.Fatal("backpedal cut the confirmed swing during the server pause")
+	}
+	if v.pos[0] != before[0] || v.pos[2] != before[2] || v.attackMoveUntil != recovery {
+		t.Fatal("backpedal bypassed the confirmed attack recovery")
+	}
+	a.clock = recovery + .01
+	a.updateWorld(back, 1.0/60)
 	if v.pos[0] == before[0] && v.pos[2] == before[2] {
-		t.Fatal("movement did not resume")
+		t.Fatal("backpedal did not resume when the attack pause expired")
 	}
-	if v.self.ActionActive() {
-		t.Fatal("attack animation continued while running")
+	if !v.self.ActionActive() || v.self.ActionID() != swing {
+		t.Fatal("resuming movement replaced the tail of the swing")
 	}
-	// A previous attack must never cancel an unrelated later jump action.
-	v.attackPose = true
+	a.confirmedAnimation(attack)
+	if v.attackMoveUntil != recovery || v.self.ActionID() != swing {
+		t.Fatal("a late attack reply replaced the swing or paused ongoing backpedal")
+	}
+	for i := 0; i < 240 && !v.self.PlayingClip("003_bstep"); i++ {
+		a.clock += 1.0 / 60
+		a.updateWorld(back, 1.0/60)
+	}
+	if !v.self.PlayingClip("003_bstep") {
+		t.Fatal("the swing did not finish into the backpedal clip")
+	}
+
+	// A late combat result must never cancel a later jump action.
 	v.startJumpAnimation()
 	v.beginJump()
 	v.moving, v.motion, v.sendT = true, 0x84, 1000

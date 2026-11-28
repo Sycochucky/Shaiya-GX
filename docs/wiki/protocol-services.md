@@ -16,7 +16,7 @@ Declarations: [packet.ShopBuy](../../server/internal/packet/packet.go#L78), [pro
 
 **S→C serializers:** [buildShopBuyResult (server/internal/world/npcquest.go)](../../server/internal/world/npcquest.go#L130)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L748)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L756)
 
 ### Wire layouts and validation
 
@@ -81,13 +81,13 @@ type ShopResult struct {
 
 **`0x0703` — ShopSell**
 
-Declarations: [packet.ShopSell](../../server/internal/packet/packet.go#L148), [proto.ShopSell](../../internal/proto/opcodes.go#L133).
+Declarations: [packet.ShopSell](../../server/internal/packet/packet.go#L149), [proto.ShopSell](../../internal/proto/opcodes.go#L133).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L107)
 
 **S→C serializers:** [buildShopSellResult (server/internal/world/warehouse.go)](../../server/internal/world/warehouse.go#L246)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L748)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L756)
 
 ### Wire layouts and validation
 
@@ -151,13 +151,13 @@ type ShopResult struct {
 
 **`0x0711` — WarehouseItemList**
 
-Declarations: [packet.WarehouseItemList](../../server/internal/packet/packet.go#L147), [proto.WarehouseItemList](../../internal/proto/opcodes.go#L132).
+Declarations: [packet.WarehouseItemList](../../server/internal/packet/packet.go#L148), [proto.WarehouseItemList](../../internal/proto/opcodes.go#L132).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
 **S→C serializers:** [buildWarehouseItemList (server/internal/world/warehouse.go)](../../server/internal/world/warehouse.go#L27)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L997), [applyInventoryPacket (internal/game/state_inventory_packets.go)](../../internal/game/state_inventory_packets.go#L42)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L1005), [applyInventoryPacket (internal/game/state_inventory_packets.go)](../../internal/game/state_inventory_packets.go#L42)
 
 ### Wire layouts and validation
 
@@ -236,13 +236,13 @@ type WarehouseList struct {
 
 **`0x0801` — GemAdd**
 
-Declarations: [packet.GemAdd](../../server/internal/packet/packet.go#L223), [proto.GemAdd](../../internal/proto/opcodes.go#L211).
+Declarations: [packet.GemAdd](../../server/internal/packet/packet.go#L222), [proto.GemAdd](../../internal/proto/opcodes.go#L209).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L91)
 
 **S→C serializers:** [buildGemAddResult (server/internal/world/crafting.go)](../../server/internal/world/crafting.go#L188)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L603)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L611)
 
 ### Wire layouts and validation
 
@@ -329,13 +329,13 @@ type GemAddResult struct {
 
 **`0x0802` — GemRemove**
 
-Declarations: [packet.GemRemove](../../server/internal/packet/packet.go#L224), [proto.GemRemove](../../internal/proto/opcodes.go#L212).
+Declarations: [packet.GemRemove](../../server/internal/packet/packet.go#L223), [proto.GemRemove](../../internal/proto/opcodes.go#L210).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L93)
 
 **S→C serializers:** [planGemRemove (server/internal/world/crafting.go)](../../server/internal/world/crafting.go#L366)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L554)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L562)
 
 ### Wire layouts and validation
 
@@ -534,13 +534,13 @@ type GemRemoveResult struct {
 
 **`0x0803` — CloakAdd**
 
-Declarations: [packet.CloakAdd](../../server/internal/packet/packet.go#L225), [proto.CloakAdd](../../internal/proto/opcodes.go#L213).
+Declarations: [packet.CloakAdd](../../server/internal/packet/packet.go#L224), [proto.CloakAdd](../../internal/proto/opcodes.go#L211).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L95)
 
 **S→C serializers:** [buildEmblemAddResult (server/internal/world/emblem.go)](../../server/internal/world/emblem.go#L15)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L575)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L583)
 
 ### Wire layouts and validation
 
@@ -613,13 +613,13 @@ type EmblemResult struct {
 
 **`0x0804` — CloakRemove**
 
-Declarations: [packet.CloakRemove](../../server/internal/packet/packet.go#L226), [proto.CloakRemove](../../internal/proto/opcodes.go#L214).
+Declarations: [packet.CloakRemove](../../server/internal/packet/packet.go#L225), [proto.CloakRemove](../../internal/proto/opcodes.go#L212).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L97)
 
 **S→C serializers:** [planCloakRemove (server/internal/world/emblem.go)](../../server/internal/world/emblem.go#L64)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L592)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L600)
 
 ### Wire layouts and validation
 
@@ -694,13 +694,13 @@ type EmblemRemoved struct{ Bag, Slot uint8 }
 
 **`0x0805` — EnchantAdd**
 
-Declarations: [packet.EnchantAdd](../../server/internal/packet/packet.go#L221), [proto.EnchantAdd](../../internal/proto/opcodes.go#L209).
+Declarations: [packet.EnchantAdd](../../server/internal/packet/packet.go#L220), [proto.EnchantAdd](../../internal/proto/opcodes.go#L207).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L89)
 
 **S→C serializers:** [buildEnchantResult (server/internal/world/crafting.go)](../../server/internal/world/crafting.go#L37)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L527)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L535)
 
 ### Wire layouts and validation
 
@@ -783,13 +783,13 @@ type EnchantResult struct {
 
 **`0x0806` — ItemCompose**
 
-Declarations: [packet.ItemCompose](../../server/internal/packet/packet.go#L222), [proto.ItemCompose](../../internal/proto/opcodes.go#L210).
+Declarations: [packet.ItemCompose](../../server/internal/packet/packet.go#L221), [proto.ItemCompose](../../internal/proto/opcodes.go#L208).
 
 **C→S receive adapters:** [dispatch (server/internal/world/dispatch.go)](../../server/internal/world/dispatch.go#L99)
 
 **S→C serializers:** [buildComposeResult (server/internal/world/crafting.go)](../../server/internal/world/crafting.go#L501)
 
-**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L511)
+**Client receive reducers:** [Apply (internal/game/state.go)](../../internal/game/state.go#L519)
 
 ### Wire layouts and validation
 
@@ -855,7 +855,7 @@ type ComposeResult struct {
 
 **`0x0809` — GemAddPossibility**
 
-Declarations: [packet.GemAddPossibility](../../server/internal/packet/packet.go#L227), [proto.GemAddPossibility](../../internal/proto/opcodes.go#L215).
+Declarations: [packet.GemAddPossibility](../../server/internal/packet/packet.go#L226), [proto.GemAddPossibility](../../internal/proto/opcodes.go#L213).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -869,7 +869,7 @@ The shape is decoded inline, delegated, or only declared. Use the linked adapter
 
 **`0x080A` — GemRemovePossibility**
 
-Declarations: [packet.GemRemovePossibility](../../server/internal/packet/packet.go#L228), [proto.GemRemovePossibility](../../internal/proto/opcodes.go#L216).
+Declarations: [packet.GemRemovePossibility](../../server/internal/packet/packet.go#L227), [proto.GemRemovePossibility](../../internal/proto/opcodes.go#L214).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 
@@ -883,7 +883,7 @@ The shape is decoded inline, delegated, or only declared. Use the linked adapter
 
 **`0xB101` — BankItemList**
 
-Declarations: [packet.BankItemList](../../server/internal/packet/packet.go#L210), [proto.BankItemList](../../internal/proto/opcodes.go#L198).
+Declarations: [packet.BankItemList](../../server/internal/packet/packet.go#L209), [proto.BankItemList](../../internal/proto/opcodes.go#L196).
 
 **C→S receive adapters:** no direct mapping found; inspect source before assuming support or direction.
 

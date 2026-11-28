@@ -62,11 +62,12 @@ Direct GX dependencies: `internal/authwire`, `server/internal/password`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`CreateAccount`](../../server/internal/db/accounts_admin.go#L12)<br>`func CreateAccount(name, secret string, admin bool) (int32, error)` | CreateAccount never stores plaintext and never replaces an existing account. |
-| [`SetAccountPassword`](../../server/internal/db/accounts_admin.go#L51)<br>`func SetAccountPassword(name, secret string) error` | SetAccountPassword revokes pending tickets and active sessions through a monotonically increasing credential version. World checks it every 30 seconds. |
-| [`UpgradeLegacyPasswords`](../../server/internal/db/accounts_admin.go#L84)<br>`func UpgradeLegacyPasswords() (upgraded, needsReset int, err error)` | UpgradeLegacyPasswords hashes passwords still stored in the legacy format. Each update compares the original row so a concurrent password reset wins. Invalid legacy credentials are counted and can be reset with the account CLI. |
-| [`legacyPassword`](../../server/internal/db/accounts_admin.go#L124)<br>`type legacyPassword` | See the source definition and the subsystem ownership contract. |
-| [`legacyPasswords`](../../server/internal/db/accounts_admin.go#L129)<br>`func legacyPasswords(reader *sql.DB, after int64) ([]legacyPassword, error)` | See the source definition and the subsystem ownership contract. |
+| [`CreateAccount`](../../server/internal/db/accounts_admin.go#L13)<br>`func CreateAccount(name, secret string, admin bool) (int32, error)` | CreateAccount never stores plaintext and never replaces an existing account. |
+| [`SetAccountPassword`](../../server/internal/db/accounts_admin.go#L52)<br>`func SetAccountPassword(name, secret string) error` | SetAccountPassword revokes pending tickets and active sessions through a monotonically increasing credential version. World checks it every 30 seconds. |
+| [`revokeCredentialTx`](../../server/internal/db/accounts_admin.go#L78)<br>`func revokeCredentialTx(c context.Context, tx *sql.Tx, uid uint32) error` | See the source definition and the subsystem ownership contract. |
+| [`UpgradeLegacyPasswords`](../../server/internal/db/accounts_admin.go#L89)<br>`func UpgradeLegacyPasswords() (upgraded, needsReset int, err error)` | UpgradeLegacyPasswords hashes passwords still stored in the legacy format. Each update compares the original row so a concurrent password reset wins. Invalid legacy credentials are counted and can be reset with the account CLI. |
+| [`legacyPassword`](../../server/internal/db/accounts_admin.go#L129)<br>`type legacyPassword` | See the source definition and the subsystem ownership contract. |
+| [`legacyPasswords`](../../server/internal/db/accounts_admin.go#L134)<br>`func legacyPasswords(reader *sql.DB, after int64) ([]legacyPassword, error)` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -154,23 +155,23 @@ Direct GX dependencies: `server/internal/config`.
 | [`BaseStatCap`](../../server/internal/db/chars.go#L58)<br>`const BaseStatCap = 32000` | BaseStatCap is the configured character base-stat limit, within the signed smallint character columns and SaveCharacter parameters. |
 | [`u16`](../../server/internal/db/chars.go#L60)<br>`func u16(v int64) uint16` | See the source definition and the subsystem ownership contract. |
 | [`CharactersForAccount`](../../server/internal/db/chars.go#L64)<br>`func CharactersForAccount(userUID uint32) ([]Character, error)` | CharactersForAccount lists live characters (usp_Read_Chars_R) plus those deleted within DeleteWindow, flagged PendingDelete. |
-| [`CharacterDetail`](../../server/internal/db/chars.go#L143)<br>`func CharacterDetail(userUID, charID uint32) (Character, error)` | CharacterDetail loads a playable character with usp_Read_Chars_Detail2_R (which also stamps JoinDate). It returns ErrNotFound unless the character belongs to userUID and is not deleted. |
-| [`readCharacterDetail`](../../server/internal/db/chars.go#L164)<br>`func readCharacterDetail(userUID, charID uint32) (Character, error)` | See the source definition and the subsystem ownership contract. |
-| [`CharacterIDInSlot`](../../server/internal/db/chars.go#L212)<br>`func CharacterIDInSlot(userUID uint32, slot uint8) (uint32, bool, error)` | CharacterIDInSlot runs usp_Read_CharSlots_R. |
-| [`NameTaken`](../../server/internal/db/chars.go#L230)<br>`func NameTaken(name string) (bool, error)` | NameTaken reports whether a live character, or one deleted within the restore window, already uses name. |
-| [`CreateCharacter`](../../server/internal/db/chars.go#L247)<br>`func CreateCharacter(account Account, nc NewCharacter) (uint32, error)` | CreateCharacter runs usp_Create_Char_R. The procedure itself rejects duplicate names (return -2) and fixes SkillPoint at 5. The parameters mirror the original CUser::ProcessCharacterCreate: level 1, no stat or skill points, Vg 200. |
-| [`CreateCharacterWithItems`](../../server/internal/db/chars.go#L253)<br>`func CreateCharacterWithItems(account Account, nc NewCharacter, items []Item) (uint32, error)` | CreateCharacterWithItems commits the character and initial inventory together. Slot/name validation is repeated under the writer lock, not trusted to callers. |
-| [`DeleteCharacter`](../../server/internal/db/chars.go#L310)<br>`func DeleteCharacter(userUID, charID uint32) (bool, error)` | DeleteCharacter runs usp_Delete_Char_E for a live character owned by userUID (Del=1, DeleteDate, guild membership removed). |
-| [`RestoreCharacter`](../../server/internal/db/chars.go#L342)<br>`func RestoreCharacter(userUID, charID uint32) (bool, error)` | RestoreCharacter undoes a deletion within DeleteWindow. The EP4.5 procedures have no restore; this is the inverse of usp_Delete_Char_E's Chars update. |
-| [`EnableRename`](../../server/internal/db/chars.go#L364)<br>`func EnableRename(charID uint32) error` | EnableRename runs Usp_Save_Char_EnableRename_E (name-change stone). |
-| [`RenameCharacter`](../../server/internal/db/chars.go#L370)<br>`func RenameCharacter(userUID, charID uint32, oldName, newName string) (bool, error)` | RenameCharacter commits a pending rename with usp_Update_Char_Rename and consumes one RenameCnt. |
-| [`MapForSave`](../../server/internal/db/chars.go#L414)<br>`var MapForSave` | MapForSave maps a world zone to the map stored in Chars.Map (the world replaces it so instanced zones save their real map). |
-| [`SaveCharacter`](../../server/internal/db/chars.go#L418)<br>`func SaveCharacter(ch *Character) error` | SaveCharacter persists level, points, stats, HP/MP/SP, position, exp, money and kill counters with usp_Save_Char_Info_E. |
-| [`writeCharacter`](../../server/internal/db/chars.go#L431)<br>`func writeCharacter(c context.Context, executor sqlExecutor, ch *Character) (sql.Result, error)` | See the source definition and the subsystem ownership contract. |
-| [`SaveAppearance`](../../server/internal/db/chars.go#L455)<br>`func SaveAppearance(charID uint32, hair, face, size, sex uint8) error` | SaveAppearance runs usp_Save_Char_BodyChg_E. |
-| [`CharacterByName`](../../server/internal/db/chars.go#L463)<br>`func CharacterByName(name string) (charID, userUID uint32, found bool, err error)` | CharacterByName finds a live character's account and id by name. |
-| [`CharacterByID`](../../server/internal/db/chars.go#L480)<br>`func CharacterByID(charID uint32) (Character, error)` | CharacterByID loads any live character regardless of account (used to credit an offline caster). |
-| [`execSQL`](../../server/internal/db/chars.go#L498)<br>`func execSQL(database, name string, args ...any) error` | See the source definition and the subsystem ownership contract. |
+| [`CharacterDetail`](../../server/internal/db/chars.go#L144)<br>`func CharacterDetail(userUID, charID uint32) (Character, error)` | CharacterDetail loads a playable character with usp_Read_Chars_Detail2_R (which also stamps JoinDate). It returns ErrNotFound unless the character belongs to userUID and is not deleted. |
+| [`readCharacterDetail`](../../server/internal/db/chars.go#L165)<br>`func readCharacterDetail(userUID, charID uint32) (Character, error)` | See the source definition and the subsystem ownership contract. |
+| [`CharacterIDInSlot`](../../server/internal/db/chars.go#L213)<br>`func CharacterIDInSlot(userUID uint32, slot uint8) (uint32, bool, error)` | CharacterIDInSlot runs usp_Read_CharSlots_R. |
+| [`NameTaken`](../../server/internal/db/chars.go#L231)<br>`func NameTaken(name string) (bool, error)` | NameTaken reports whether a live character, or one deleted within the restore window, already uses name. |
+| [`CreateCharacter`](../../server/internal/db/chars.go#L248)<br>`func CreateCharacter(account Account, nc NewCharacter) (uint32, error)` | CreateCharacter runs usp_Create_Char_R. The procedure itself rejects duplicate names (return -2) and fixes SkillPoint at 5. The parameters mirror the original CUser::ProcessCharacterCreate: level 1, no stat or skill points, Vg 200. |
+| [`CreateCharacterWithItems`](../../server/internal/db/chars.go#L254)<br>`func CreateCharacterWithItems(account Account, nc NewCharacter, items []Item) (uint32, error)` | CreateCharacterWithItems commits the character and initial inventory together. Slot/name validation is repeated under the writer lock, not trusted to callers. |
+| [`DeleteCharacter`](../../server/internal/db/chars.go#L311)<br>`func DeleteCharacter(userUID, charID uint32) (bool, error)` | DeleteCharacter soft-deletes a character and removes its guild membership in one transaction. A guild master must resolve the guild's leadership first. |
+| [`RestoreCharacter`](../../server/internal/db/chars.go#L365)<br>`func RestoreCharacter(userUID, charID uint32) (bool, error)` | RestoreCharacter undoes a deletion within DeleteWindow. The EP4.5 procedures have no restore; this is the inverse of usp_Delete_Char_E's Chars update. |
+| [`EnableRename`](../../server/internal/db/chars.go#L387)<br>`func EnableRename(charID uint32) error` | EnableRename runs Usp_Save_Char_EnableRename_E (name-change stone). |
+| [`RenameCharacter`](../../server/internal/db/chars.go#L393)<br>`func RenameCharacter(userUID, charID uint32, oldName, newName string) (bool, error)` | RenameCharacter commits a pending rename with usp_Update_Char_Rename and consumes one RenameCnt. |
+| [`MapForSave`](../../server/internal/db/chars.go#L437)<br>`var MapForSave` | MapForSave maps a world zone to the map stored in Chars.Map (the world replaces it so instanced zones save their real map). |
+| [`SaveCharacter`](../../server/internal/db/chars.go#L441)<br>`func SaveCharacter(ch *Character) error` | SaveCharacter persists level, points, stats, HP/MP/SP, position, exp, money and kill counters with usp_Save_Char_Info_E. |
+| [`writeCharacter`](../../server/internal/db/chars.go#L454)<br>`func writeCharacter(c context.Context, executor sqlExecutor, ch *Character) (sql.Result, error)` | See the source definition and the subsystem ownership contract. |
+| [`SaveAppearance`](../../server/internal/db/chars.go#L478)<br>`func SaveAppearance(charID uint32, hair, face, size, sex uint8) error` | SaveAppearance runs usp_Save_Char_BodyChg_E. |
+| [`CharacterByName`](../../server/internal/db/chars.go#L486)<br>`func CharacterByName(name string) (charID, userUID uint32, found bool, err error)` | CharacterByName finds a live character's account and id by name. |
+| [`CharacterByID`](../../server/internal/db/chars.go#L503)<br>`func CharacterByID(charID uint32) (Character, error)` | CharacterByID loads any live character regardless of account (used to credit an offline caster). |
+| [`execSQL`](../../server/internal/db/chars.go#L521)<br>`func execSQL(database, name string, args ...any) error` | See the source definition and the subsystem ownership contract. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -851,8 +852,9 @@ Direct GX dependencies: `internal/blessingrules`, `internal/enchantrules`, `inte
 | [`restoreConsumablesMigration`](../../server/internal/db/migrations.go#L43)<br>`var restoreConsumablesMigration string` | See the source definition and the subsystem ownership contract. |
 | [`removeGrowthModesMigration`](../../server/internal/db/migrations.go#L46)<br>`var removeGrowthModesMigration string` | See the source definition and the subsystem ownership contract. |
 | [`consumableStacksMigration`](../../server/internal/db/migrations.go#L49)<br>`var consumableStacksMigration string` | See the source definition and the subsystem ownership contract. |
-| [`migrations`](../../server/internal/db/migrations.go#L51)<br>`var migrations` | See the source definition and the subsystem ownership contract. |
-| [`migrate`](../../server/internal/db/migrations.go#L233)<br>`func migrate(ctx context.Context, pool *sql.DB, steps []migration) error` | Base user_version=1 remains compatible with the distributed development seed. GX migrations have their own transactional, checksummed ledger. |
+| [`forgeHammersMigration`](../../server/internal/db/migrations.go#L52)<br>`var forgeHammersMigration string` | See the source definition and the subsystem ownership contract. |
+| [`migrations`](../../server/internal/db/migrations.go#L54)<br>`var migrations` | See the source definition and the subsystem ownership contract. |
+| [`migrate`](../../server/internal/db/migrations.go#L237)<br>`func migrate(ctx context.Context, pool *sql.DB, steps []migration) error` | Base user_version=1 remains compatible with the distributed development seed. GX migrations have their own transactional, checksummed ledger. |
 
 <details><summary>Type definitions and owned fields</summary>
 
@@ -875,6 +877,36 @@ Direct GX dependencies: `internal/data/sdata`, `internal/npcquest`, `server/inte
 |---|---|
 | [`initializeNPCQuest`](../../server/internal/db/npcquest.go#L16)<br>`func initializeNPCQuest(ctx context.Context, tx *sql.Tx) error` | See the source definition and the subsystem ownership contract. |
 
+### operator.go
+
+[server/internal/db/operator.go](../../server/internal/db/operator.go#L1)
+
+Direct GX dependencies: `internal/pvprank`, `server/internal/config`, `server/internal/operatorwire`.
+
+| Declaration | Responsibility / source comment |
+|---|---|
+| [`operatorAccountLimit`](../../server/internal/db/operator.go#L15)<br>`const operatorAccountLimit = 100` | See the source definition and the subsystem ownership contract. |
+| [`rowQueryer`](../../server/internal/db/operator.go#L17)<br>`type rowQueryer` | See the source definition and the subsystem ownership contract. |
+| [`OperatorAccounts`](../../server/internal/db/operator.go#L21)<br>`func OperatorAccounts(query string) ([]operatorwire.Account, bool, error)` | See the source definition and the subsystem ownership contract. |
+| [`operatorAccount`](../../server/internal/db/operator.go#L49)<br>`func operatorAccount(c context.Context, q rowQueryer, uid uint32) (operatorwire.Account, error)` | See the source definition and the subsystem ownership contract. |
+| [`OperatorAccount`](../../server/internal/db/operator.go#L59)<br>`func OperatorAccount(uid uint32) (operatorwire.Account, error)` | See the source definition and the subsystem ownership contract. |
+| [`SetOperatorAccount`](../../server/internal/db/operator.go#L69)<br>`func SetOperatorAccount(expected operatorwire.Account, gm bool, points uint32) error` | See the source definition and the subsystem ownership contract. |
+| [`OperatorCharacterSnapshot`](../../server/internal/db/operator.go#L98)<br>`func OperatorCharacterSnapshot(ch Character) (operatorwire.Response, error)` | OperatorCharacterSnapshot exposes the editable fields and experience bounds. |
+| [`operatorEXPBounds`](../../server/internal/db/operator.go#L113)<br>`func operatorEXPBounds(level uint16) (uint32, uint32, error)` | See the source definition and the subsystem ownership contract. |
+| [`OperatorStats`](../../server/internal/db/operator.go#L128)<br>`func OperatorStats(uid, charID uint32) (operatorwire.Response, error)` | See the source definition and the subsystem ownership contract. |
+| [`ValidateOperatorStats`](../../server/internal/db/operator.go#L153)<br>`func ValidateOperatorStats(snapshot operatorwire.Response, expected, next operatorwire.Stats) error` | ValidateOperatorStats rejects stale forms and checks the native field bounds. |
+| [`SetOperatorStats`](../../server/internal/db/operator.go#L167)<br>`func SetOperatorStats(uid, charID uint32, expected, next operatorwire.Stats) error` | See the source definition and the subsystem ownership contract. |
+
+<details><summary>Type definitions and owned fields</summary>
+
+```go
+type rowQueryer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+```
+
+</details>
+
 ### ownership.go
 
 [server/internal/db/ownership.go](../../server/internal/db/ownership.go#L1)
@@ -883,12 +915,15 @@ Direct GX dependencies: `server/internal/config`, `server/internal/filelock`.
 
 | Declaration | Responsibility / source comment |
 |---|---|
-| [`AcquireWorld`](../../server/internal/db/ownership.go#L12)<br>`func AcquireWorld(ctx context.Context) (func(), error)` | AcquireWorld enforces one authoritative simulation process per runtime. The OS releases ownership on crash; a new owner removes stale online leases. |
-| [`AcquireAccount`](../../server/internal/db/ownership.go#L28)<br>`func AcquireAccount(uid uint32, id int64) (bool, error)` | See the source definition and the subsystem ownership contract. |
-| [`ReleaseAccount`](../../server/internal/db/ownership.go#L42)<br>`func ReleaseAccount(uid uint32, id int64) error` | See the source definition and the subsystem ownership contract. |
-| [`releases`](../../server/internal/db/ownership.go#L53)<br>`var releases` | See the source definition and the subsystem ownership contract. |
-| [`RetryAccountRelease`](../../server/internal/db/ownership.go#L60)<br>`func RetryAccountRelease(uid uint32, id int64)` | Failed disconnect cleanup is retried with its exact session identity, never deleting a newer account lease. Cardinality is bounded by admission capacity. |
-| [`RetryAccountReleases`](../../server/internal/db/ownership.go#L67)<br>`func RetryAccountReleases()` | See the source definition and the subsystem ownership contract. |
+| [`AcquireWorld`](../../server/internal/db/ownership.go#L17)<br>`func AcquireWorld(ctx context.Context) (func(), error)` | AcquireWorld enforces one authoritative simulation process per runtime. The OS releases ownership on crash; a new owner removes stale online leases. |
+| [`AcquireLogin`](../../server/internal/db/ownership.go#L36)<br>`func AcquireLogin(ctx context.Context) (func(), error)` | See the source definition and the subsystem ownership contract. |
+| [`AcquireWorldAdministration`](../../server/internal/db/ownership.go#L41)<br>`func AcquireWorldAdministration(ctx context.Context) (func(), error)` | AcquireWorldAdministration prevents offline edits from racing World startup. |
+| [`lockRuntime`](../../server/internal/db/ownership.go#L45)<br>`func lockRuntime(ctx context.Context, service string) (func(), error)` | See the source definition and the subsystem ownership contract. |
+| [`AcquireAccount`](../../server/internal/db/ownership.go#L64)<br>`func AcquireAccount(uid uint32, id int64) (bool, error)` | See the source definition and the subsystem ownership contract. |
+| [`ReleaseAccount`](../../server/internal/db/ownership.go#L78)<br>`func ReleaseAccount(uid uint32, id int64) error` | See the source definition and the subsystem ownership contract. |
+| [`releases`](../../server/internal/db/ownership.go#L89)<br>`var releases` | See the source definition and the subsystem ownership contract. |
+| [`RetryAccountRelease`](../../server/internal/db/ownership.go#L96)<br>`func RetryAccountRelease(uid uint32, id int64)` | Failed disconnect cleanup is retried with its exact session identity, never deleting a newer account lease. Cardinality is bounded by admission capacity. |
+| [`RetryAccountReleases`](../../server/internal/db/ownership.go#L103)<br>`func RetryAccountReleases()` | See the source definition and the subsystem ownership contract. |
 
 ### quests.go
 

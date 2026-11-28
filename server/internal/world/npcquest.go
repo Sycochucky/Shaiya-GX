@@ -162,7 +162,7 @@ func (s *Session) planShopBuy(p []byte) {
 	if item == nil || count == 0 || count > item.MaxStack() {
 		return
 	}
-	price := uint64(count) * uint64(max(item.Buy, 0))
+	unitPrice := proto.ScaleVendorUnitPrice(uint32(max(item.Buy, 0)), activeEconomy().VendorBuyPercent)
 	if s.inGuildHouseZone() {
 		// CUser::PacketShop: inside a house map the guild's NPC levels set the price.
 		g, rate, result, detail := s.houseShopRate(def.ShopType)
@@ -174,8 +174,12 @@ func (s *Session) planShopBuy(p []byte) {
 			s.houseNpcRefusal(result, detail)
 			return
 		}
-		price = uint64(houseRound(float64(max(item.Buy, 0))*rate)) * uint64(count)
+		unitPrice = houseRound(float64(max(item.Buy, 0)) * rate)
 	}
+	if !s.economyAmountMatches(unitPrice) {
+		return
+	}
+	price := uint64(unitPrice) * uint64(count)
 	if uint64(ch.Money) < price {
 		s.send(buildShopBuyResult(1, 0, 0, item.Type, item.TypeID, count, 0), "0x0702 shop buy (no gold)")
 		return

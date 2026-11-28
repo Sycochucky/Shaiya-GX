@@ -82,7 +82,7 @@ func TestNPCWindowRangeTracksMovingNPCAndLeavesRemoteWarehouseOpen(t *testing.T)
 	}
 }
 
-func TestInventoryDocksToServiceWithoutSavingPosition(t *testing.T) {
+func TestInventoryDocksAndDragsWithoutSavingServicePosition(t *testing.T) {
 	for _, npcType := range []uint8{1, 6} {
 		a := inputApp()
 		a.bankUI, _ = ui.NewWarehouse(inputTextures{})
@@ -111,10 +111,24 @@ func TestInventoryDocksToServiceWithoutSavingPosition(t *testing.T) {
 				t.Fatalf("service type %d: invalid docking or saved position changed", npcType)
 			}
 		}
+		ix, iy := a.inventoryUI.Origin(1024, 768)
+		a.worldControls(&platform.Input{MouseX: ix + 40, MouseY: iy + 15, Pressed: true, MouseDown: true}, 1024, 768)
+		a.worldControls(&platform.Input{MouseX: ix + 70, MouseY: iy + 45, MouseDown: true}, 1024, 768)
+		a.worldControls(&platform.Input{MouseX: ix + 70, MouseY: iy + 45, Clicked: true}, 1024, 768)
+		position.Move(400, 90, 1024, 768, width, height)
+		if x, y := a.inventoryUI.Origin(1024, 768); x != ix+30 || y != iy+30 || a.inventoryUI.Position != saved {
+			t.Fatalf("service type %d: drag did not move inventory independently: %d,%d", npcType, x, y)
+		}
 		a.closeNPC()
 		x, y := a.inventoryUI.Origin(1024, 768)
 		if x != 740 || y != 190 {
 			t.Fatalf("service type %d: original position not restored: %d,%d", npcType, x, y)
+		}
+		a.shop.npcID, a.shop.talk = e.ID, true
+		a.enterNPCService(e)
+		sx, sy := origin(1024, 768)
+		if ix, iy := a.inventoryUI.Origin(1024, 768); ix+ui.InventoryWidth != sx || iy != sy {
+			t.Fatalf("service type %d: inventory did not re-anchor on re-entry", npcType)
 		}
 	}
 }

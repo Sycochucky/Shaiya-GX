@@ -1,19 +1,18 @@
 # Shaiya GX portable client and server
 
-## [Download the complete portable — Client + Server + Data](https://drive.google.com/file/d/1jHGrS0KY3LRsDtzMgfFAH6BwmSX7Nasi/view?usp=sharing)
+## [Download the complete portable — Client + Server + Data](https://drive.google.com/file/d/1ah4NBSVTW53U07MwnIsw-oHYjDE5QNqy/view?usp=sharing)
 
-**gx-v0.1.19 for Windows and Linux.** This Google Drive package includes both
-executables, GX Server, GX Studio, client game data, fonts and the development database.
+**gx-v0.1.20 for Windows and Linux.** This Google Drive package includes both
+executables, GX Server, client game data, fonts and the development database.
 **Everything is included; no separate data download is needed.**
 Extract the entire package into a writable folder:
 
 ```text
-Shaiya GX gx-v0.1.19 Portable/
+Shaiya GX gx-v0.1.20 Portable/
   Client/
     Shaiya GX
     Shaiya GX.exe
     data/
-    Studio/
   Server/
     build/
     data/
@@ -24,15 +23,16 @@ then enter `start server` in the console. Open `Client/Shaiya GX` or `Client/Sha
 Keep `Client/data/` beside the client executables.
 
 **Latest binary update: [GitHub Releases](https://github.com/Spelunkern/Shaiya-GX/releases/latest).**
-GX Studio is in `Client/Studio/`.
+The archived Drive package contains the former editor in `Client/Studio/`.
+Download the current [GX Studio](https://github.com/Spelunkern/GX-Studio/releases) separately.
 
 Client packages now include `data/Vehicle/bones.ini` alongside fonts; merge both.
 Server packages include the pinned physics and navigation catalog, the approved
 development seed and the optional offline mount-definition migration tool.
 
 The [GitHub combined binary portable](https://github.com/Spelunkern/Shaiya-GX/releases/latest/download/gx-portable-linux-windows.zip)
-has the same `Client/` and `Server/` layout, with fonts and the server seed/maps/physics,
-and includes GX Studio under Client/Studio/. Supply loose client data matching the binary release. Original client
+has the same `Client/` and `Server/` layout, with fonts and the server seed/maps/physics.
+Supply loose client data matching the binary release. Original client
 resources are not included in the source repository or GitHub binary archives.
 
 [GitHub releases](https://github.com/Spelunkern/Shaiya-GX/releases/latest) provide updated packages with external fonts for each OS, with `SHA256SUMS.txt`. To update, close the client, extract the appropriate package and replace that OS's executable and merge the included `data/fonts/` into your existing `data/`. Retain the accompanying notices and licenses. The GitHub client packages include fonts, authored mount bindings and licenses, but no original game artwork/audio/maps or server database; GX Server is already included in the complete Drive package.

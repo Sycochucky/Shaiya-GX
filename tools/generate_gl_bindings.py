@@ -72,6 +72,11 @@ def main():
         conversions = generated / 'conversions.go'
         content = conversions.read_text().replace('\tcase reflect.Uintptr:\n\t\taddr = unsafe.Pointer(data.(uintptr))\n', '')
         start, end = content.index('// PtrOffset '), content.index('// Str takes ')
+        # Keep the Go string alive while C reads its NUL-terminated bytes.
+        content = content.replace(
+            'header := (*reflect.StringHeader)(unsafe.Pointer(&str))\n\treturn (*uint8)(unsafe.Pointer(header.Data))',
+            'return (*uint8)(unsafe.Pointer(unsafe.StringData(str)))',
+        )
         conversions.write_text(content[:start] + content[end:])
         # glow already installs its C trampoline. Passing the Go function's
         # address adds a Go pointer to the C call without serving a purpose.

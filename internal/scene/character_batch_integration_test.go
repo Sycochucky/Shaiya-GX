@@ -18,6 +18,12 @@ func TestCharacterBatchIndependentPalettesGL(t *testing.T) {
 	if os.Getenv("SHAIYA_TEST_RENDER") != "1" {
 		t.Skip("requires original assets and GL")
 	}
+	t.Run("automatic", func(t *testing.T) { testCharacterBatchPalettesGL(t, false) })
+	t.Run("bound", func(t *testing.T) { testCharacterBatchPalettesGL(t, true) })
+}
+
+func testCharacterBatchPalettesGL(t *testing.T, disableBindless bool) {
+	t.Helper()
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	const size = 400
@@ -26,7 +32,7 @@ func TestCharacterBatchIndependentPalettesGL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer win.Close()
-	if err := render.Init(true); err != nil {
+	if err := render.InitWithOptions(render.InitOptions{Debug: true, DisableBindless: disableBindless}); err != nil {
 		t.Fatal(err)
 	}
 	arc, err := archive.Open(os.Getenv("SHAIYA_DATA"))
@@ -163,6 +169,47 @@ func TestCharacterBatchIndependentPalettesGL(t *testing.T) {
 			t.Fatalf("weapon effects differ in camera %v, calls %d → %d, batch %+v", eye, n, m, batch.Stats)
 		}
 		t.Logf("weapon glows/enchantments and opaque depth, eye %v, %d -> %d draws", eye, n, m)
+	}
+	for i := range actors {
+		mob, err := assets.BuildMonster([]uint16{1, 2, 3, 2009}[i%4])
+		if err != nil {
+			t.Fatal(err)
+		}
+		mob.SetTransform(render.Basis(render.V3{float32(i%6)*3 - 7.5, 0, float32(i/6) * 3}, render.V3{0, 0, -1}, render.V3{0, 1, 0}))
+		mob.Update(float32(i) * .027)
+		actors[i] = mob.Character
+	}
+	actors[3].CorpseFade = .42
+	s.ClipPlane = [4]float32{}
+	s.SetCameraView(render.V3{0, 14, -22}, render.V3{0, 0, 4}, render.V3{0, 1, 0})
+	before, n := capture(false)
+	after, m := capture(true)
+	if !bytes.Equal(before, after) || m >= n/2 {
+		t.Fatalf("monster batches changed the image or missed the draw reduction: %d -> %d draws", n, m)
+	}
+	t.Logf("monster poses, materials and corpse fade, %d -> %d draws", n, m)
+	batch.BeginFrame()
+	first, _ := capture(true)
+	written := batch.Stats.PaletteBytes
+	mirror := render.Identity()
+	mirror[5] = -1
+	s.View = mirror.Mul(s.View)
+	s.ClipPlane = [4]float32{0, 1, 0, -.18}
+	secondReference, _ := capture(false)
+	second, _ := capture(true)
+	secondWritten := batch.Stats.PaletteBytes
+	batch.EndFrame()
+	if written == 0 || secondWritten != 0 || !bytes.Equal(first, before) || !bytes.Equal(second, secondReference) {
+		t.Fatalf("camera passes did not share the palettes while preserving pixels: %d -> %d bytes", written, secondWritten)
+	}
+	t.Logf("mob palettes across two cameras: %d bytes then %d", written, secondWritten)
+	actors[0].Update(.12)
+	freshReference, _ := capture(false)
+	batch.BeginFrame()
+	fresh, _ := capture(true)
+	batch.EndFrame()
+	if batch.Stats.PaletteBytes == 0 || !bytes.Equal(fresh, freshReference) {
+		t.Fatal("the next frame did not upload the updated animation")
 	}
 	if err := gl.GetError(); err != gl.NO_ERROR {
 		t.Fatalf("OpenGL error %#x", err)

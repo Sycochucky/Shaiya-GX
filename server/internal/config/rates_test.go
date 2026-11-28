@@ -6,17 +6,26 @@ import (
 )
 
 func TestRewardRatesPreserveDefaultAndValidateBounds(t *testing.T) {
-	defaults, err := ParseRewardRates("", "", "")
-	if err != nil || defaults != DefaultRewardRates() {
+	defaults, err := ParseRewardRates(nil)
+	if err != nil || defaults != DefaultRewardRates() || defaults.MobDropPercent != 100 ||
+		defaults.MobGoldPercent != 100 || defaults.WorldDropPercent != 100 {
 		t.Fatalf("defaults = %+v, %v", defaults, err)
 	}
-	rates, err := ParseRewardRates("250", "50", "4")
-	if err != nil || ScaleEXP(13, rates.MobEXPPercent) != 32 || ScaleEXP(13, rates.QuestEXPPercent) != 6 || rates.PvPKills != 4 {
+	rates, err := ParseRewardRates(map[string]string{
+		MobEXPKey: "250", QuestEXPKey: "50", PvPKillKey: "4",
+		MobDropKey: "200", MobGoldKey: "0", WorldDropKey: "300",
+	})
+	if err != nil || ScaleEXP(13, rates.MobEXPPercent) != 32 || ScaleEXP(13, rates.QuestEXPPercent) != 6 ||
+		rates.PvPKills != 4 || rates.MobDropPercent != 200 || rates.MobGoldPercent != 0 || rates.WorldDropPercent != 300 {
 		t.Fatalf("custom rates = %+v, %v", rates, err)
 	}
-	for _, input := range [][3]string{{"10001", "", ""}, {"", "-1", ""}, {"", "", "0"}, {"", "", "101"}, {"2.5", "", ""}} {
-		if _, err := ParseRewardRates(input[0], input[1], input[2]); err == nil {
-			t.Fatalf("accepted invalid rate: %v", input)
+	for _, input := range []struct{ key, value string }{
+		{MobEXPKey, "10001"}, {QuestEXPKey, "-1"}, {PvPKillKey, "0"}, {PvPKillKey, "101"},
+		{MobEXPKey, "2.5"}, {MobDropKey, "10001"}, {MobDropKey, "-1"},
+		{MobGoldKey, "-1"}, {MobGoldKey, "10001"}, {WorldDropKey, "1.5"}, {WorldDropKey, "10001"},
+	} {
+		if _, err := ParseRewardRates(map[string]string{input.key: input.value}); err == nil {
+			t.Fatalf("accepted invalid rate %s=%s", input.key, input.value)
 		}
 	}
 	if got := ScaleEXP(math.MaxUint32, 10000); got != math.MaxUint32 {

@@ -1,10 +1,14 @@
 package app
 
 import (
+	"bufio"
 	"math"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/Spelunkern/Shaiya-GX/internal/game"
+	"github.com/Spelunkern/Shaiya-GX/internal/netx"
 	"github.com/Spelunkern/Shaiya-GX/internal/platform"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"github.com/Spelunkern/Shaiya-GX/internal/render"
@@ -210,4 +214,109 @@ func TestRemoteWalkInferenceExpiresAndDistinguishesRunStop(t *testing.T) {
 	if w, m := r.observeMovement(e, 3.6); !w || !m {
 		t.Fatal("walk after run not recognized")
 	}
+}
+
+func TestStationaryTurnSendsPeriodicAndFinalMovePackets(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+
+	sent := make(chan []byte, 32)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		r := bufio.NewReader(conn)
+		for {
+			p, err := netx.ReadFrame(r)
+			if err != nil {
+				return
+			}
+			sent <- p
+		}
+	}()
+
+	c, err := netx.Dial(ln.Addr().String(), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := session.NewWorld(c)
+	t.Cleanup(func() { w.Close() })
+
+	recvMove := func() (motion uint8, dir uint16, pos render.V3) {
+		t.Helper()
+		select {
+		case p := <-sent:
+			if proto.Op(p) != proto.CharacterMove {
+				t.Fatalf("opcode = 0x%04X, want 0x0501", proto.Op(p))
+			}
+			rd := proto.NewReader(p)
+			motion = rd.U8()
+			dir = rd.U16()
+			pos = render.V3{rd.F32(), rd.F32(), rd.F32()}
+			return motion, dir, pos
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for 0x0501 turn packet")
+			return 0, 0, render.V3{}
+		}
+	}
+	assertQuiet := func() {
+		t.Helper()
+		select {
+		case p := <-sent:
+			t.Fatalf("unexpected packet while not turning: 0x%04X", proto.Op(p))
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+
+	a := inputApp()
+	a.world = w
+	origin := render.V3{10, 4, 20}
+	a.wv = &worldView{pos: origin, eye: render.V3{10, 6, 15}, facing: render.V3{0, 0, 1}}
+
+	// Idle frames, opposing A+D, dead state and immobilized state must send nothing.
+	a.updateWorld(&platform.Input{}, .2)
+	a.updateWorld(&platform.Input{Down: "AD"}, .2)
+	a.state.Self.Dead = true
+	a.updateWorld(&platform.Input{Down: "A"}, .2)
+	a.state.Self.Dead = false
+	a.state.Self.Speed = &proto.CharacterSpeed{Move: 255}
+	a.updateWorld(&platform.Input{Down: "A"}, .2)
+	a.state.Self.Speed = nil
+	assertQuiet()
+
+	// Holding A while standing sends stationary 0x0501 updates every 100 ms,
+	// and observers keep standing posture without triggering walk/run animations.
+	observer := &game.Entity{X: origin[0], Y: origin[1], Z: origin[2]}
+	actor := &remoteActor{moveX: origin[0], moveZ: origin[2]}
+
+	var lastDir uint16
+	for i := range 3 {
+		a.updateWorld(&platform.Input{Down: "A"}, .1)
+		motion, dir, pos := recvMove()
+		if motion != 0 || pos != origin || dir == lastDir {
+			t.Fatalf("step %d: motion=%d dir=%d (prev %d) pos=%v", i, motion, dir, lastDir, pos)
+		}
+		lastDir = dir
+		observer.Dir = dir
+		observer.MoveSerial++
+		if walking, moving := actor.observeMovement(observer, float64(i+1)*.1); walking || moving {
+			t.Fatal("stationary turn triggered walk/run animation on observer")
+		}
+	}
+
+	// Releasing D after a partial <100 ms turn flushes the final heading once, then goes quiet.
+	a.updateWorld(&platform.Input{Down: "D"}, .04)
+	a.updateWorld(&platform.Input{}, 1.0/60)
+	motion, finalDir, pos := recvMove()
+	wantDir := uint16(math.Atan2(float64(a.wv.facing[0]), float64(a.wv.facing[2])) / (2 * math.Pi) * 65536)
+	if motion != 0 || pos != origin || finalDir != wantDir {
+		t.Fatalf("release packet: motion=%d dir=%d (want %d) pos=%v", motion, finalDir, wantDir, pos)
+	}
+	a.updateWorld(&platform.Input{}, .2)
+	assertQuiet()
 }

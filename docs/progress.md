@@ -39,7 +39,7 @@ Chat, party/raid, quests, trade/duels, social windows and the mall are also impl
 
 ## Current development
 
-- [GX Studio](gx-studio.md) edits the Item Mall, items, skills, NPCs and quests across client data and SQLite. It also edits server-only enchant, blessing, mob message, loot and map catalogs.
+- [GX Studio](gx-studio.md) is a separate editor for the Item Mall, items, skills, monsters, NPCs, quests and client model catalogs.
 - [Map rules and progression](wiki/map-rules.md) add level-gated maps, racial respawn fallback, synchronized weather, map curses and a shared experience cap.
 - [World drops and item boxes](wiki/recreation-and-loot.md) use SQLite definitions. [Goddess blessing](wiki/goddess-blessing.md) loads a shared bonus catalog for both factions.
 - Recorded travel points, party and raid summoning, and account-targeted GM travel extend [travel and administration](wiki/gm-commands.md).
@@ -47,7 +47,6 @@ Chat, party/raid, quests, trade/duels, social windows and the mall are also impl
 ## gx-v0.1.13 release
 
 - [Auction House](auction-house.md) supports a shared market, escrow, bids, buyouts, favorites and claims.
-- [GX Studio](gx-studio.md) ships in both platform packages with recoverable catalog editing.
 - [Release notes](releases/gx-v0.1.13.md) and [upgrade guide](releases/gx-v0.1.13-upgrade.md).
 
 ## gx-v0.1.12 hotfix
@@ -82,7 +81,7 @@ See the [release notes](releases/gx-v0.1.11.md) and [upgrade guide](releases/gx-
 | Original parity | Full visual comparisons and rare gameplay/service states |
 | Navigation | Complete collision/navigation behavior and remaining actions |
 | Cloaks | Body/ground contact and map wind |
-| Interface | Quest tracker/markers, speech bubbles, remaining target indicators and service windows |
+| Interface | Remaining quest markers, speech bubbles, remaining target indicators and service windows |
 | Options | Shortcut editing and remaining controls; resolution selection is implemented |
 | Server rules | Remaining partial workflows in the [parity table](../server/docs/original-parity.md) |
 | Persistence | SQLite is the primary production database; maintain consistent backups and validated restores |

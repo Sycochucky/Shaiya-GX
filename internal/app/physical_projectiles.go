@@ -18,9 +18,10 @@ type physicalProjectile struct {
 	speed, age       float32
 	numberHeight     float32
 	released         bool
-	swingQueued      bool // the auto-attack swing cue is scheduled separately
+	swingQueued      bool // the cast or auto-attack already owns the release cue
 	hitSound         string
 	impact           string
+	impactSound      string
 	sequence         int
 	mob              *mobActor
 	showNumber       bool
@@ -118,8 +119,11 @@ func (a *App) finishPhysicalProjectile(p *physicalProjectile) {
 		a.playSound(p.hitSound, p.destination[0], p.destination[2])
 		a.playCharacterDamageVoice(r.Target, r.Result, r.HP)
 	}
-	if p.impact != "" && r.Result <= 1 {
-		a.startSkillImpact(r.Target, p.impact, p.sequence)
+	if r.Result <= 1 {
+		a.playSound(p.impactSound, p.destination[0], p.destination[2])
+		if p.impact != "" {
+			a.startSkillImpact(r.Target, p.impact, p.sequence)
+		}
 	}
 	a.finishMobHit(p.mob)
 }
@@ -204,6 +208,9 @@ func (a *App) queuePhysicalSkill(r proto.SkillResult, d sdata.Skill, secondary b
 	p.impact, p.sequence = effect.ImpactLibrary(r.ID), int(r.Level)-1
 	if secondary {
 		p.impact, p.sequence = skillSecondaryLibrary(r, d)
+		p.swingQueued = true
+	} else {
+		p.impactSound = skillResultEffectSound(r, d)
 	}
 	a.wv.physicalSkillQueued = true
 	return true

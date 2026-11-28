@@ -30,45 +30,47 @@ const (
 // Session is one client connection. Its loop owns its fields under stateMu.
 // A paired trade may also update them while holding both sessions' state locks.
 type Session struct {
-	gmForced          bool      // a GM's /asummon is moving this user: no party or guild instance redirection
-	assisted          [3]uint32 // HP, SP, MP of the last hit after Health Assistant
-	targetHealthSent  [3]uint32 // user, HP and maximum last told for the selected user
-	moveRune          *movementRuneCast
-	teleportRune      *teleportRuneCast
-	traps             []placedTrap
-	nextTrapAt        time.Time
-	economy           *netx.RateLimiter
-	awaitingMapLoad   bool
-	inputReads        *netx.RateLimiter
-	lastInputTick     time.Time
-	persistenceFailed bool
-	operation         *inventoryOperation
-	inputFrames       *netx.RateLimiter
-	inputBytes        *netx.RateLimiter
-	stateMu           sync.Mutex
-	shop              myShop // the personal market this character sets up
-	effectWatchID     uint32
-	effectWatchKind   uint8
-	effectWatchAt     time.Time
-	effectWatchHash   [32]byte
-	speedKnown        bool
-	lastSpeeds        playerSpeeds
-	movement          playerMovement
-	oxygen            oxygenState
-	questNPCCatalog   questNPCCatalogState
-	gmTurbo           bool
-	gmImmune          bool
-	gmConcealed       bool
-	lastGMModeAt      time.Time
-	elements          elementRuntime
-	socialChecked     time.Time
-	socialReloadAt    time.Time
-	socialFriends     []db.SocialContact
-	socialRefresh     atomic.Bool
-	conn              net.Conn
-	out               *connWriter
-	log               *logx.Tag
-	logger            *logx.Logger
+	economyConfirmedAmount *uint32
+	gmForced               bool      // a GM's /asummon is moving this user: no party or guild instance redirection
+	assisted               [3]uint32 // HP, SP, MP of the last hit after Health Assistant
+	targetHealthSent       [3]uint32 // user, HP and maximum last told for the selected user
+	moveRune               *movementRuneCast
+	teleportRune           *teleportRuneCast
+	traps                  []placedTrap
+	nextTrapAt             time.Time
+	economy                *netx.RateLimiter
+	awaitingMapLoad        bool
+	inputReads             *netx.RateLimiter
+	lastInputTick          time.Time
+	persistenceFailed      bool
+	operation              *inventoryOperation
+	inputFrames            *netx.RateLimiter
+	inputBytes             *netx.RateLimiter
+	stateMu                sync.Mutex
+	shop                   myShop // the personal market this character sets up
+	effectWatchID          uint32
+	effectWatchKind        uint8
+	effectWatchAt          time.Time
+	effectWatchHash        [32]byte
+	speedKnown             bool
+	lastSpeeds             playerSpeeds
+	movement               playerMovement
+	oxygen                 oxygenState
+	questNPCCatalog        questNPCCatalogState
+	questMobCatalog        questMobCatalogState
+	gmTurbo                bool
+	gmImmune               bool
+	gmConcealed            bool
+	lastGMModeAt           time.Time
+	elements               elementRuntime
+	socialChecked          time.Time
+	socialReloadAt         time.Time
+	socialFriends          []db.SocialContact
+	socialRefresh          atomic.Bool
+	conn                   net.Conn
+	out                    *connWriter
+	log                    *logx.Tag
+	logger                 *logx.Logger
 
 	aesRecv, aesSend *crypto.AESCTR
 	expanded         bool
@@ -144,13 +146,21 @@ type Session struct {
 	returnAt             time.Time // 0x0556 pending move (CUser +0x581c, type 0)
 }
 
-func acquireAccount(uid uint32, id int64) bool {
+func (s *Session) acquireAccount(uid uint32, id int64) bool {
 	realm.activeAccountsMu.Lock()
-	if realm.activeAccounts[uid] {
+	if realm.activeAccounts[uid] != nil {
 		realm.activeAccountsMu.Unlock()
 		return false
 	}
-	realm.activeAccounts[uid] = true
+	if s.conn != nil {
+		banned, err := db.OperatorIPBanned(netx.PeerIP(s.conn))
+		if err != nil || banned {
+			realm.activeAccountsMu.Unlock()
+			storageFailure(err)
+			return false
+		}
+	}
+	realm.activeAccounts[uid] = s
 	realm.activeAccountsMu.Unlock()
 	ok, err := db.AcquireAccount(uid, id)
 	if err != nil || !ok {
@@ -289,6 +299,8 @@ func (s *Session) leaveWorld(disconnect bool) bool {
 	s.endGMGuildRanking(true)
 	s.guildDisconnect()
 	if s.player != nil {
+		s.noteDungeonExit(s.char.MapID)
+		s.activity("player.leave", s.char.Name+" left World", "disconnected", disconnect)
 		s.player.Unregister()
 		s.player = nil
 	}
@@ -410,6 +422,7 @@ func (s *Session) drainRewards(p *ConnectedPlayer) {
 	s.syncPlayer()
 	s.partyPools()
 	s.notifyExpGain(credited, levels)
+	s.goldActivity(before.Money, "party loot")
 	if gold > 0 {
 		s.send(buildSetMoney(s.char.Money), "0x0213 party gold share")
 	}
@@ -428,6 +441,7 @@ func (s *Session) tick(idle bool) {
 	if s.char == nil {
 		return
 	}
+	s.finishExpiredDungeon()
 	if s.auctionContact && !s.auctionNPC(s.usingNpc) {
 		s.useNpc(0)
 	}
@@ -500,10 +514,10 @@ func (s *Session) tick(idle bool) {
 	s.tickOxygen(now)
 	s.recoveryTick()
 	s.syncQuestNPCCatalog(false)
+	s.syncQuestMobCatalog(false)
 	if time.Since(s.lastQuestCheck) >= 5*time.Second {
 		s.lastQuestCheck = time.Now()
 		s.questTimers()
-		s.syncQuestIDs()
 	}
 	s.processSpinCombo()
 	s.processPendingSkill()
@@ -637,7 +651,7 @@ func (s *Session) handshake(f []byte) error {
 		s.log.Printf("GX Server World rejected handshake for user_uid=%d: %v", uid, err)
 		return fmt.Errorf("invalid world login handoff")
 	}
-	if !acquireAccount(uid, h.SessionID) {
+	if !s.acquireAccount(uid, h.SessionID) {
 		s.log.Printf("GX Server World rejected user_uid=%d: already connected", uid)
 		return fmt.Errorf("account already connected")
 	}
@@ -682,7 +696,10 @@ func (s *Session) sendCharacterSelect() {
 				if chars[i].Slot == slot {
 					normalize(&chars[i])
 					items, _ := db.CharacterItems(chars[i].ID)
+					// The roster lists live characters before deleted ones.
+					// A deleted replacement must never hide a restored slot.
 					frame = buildCharacterListSlot(&chars[i], items)
+					break
 				}
 			}
 			s.send(frame, "0x0101 character slot")
@@ -916,6 +933,7 @@ func (s *Session) selectCharacter(id uint32) {
 // the server->client direction switches to the expanded XOR scheme.
 func (s *Session) sendInitialState(st *CharacterStats) {
 	s.sendEnchantRules()
+	s.send(activeEconomy().packet(false), "economy settings")
 	s.sendOJLimits()
 	s.sendChestCloakFits()
 	s.socialFriends = nil
@@ -992,7 +1010,9 @@ func (s *Session) handleMapLoaded() {
 		}
 		kcSendMu.Unlock()
 		s.guildConnect()
+		s.activity("player.enter", ch.Name+" entered World")
 	} else {
+		s.activity("player.map", ch.Name+" entered map")
 		s.clearView(false)
 		s.player.SetMap(ch.MapID)
 		s.player.UpdateCharacter(*ch)
@@ -1010,6 +1030,7 @@ func (s *Session) handleMapLoaded() {
 	s.placeView()
 	s.sendPlayerFeedback(proto.PlayerSpawnFeedback)
 	s.syncQuestNPCCatalog(true)
+	s.syncQuestMobCatalog(true)
 	near := EntitiesInView(ch.MapID, cellFor(ch.PosX, ch.PosZ))
 	others := s.player.knownIDs(viewUser)
 	s.log.Printf("GX Server World map loaded map=%d npcs=%d mobs=%d players=%d", ch.MapID, len(near.NPCs), len(near.Mobs), len(others))

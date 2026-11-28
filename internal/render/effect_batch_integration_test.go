@@ -82,6 +82,15 @@ func TestOrderedEffectMultiDrawGL(t *testing.T) {
 	if os.Getenv("SHAIYA_TEST_RENDER") != "1" {
 		t.Skip("requires GL")
 	}
+	t.Run("automatic", func(t *testing.T) { testOrderedEffectMultiDrawGL(t, InitOptions{}) })
+	t.Run("bound", func(t *testing.T) { testOrderedEffectMultiDrawGL(t, InitOptions{DisableBindless: true}) })
+	t.Run("core", func(t *testing.T) {
+		testOrderedEffectMultiDrawGL(t, InitOptions{DisableBindless: true, DisableDrawParameters: true})
+	})
+}
+
+func testOrderedEffectMultiDrawGL(t *testing.T, options InitOptions) {
+	t.Helper()
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	window, err := platform.Open(platform.Config{Title: "ordered effects", Width: 64, Height: 64, Hidden: true})
@@ -89,7 +98,7 @@ func TestOrderedEffectMultiDrawGL(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer window.Close()
-	if err := Init(false); err != nil {
+	if err := InitWithOptions(options); err != nil {
 		t.Fatal(err)
 	}
 	s, err := NewScene3D()
@@ -135,8 +144,14 @@ func TestOrderedEffectMultiDrawGL(t *testing.T) {
 	}
 	pipe := &s.effectPipeline
 	pipe.init()
-	if pipe.program == 0 || skinIndirectSupported && pipe.indirect.program == 0 {
+	if pipe.program == 0 || (sceneStorageSupported && pipe.indirect.program == 0) {
 		t.Fatal("supported ordered effect shader did not link")
+	}
+	if options.DisableBindless && pipe.indirect.program != 0 && !pipe.indirect.bound {
+		t.Fatal("effect batching selected bindless despite the override")
+	}
+	if options.DisableDrawParameters && sceneStorageSupported && !pipe.indirect.materialAttribute {
+		t.Fatal("effect batching did not select the core material attribute")
 	}
 	compact, indirect := pipe.program, pipe.indirect.program
 	defer func() { pipe.program, pipe.indirect.program = compact, indirect }()

@@ -25,16 +25,27 @@ uses Zenity or KDialog when available, with terminal and file diagnostics always
 available. Automated screenshot/autoplay runs log failures without opening a
 blocking desktop dialog.
 
-### Graphics startup on Windows
+### Graphics startup
 
 GX requests an OpenGL 4.5 core context through GLFW. Linux and Windows select
 the same rendering paths from the capabilities reported by the active driver.
 Drivers that advertise bindless textures and shader draw parameters can use
-indirect batches when their shader-storage limits allow it. GX uses ordinary
-draws or instancing on the remaining devices. With `-verbose`, the log records
-the advertised capabilities and the selected paths. Devices with limited
+indirect batches when the required commands resolve and shader-storage limits
+allow it. Static map geometry, effects and skinned crowds can also use
+indirect batches with ordinary texture bindings when shader draw parameters
+and shader storage are available. Static map geometry and effects also have
+an OpenGL 4.5 indirect path that uses instanced material attributes when
+shader draw parameters are unavailable or their shaders fail to build.
+The log records the advertised capabilities and selected paths. Devices with limited
 vertex shader storage use uniform poses and CPU-sampled effect geometry. GX
 uploads decoded RGBA8 mip levels when native DDS compression is unavailable.
+
+Run `-gl-check` to verify context creation, startup shader compilation,
+sprite output and swap without loading game data. In PowerShell, run
+`& '.\Shaiya GX.exe' -gl-check`. Save `logs/client.log`, then repeat with
+`-gl-check -gl-no-bindless` or `-gl-check -gl-no-draw-parameters` and keep
+the comparison logs. In gameplay, use the same flags to compare the same
+map, camera, resolution and graphics settings. Both flags can be combined.
 
 - A `create WGL context` error points to window or driver
   initialization. Include the complete error and the graphics adapter and
@@ -47,6 +58,9 @@ uploads decoded RGBA8 mip levels when native DDS compression is unavailable.
 - After `Client ready`, include the step and scene where the problem
   occurs and a capture of the result. Pass `-gldebug` on a second run to record
   graphics API messages from the driver.
+- An incomplete color/depth framebuffer logs the target size and status.
+  GX falls back to direct rendering or basic water and tries again when
+  the relevant target size changes.
 
 ## Linking example
 
@@ -99,8 +113,8 @@ selection disappears; it does not eject the equipment.
 
 ## How do I change enchant rates, bonuses or the cap?
 
-Open Enchant in GX Studio with the active server SQLite database and save the
-rules, then restart gx_world. Each table’s highest consecutive level sets its own cap. The client receives the bonus tables on character selection. See
+Back up and edit `data/game/ItemEnchant.ini`, then restart GX World. Set the
+cap with `MaxLevel`, `WeaponMaxLevel` or `DefenseMaxLevel`. The client receives the bonus tables on character selection. See
 [Blacksmith](blacksmith.md) for field units and limits.
 
 ## Why does the client disagree with the server about an item?

@@ -79,6 +79,9 @@ void main() {
 // mode 1: terrain layer: rgb = tile (uv2 wrap), alpha = mask (uv clamp)
 // mode 2: lightmap multiply pass (uv)
 const sceneFS = `#version 450 core
+#ifdef SKIN_BOUND
+layout(binding=16) uniform sampler2D skinTextures[8];
+#endif
 layout(binding=0) uniform sampler2D tex0;
 layout(binding=1) uniform sampler2D tex1;
 layout(binding=2) uniform sampler2D terrainLight;
@@ -172,7 +175,11 @@ void main() {
 		return;
 	} else {
 		#ifdef SKIN_INDIRECT
+		#ifdef SKIN_BOUND
+		c = texture(skinTextures[vSkinTexture.x], vUV);
+		#else
 		c = texture(sampler2D(vSkinTexture), vUV);
+		#endif
 		#else
 		c = texture(tex0, vUV);
 		#endif

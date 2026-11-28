@@ -144,8 +144,6 @@ const (
 	GuildCreateFailed         Opcode = 0x0D01
 	GuildDisband              Opcode = 0x0D03
 	GuildDisbandAgree         Opcode = 0x0D04
-	GuildInvite               Opcode = 0x0D05
-	GuildInviteAnswer         Opcode = 0x0D06
 	GuildApply                Opcode = 0x0D07
 	GuildJoinResult           Opcode = 0x0D08
 	GuildLeave                Opcode = 0x0D09

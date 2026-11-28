@@ -1,6 +1,6 @@
 # Map rules, weather and progression
 
-GX World loads map rules from `Map.ini` and experience thresholds from SQLite at startup. [GX Studio](gx-studio.md) edits map rules and birth positions. See [server operations](server-operations.md) for backups and restarts.
+GX World loads map rules from `Map.ini` and experience thresholds from SQLite at startup. Edit map rules and birth positions in `data/game/Map.ini`. See [server operations](server-operations.md) for backups and restarts.
 
 ## Map access and respawn
 

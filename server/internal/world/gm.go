@@ -125,10 +125,12 @@ func (s *Session) handleGMCommand(text string) bool {
 		return true
 	}
 	if !s.isAdmin {
+		s.activity("staff.command", fmt.Sprintf("%s denied GM command %s", s.char.Name, command), "command", command, "outcome", "denied")
 		s.gmReply("GM: access denied.")
 		return true
 	}
 	if tradeFor(s.char.ID) != nil { // Inventory must not change underneath an exchange.
+		s.activity("staff.command", fmt.Sprintf("%s blocked GM command %s while trading", s.char.Name, command), "command", command, "outcome", "blocked")
 		s.gmReply("GM: finish trading before using commands.")
 		return true
 	}
@@ -239,9 +241,12 @@ func (s *Session) handleGMCommand(text string) bool {
 	if err != nil {
 		s.gmReply("GM: " + err.Error())
 	}
-	if s.log != nil {
-		s.log.Printf("GX GM account_id=%d character_id=%d command=%q error=%v", s.accountID, s.char.ID, text, err)
+	outcome := "handled"
+	if err != nil {
+		outcome = "error"
 	}
+	// Only the known verb is logged. Arguments may contain private staff text.
+	s.activity("staff.command", fmt.Sprintf("%s used %s (%s)", s.char.Name, command, outcome), "command", command, "outcome", outcome)
 	return true
 }
 

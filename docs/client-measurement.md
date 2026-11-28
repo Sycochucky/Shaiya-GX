@@ -100,6 +100,9 @@ the same harness/mode, and inspect submission, wait and whole-loop metrics toget
 ## Ablation and profiles
 
 The measurement cases select diagnostic settings explicitly.
+Set `GX_MEASURE_NO_BINDLESS=1` or `GX_MEASURE_NO_DRAW_PARAMETERS=1` to
+force either graphics fallback in the integration test. Both can be set
+in the same run.
 
 Variants are `default`, `effects`, `no-effects`, `no-glow`, `no-shadow` and `no-water`.
 Use `crowd-400:no-effects` to measure remote player batching. Disabling a feature

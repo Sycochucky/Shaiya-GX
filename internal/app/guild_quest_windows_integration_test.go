@@ -61,6 +61,7 @@ func TestNativeGuildAndQuestWindowsGL(t *testing.T) {
 		gl.ClearColor(.08, .1, .12, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		a.sprites.Begin(1024, 768)
+		a.drawQuestTracker(1024, 768)
 		a.drawGuild(1024, 768)
 		a.drawQuestLog(1024, 768)
 		a.bottom.GuildOpen, a.bottom.QuestOpen = a.guild.open, a.questLog.open
@@ -96,6 +97,24 @@ func TestNativeGuildAndQuestWindowsGL(t *testing.T) {
 	draw("native-quest-journal")
 	a.questLog.offset = 3
 	draw("native-quest-scrolled")
+	a.questLog.offset = 0
+	x, y := a.questUI.Origin(1024, 768)
+	a.updateQuestLog(&platform.Input{MouseX: x + 55, MouseY: y + 70, Pressed: true, MouseDown: true}, 1024, 768)
+	a.updateQuestLog(&platform.Input{MouseX: x + 55, MouseY: y + 70, Clicked: true}, 1024, 768)
+	if !a.questTracker.open {
+		t.Fatal("selecting a quest did not open the tracker")
+	}
+	a.updateQuestLog(&platform.Input{Chars: []rune{'u'}}, 1024, 768)
+	if a.questLog.open || !a.questTracker.open {
+		t.Fatal("journal close hid the tracker")
+	}
+	draw("quest-tracker-hud")
+	counter := proto.NewWriter(proto.QuestCounter)
+	counter.U16(1)
+	counter.U8(0)
+	counter.U8(5)
+	a.applyWorldPacket(counter.Bytes())
+	draw("quest-tracker-ready")
 }
 
 func TestNativeGuildQuestButtonsAgainstRapture(t *testing.T) {

@@ -1,6 +1,7 @@
 package render
 
 import (
+	"slices"
 	"unsafe"
 
 	"github.com/Spelunkern/Shaiya-GX/internal/clientlog"
@@ -16,12 +17,37 @@ type Texture struct {
 	ID            uint32
 	W, H          int
 	repeat        bool
-	bindlessViews [2]bindlessTextureView
+	samplingViews [2]textureSamplingView
 }
 
-type bindlessTextureView struct {
+type textureSamplingView struct {
 	id     uint32
 	handle uint64
+}
+
+// Keep the ordinary scene's texture units intact. OpenGL 4.5 guarantees
+// sixteen fragment samplers and enough combined units for this range.
+const drawTextureUnit = 16
+const drawTextureLimit = 16
+
+type drawTextures []uint32
+
+func (t *drawTextures) slot(id uint32, limit int) (int, bool) {
+	if index := slices.Index(*t, id); index >= 0 {
+		return index, true
+	}
+	index := len(*t)
+	if index == limit {
+		return 0, false
+	}
+	*t = append(*t, id)
+	return index, true
+}
+
+func (t drawTextures) bind() {
+	if len(t) != 0 {
+		gl.BindTextures(drawTextureUnit, int32(len(t)), &t[0])
+	}
 }
 
 var fallbackDiffuse *Texture
@@ -53,30 +79,35 @@ func diffuseTexture(t *Texture) *Texture {
 	return t
 }
 
-// Only the view enters the immutable bindless state. The original can still
-// change wrapping for ordinary draws and both views share its texel storage.
-func (t *Texture) bindlessHandle(repeat bool) uint64 {
+// Views share the original texel storage and give each wrap mode its own
+// texture state. Ordinary draws can still change wrapping on the original.
+func (t *Texture) samplingView(repeat bool) *textureSamplingView {
 	index := 0
 	mode := int32(gl.CLAMP_TO_EDGE)
 	if repeat {
 		index = 1
 		mode = gl.REPEAT
 	}
-	v := &t.bindlessViews[index]
-	if v.handle != 0 {
-		return v.handle
+	v := &t.samplingViews[index]
+	if v.id != 0 {
+		return v
 	}
 	if t.ID == 0 {
-		return 0
+		return nil
 	}
 	var levels, format int32
 	gl.GetTextureParameteriv(t.ID, gl.TEXTURE_IMMUTABLE_LEVELS, &levels)
 	if levels < 1 {
-		return 0
+		return nil
 	}
 	gl.GetTextureLevelParameteriv(t.ID, 0, gl.TEXTURE_INTERNAL_FORMAT, &format)
 	gl.GenTextures(1, &v.id)
 	gl.TextureView(v.id, gl.TEXTURE_2D, t.ID, uint32(format), 0, uint32(levels), 0, 1)
+	if !gl.IsTexture(v.id) {
+		gl.DeleteTextures(1, &v.id)
+		v.id = 0
+		return nil
+	}
 	for _, parameter := range [...]uint32{gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER, gl.TEXTURE_MAX_LEVEL} {
 		var value int32
 		gl.GetTextureParameteriv(t.ID, parameter, &value)
@@ -84,6 +115,17 @@ func (t *Texture) bindlessHandle(repeat bool) uint64 {
 	}
 	gl.TextureParameteri(v.id, gl.TEXTURE_WRAP_S, mode)
 	gl.TextureParameteri(v.id, gl.TEXTURE_WRAP_T, mode)
+	return v
+}
+
+func (t *Texture) bindlessHandle(repeat bool) uint64 {
+	v := t.samplingView(repeat)
+	if v == nil {
+		return 0
+	}
+	if v.handle != 0 {
+		return v.handle
+	}
 	v.handle = gl.GetTextureHandleARB(v.id)
 	if v.handle != 0 {
 		gl.MakeTextureHandleResidentARB(v.handle)
@@ -94,7 +136,7 @@ func (t *Texture) bindlessHandle(repeat bool) uint64 {
 	if v.id != 0 {
 		gl.DeleteTextures(1, &v.id)
 	}
-	*v = bindlessTextureView{}
+	*v = textureSamplingView{}
 	return 0
 }
 
@@ -210,12 +252,14 @@ func (t *Texture) Delete() {
 	if t == nil {
 		return
 	}
-	for i := range t.bindlessViews {
-		v := &t.bindlessViews[i]
+	for i := range t.samplingViews {
+		v := &t.samplingViews[i]
 		if v.handle != 0 {
 			gl.MakeTextureHandleNonResidentARB(v.handle)
+		}
+		if v.id != 0 {
 			gl.DeleteTextures(1, &v.id)
-			*v = bindlessTextureView{}
+			*v = textureSamplingView{}
 		}
 	}
 	gl.DeleteTextures(1, &t.ID)

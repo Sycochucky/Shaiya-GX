@@ -125,6 +125,19 @@ func (m *CreatureActor) PrepareEffects(dt float32, enabled, alive bool, budget *
 	m.attackEffects = kept
 }
 
+// HasDrawEffects reports whether this actor can issue a transparent draw.
+func (m *CreatureActor) HasDrawEffects() bool {
+	if len(m.attackEffects) != 0 {
+		return true
+	}
+	for _, effect := range m.boneEffects {
+		if effect.instance != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *CreatureActor) DrawEffects(s *render.Scene3D) {
 	if m == nil || s.Shadow {
 		return

@@ -140,3 +140,60 @@ func TestTargetCenteredAreasKeepRecipientEffectsWithoutDuplicatingAnnouncement(t
 		}
 	}
 }
+
+func TestSkillEffectSoundsFollowResultPhase(t *testing.T) {
+	for _, tc := range []struct {
+		id             uint16
+		target, result uint8
+		want           string
+	}{
+		{134, 3, 0, "ef_dmg_earth01.ogg"},
+		{309, 3, 0, "ef_dmg_boom01.ogg"},
+		{310, 3, 0, "ef_dmg_earth01.ogg"},
+		{307, 3, 0, ""},
+		{322, 3, 0, ""},
+		{323, 3, 0, ""},
+		{85, 6, 4, "ef_dmg_water01.ogg"},
+		{157, 6, 4, "ef_dmg_earth01.ogg"},
+		{69, 7, 4, "ef_dmg_earth01.ogg"},
+		{84, 7, 4, "ef_dmg_wind01.ogg"},
+		{53, 7, 4, "ef_dmg_hail01.ogg"},
+		{312, 7, 4, ""},
+		{315, 7, 4, ""},
+		{134, 3, 5, ""},
+	} {
+		r := proto.SkillResult{ID: tc.id, Level: 1, Result: tc.result}
+		if got := skillResultEffectSound(r, sdata.Skill{Effect: 3, Target: tc.target}); got != tc.want {
+			t.Errorf("skill %d result %d: got %q, want %q", tc.id, tc.result, got, tc.want)
+		}
+	}
+}
+
+func TestMobSkillSoundUsesTheNPCVisualAndPacketRoute(t *testing.T) {
+	for _, tc := range []struct {
+		visual     uint16
+		effect     uint8
+		startsCast bool
+		file, cue  string
+	}{
+		{85, 3, true, "DA_area_frozen.EFT", "ef_dmg_water01.ogg"},
+		{85, 3, false, "DA_area_frozen.EFT", "ef_dmg_water01.ogg"},
+		{81, 1, true, "", ""},
+		{81, 1, false, "DA_target_valribomb.EFT", "ef_dmg_boom01.ogg"},
+		{81, 3, false, "", ""},
+		{52, 3, false, "", ""},
+		{53, 1, false, "", ""},
+		{68, 1, false, "", ""},
+		{71, 1, false, "", ""},
+		{307, 1, false, "DA_area_turbulent.EFT", ""},
+	} {
+		file, cue := mobSkillImpact(sdata.Skill{VisualCode: tc.visual, Effect: tc.effect}, tc.startsCast)
+		wantFile := tc.file
+		if wantFile != "" {
+			wantFile = "Effect/" + wantFile
+		}
+		if file != wantFile || cue != tc.cue {
+			t.Errorf("mob visual %d effect %d first %t: got %q/%q, want %q/%q", tc.visual, tc.effect, tc.startsCast, file, cue, wantFile, tc.cue)
+		}
+	}
+}

@@ -46,6 +46,9 @@ func Run(args []string) error {
 	if args[0] == "tls-init" {
 		return certificates(args[1:])
 	}
+	if len(args) == 1 && args[0] == "operator-json" {
+		return runOperator(os.Stdin, os.Stdout)
+	}
 	if len(args) == 2 && args[0] == "account" && args[1] == "upgrade-legacy" {
 		defer db.Close()
 		upgraded, needsReset, err := db.UpgradeLegacyPasswords()

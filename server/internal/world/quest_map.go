@@ -1,6 +1,7 @@
 package world
 
 import (
+	"maps"
 	"slices"
 
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
@@ -94,5 +95,93 @@ func (s *Session) syncQuestNPCCatalog(force bool) {
 		for _, frame := range questNPCFrames(realMap(s.char.MapID), rows) {
 			s.send(frame, "GX map quest NPC catalog")
 		}
+	}
+}
+
+// Quest map markers describe spawn sites. Ordinary movement and deaths leave
+// the catalog intact so the full map stays useful while monsters respawn.
+func (sh *mapShard) invalidateQuestMobCatalog() {
+	sh.questMobCatalog = nil
+	sh.questMobRevision.Add(1)
+}
+
+// setQuestEventSpawn is called with the shard locked.
+func (sh *mapShard) setQuestEventSpawn(m *MapMob, present bool) {
+	if present {
+		row := proto.QuestMobSpawn{MobID: m.MobID, X: m.homeX, Z: m.homeZ}
+		if sh.questEventSpawns[m.ID] == row {
+			return
+		}
+		if sh.questEventSpawns == nil {
+			sh.questEventSpawns = make(map[uint32]proto.QuestMobSpawn)
+		}
+		sh.questEventSpawns[m.ID] = row
+	} else {
+		if _, ok := sh.questEventSpawns[m.ID]; !ok {
+			return
+		}
+		delete(sh.questEventSpawns, m.ID)
+	}
+	sh.invalidateQuestMobCatalog()
+}
+
+func (sh *mapShard) questMobFrames(mapID uint16) (uint64, [][]byte) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	revision := sh.questMobRevision.Load()
+	if sh.questMobCatalog != nil {
+		return revision, sh.questMobCatalog
+	}
+	catalog := sh.questMobSpawns
+	if len(sh.questEventSpawns) > 0 {
+		catalog = slices.Clone(catalog)
+		for _, id := range slices.Sorted(maps.Keys(sh.questEventSpawns)) {
+			catalog = append(catalog, sh.questEventSpawns[id])
+		}
+	}
+	for start := 0; ; {
+		end := min(start+proto.QuestMobChunkLimit, len(catalog))
+		var flags uint8
+		if start == 0 {
+			flags |= proto.QuestNPCBegin
+		}
+		if end == len(catalog) {
+			flags |= proto.QuestNPCEnd
+		}
+		w := packet.New(packet.Opcode(proto.GXQuestMobs))
+		w.U16(mapID)
+		w.U8(flags)
+		w.U16(uint16(end - start))
+		for _, mob := range catalog[start:end] {
+			w.U16(mob.MobID)
+			w.F32(mob.X)
+			w.F32(mob.Z)
+		}
+		sh.questMobCatalog = append(sh.questMobCatalog, w.MustFinish())
+		if end == len(catalog) {
+			return revision, sh.questMobCatalog
+		}
+		start = end
+	}
+}
+
+type questMobCatalogState struct {
+	mapID    uint16
+	revision uint64
+}
+
+func (s *Session) syncQuestMobCatalog(force bool) {
+	if s.char == nil || s.player == nil || s.awaitingMapLoad && !force {
+		return
+	}
+	mapID := s.char.MapID
+	sh := shard(mapID)
+	if !force && s.questMobCatalog == (questMobCatalogState{mapID: mapID, revision: sh.questMobRevision.Load()}) {
+		return
+	}
+	revision, frames := sh.questMobFrames(realMap(mapID))
+	s.questMobCatalog = questMobCatalogState{mapID: mapID, revision: revision}
+	for _, frame := range frames {
+		s.send(frame, "GX map quest mob spawn catalog")
 	}
 }

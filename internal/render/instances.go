@@ -20,7 +20,7 @@ func (s *Scene3D) Delete() {
 		s.effectStream.Delete()
 	}
 	s.effectPipeline.delete()
-	for _, program := range [...]uint32{s.mapPipeline.draw, s.mapPipeline.compute, s.terrainOverlay.prog, s.terrainHalo.program} {
+	for _, program := range [...]uint32{s.mapPipeline.draw, s.mapPipeline.bound, s.mapPipeline.compute, s.terrainOverlay.prog, s.terrainHalo.program} {
 		if program != 0 {
 			gl.DeleteProgram(program)
 		}

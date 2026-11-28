@@ -250,8 +250,8 @@ func (a *App) keepChasing(id uint32) {
 	v.attackSent = true
 }
 
-// abandonAttack drops the attack action: the server keeps swinging at its
-// target until told otherwise, and the swing pause would block movement.
+// abandonAttack stops repeat attacks and pursuit. A confirmed swing still
+// plays through the server's movement recovery.
 func (a *App) abandonAttack() bool {
 	v := a.wv
 	if !v.attackSent && v.engagedID == 0 {
@@ -264,10 +264,6 @@ func (a *App) abandonAttack() bool {
 		}
 	}
 	v.attackSent, v.engagedID = false, 0
-	if v.attackPose && v.self != nil && v.self.ActionID() == v.attackActionID && !v.self.PlayingAction(8) {
-		v.self.ReleaseAction()
-	}
-	v.attackMoveUntil, v.attackPose = 0, false
 	if v.approachTarget != 0 && !v.approachLoot && !v.approachNPC {
 		v.approachTarget, v.approachSkill = 0, nil
 	}

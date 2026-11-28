@@ -56,7 +56,7 @@ PURPOSES = {
 }
 
 def key(record):
-    return str(Path(record['path']).parent) + '.' + record['name']
+    return Path(record['path']).parent.as_posix() + '.' + record['name']
 
 def link(record, label=None):
     return f"[{label or record.get('name') or Path(record['path']).name}](../../{record['path']}#L{record['line']})"
@@ -241,10 +241,10 @@ def main():
         files=sorted({r['path'] for r in prod if r['kind']=='file' and select(r['path'])})
         previous=''
         for path in files:
-            pkg=str(Path(path).parent)
+            pkg=Path(path).parent.as_posix()
             if pkg!=previous:
                 lines += ['## '+pkg, '', PURPOSES.get(Path(pkg).name,''), ''];previous=pkg
-                tests=sorted({r['path'] for r in records if r['kind']=='file' and str(Path(r['path']).parent)==pkg and r['path'].endswith('_test.go')})
+                tests=sorted({r['path'] for r in records if r['kind']=='file' and Path(r['path']).parent.as_posix()==pkg and r['path'].endswith('_test.go')})
                 if tests:
                     lines += ['Tests: '+', '.join(f'[{Path(t).name}](../../{t})' for t in tests)+'.', '']
             file=next(r for r in prod if r['path']==path and r['kind']=='file')
@@ -277,8 +277,8 @@ def main():
         content=content.rstrip()+'\n'
         target=WIKI/name
         if args.check:
-            if not target.exists() or target.read_text()!=content:stale.append(name)
-        else:target.write_text(content)
+            if not target.exists() or target.read_text(encoding='utf-8')!=content:stale.append(name)
+        else:target.write_text(content, encoding='utf-8', newline='\n')
     if stale:
         raise SystemExit('Outdated generated Wiki pages: '+', '.join(stale))
     print(f'{"Checked" if args.check else "Generated"} {len(outputs)} Wiki pages; {len(known)} opcodes; {len(codec_files)} codec files; {sum(r["kind"]=="file" and r["path"].startswith("server/") for r in prod)} server production files.')

@@ -66,8 +66,7 @@ directory beside the runtime before dropping any tables. If the backup
 cannot be created and verified, startup stops before deleting data.
 Fresh installs use the compacted seed with only the active schema.
 Retired catalog exports work against the pre-26 backup using
-`gx_export_catalogs --db <backup>` and the original templates. GX Studio
-can also open legacy snapshots for compatibility. Keep these backups
+`gx_export_catalogs --db <backup>` and the original templates. Keep these backups
 outside public packages. Compact the upgraded runtime with SQLite
 `VACUUM` while both services are stopped if you need to return freed
 pages to the filesystem.

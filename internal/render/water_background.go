@@ -6,10 +6,20 @@ import "github.com/Spelunkern/Shaiya-GX/internal/render/gl"
 // world traversal. The result is screen-space refraction, so foreground
 // geometry near water edges may differ from a clipped native capture.
 func (s *Scene3D) CaptureWaterBackground() {
+	s.CaptureWaterBackgroundRegion(FullScreenRegion)
+}
+
+// CaptureWaterBackgroundRegion copies only where the water shader can sample.
+// The texture retains the full viewport size and screen-space coordinates.
+func (s *Scene3D) CaptureWaterBackgroundRegion(region ScreenRegion) {
 	var viewport [4]int32
 	gl.GetIntegerv(gl.VIEWPORT, &viewport[0])
 	w, h := int(viewport[2]), int(viewport[3])
 	if w <= 0 || h <= 0 {
+		return
+	}
+	x, y, copyW, copyH := region.Pixels(int32(w), int32(h))
+	if copyW == 0 || copyH == 0 {
 		return
 	}
 	if s.waterBackground == nil || s.waterBackground.W != w || s.waterBackground.H != h {
@@ -42,7 +52,8 @@ func (s *Scene3D) CaptureWaterBackground() {
 		}
 		scissored := gl.IsEnabled(gl.SCISSOR_TEST)
 		gl.Disable(gl.SCISSOR_TEST)
-		gl.BlitNamedFramebuffer(uint32(draw), s.waterBackgroundFBO, viewport[0], viewport[1], viewport[0]+int32(w), viewport[1]+int32(h), 0, 0, int32(w), int32(h), gl.COLOR_BUFFER_BIT, gl.NEAREST)
+		left, bottom := viewport[0]+x, viewport[1]+y
+		gl.BlitNamedFramebuffer(uint32(draw), s.waterBackgroundFBO, left, bottom, left+copyW, bottom+copyH, x, y, x+copyW, y+copyH, gl.COLOR_BUFFER_BIT, gl.NEAREST)
 		if scissored {
 			gl.Enable(gl.SCISSOR_TEST)
 		}
@@ -51,7 +62,7 @@ func (s *Scene3D) CaptureWaterBackground() {
 	if read != draw {
 		gl.BindFramebuffer(gl.READ_FRAMEBUFFER, uint32(draw))
 	}
-	gl.CopyTextureSubImage2D(s.waterBackground.ID, 0, 0, 0, viewport[0], viewport[1], int32(w), int32(h))
+	gl.CopyTextureSubImage2D(s.waterBackground.ID, 0, x, y, viewport[0]+x, viewport[1]+y, copyW, copyH)
 	if read != draw {
 		gl.BindFramebuffer(gl.READ_FRAMEBUFFER, uint32(read))
 	}

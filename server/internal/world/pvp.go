@@ -108,7 +108,7 @@ func (s *Session) hostileUser(id uint32) *ConnectedPlayer {
 		return nil
 	}
 	p := FindPlayerByID(id)
-	if p == nil || p.MapID() != s.char.MapID || !p.IsAlive() || !s.player.canSee(p) || p.immune.Load() || s.isTeam(p) {
+	if p == nil || p.MapID() != s.char.MapID || !p.IsAlive() || !s.player.canSee(p) || p.immune.Load() || s.isTeam(p) || !s.pvpWindowAllows(p) {
 		return nil
 	}
 	return p

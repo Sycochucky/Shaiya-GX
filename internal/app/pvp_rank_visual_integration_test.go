@@ -202,7 +202,7 @@ func TestPvPRankNameplateAndStatusGL(t *testing.T) {
 	a.drawPvPRewards(w, h)
 	a.sprites.End()
 	state := a.pvpRewardState()
-	if !state.CanKill || !state.CanDeath || state.Reward == "" {
+	if !state.CanKill || !state.CanDeath || state.Reward == "" || state.Deaths != "300 / 300" {
 		t.Fatal("PvP manager did not expose earned native stages", state)
 	}
 	rx, ry := a.pvpRewardUI.Origin(w, h)
@@ -234,6 +234,23 @@ func TestPvPRankNameplateAndStatusGL(t *testing.T) {
 	}
 	if dir := os.Getenv("SHAIYA_CAPTURE_DIR"); dir != "" {
 		if err := render.SavePNG(filepath.Join(dir, "pvp-rewards.png"), w, h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a.state.Details.Kills, a.state.Details.Deaths = 1000000, 1000000
+	a.state.PvPRewards.KillStage = proto.PvPRewardFinishedStage
+	a.state.PvPRewards.DeathStage = proto.PvPRewardFinishedStage
+	state = a.pvpRewardState()
+	if a.font.Width(state.Deaths) > 153 || a.font.Width(state.Gold) > 153 ||
+		state.KillStatus == "" || a.font.Width(state.KillStatus) > 200 {
+		t.Fatal("terminal reward text does not fit the stock panel", state)
+	}
+	if dir := os.Getenv("SHAIYA_CAPTURE_DIR"); dir != "" {
+		clear()
+		a.sprites.Begin(w, h)
+		a.drawPvPRewards(w, h)
+		a.sprites.End()
+		if err := render.SavePNG(filepath.Join(dir, "pvp-rewards-complete.png"), w, h); err != nil {
 			t.Fatal(err)
 		}
 	}

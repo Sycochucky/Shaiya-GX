@@ -12,7 +12,7 @@ sudo apt-get install build-essential pkg-config libgl1-mesa-dev xorg-dev libwayl
 ```
 
 The script runs vet and unit tests. It builds `build/Shaiya GX`,
-`build/shaiyacli`, `build/assets`, `build/GX Studio/GX Studio` and the three
+`build/shaiyacli`, `build/assets` and the three
 GX Server programs in `server/build/`. On other distributions install the
 equivalent packages. The client needs an OpenGL 4.5-capable GPU and driver.
 To build the terminal-only server programs with Go and CGO disabled, use
@@ -44,7 +44,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
 ```
 
 Use 64-bit MinGW-w64 GCC for CGO. The script builds `build/Shaiya GX.exe`,
-`build/shaiyacli.exe`, `build/assets.exe`, `build/GX Studio/GX Studio.exe` and
+`build/shaiyacli.exe`, `build/assets.exe` and
 `server/build/gx_{login,world,console}.exe`. Server programs build with Go and
 CGO disabled. The client uses Windows audio. Run the client from a desktop
 session with your GPU vendor's OpenGL 4.5 driver.
@@ -77,9 +77,19 @@ The publication check inspects staged source and, with `--history`, reachable hi
 
 ## Local assets and graphics checks
 
+Linux CI checks OpenGL startup and runs asset-free renderer integration tests
+under Xvfb with Mesa software rendering.
+Windows CI verifies process startup with `-help`. Run `-gl-check` on a desktop
+with an OpenGL 4.5 driver to verify context creation, startup shaders and sprite
+output without game data. See [Troubleshooting](troubleshooting.md) for
+comparing bindless and ordinary texture bindings.
+
 When reporting a client problem, include `logs/client.log` from beside the
 executable. The header records the build, OS, CPU and physical RAM. After
 graphics initialization begins, the log records the OpenGL renderer and driver.
+Use `-gl-no-bindless` and `-gl-no-draw-parameters` to compare the optional
+graphics paths on the same driver and scene. The flags also work with
+`-gl-check` for startup diagnostics.
 The default log keeps failures and limits recurring warnings. Run with
 `-verbose` for detailed graphics initialization, shader names and all recurring
 warnings. Add `-gldebug` to capture OpenGL driver messages when the client can

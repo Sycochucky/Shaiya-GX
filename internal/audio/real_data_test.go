@@ -20,33 +20,26 @@ func TestRealSkillImpactOGG(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer a.Close()
-	d, ok := a.LookupDir("Effect")
-	if !ok {
-		t.Fatal("missing original effect directory")
+	sounds := map[string]bool{}
+	for _, selectSound := range []func(uint16) string{effect.TargetSound, effect.AreaSound} {
+		for id := uint16(1); id <= 363; id++ {
+			name := selectSound(id)
+			if name == "" || sounds[name] {
+				continue
+			}
+			sounds[name] = true
+			raw, err := a.ReadFile("Sound/" + name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pcm, err := DecodeOGG(raw)
+			if err != nil || len(pcm) == 0 || len(pcm) > 4<<20 {
+				t.Fatalf("%s: invalid effect PCM (%d bytes): %v", name, len(pcm), err)
+			}
+		}
 	}
-	libraries, sounds := 0, map[string]bool{}
-	for _, f := range d.Files {
-		name := effect.ImpactSound("Effect/" + f.Name)
-		if name == "" {
-			continue
-		}
-		libraries++
-		if sounds[name] {
-			continue
-		}
-		sounds[name] = true
-		raw, err := a.ReadFile("Sound/" + name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		pcm, err := DecodeOGG(raw)
-		if err != nil || len(pcm) == 0 || len(pcm) > 4<<20 {
-			t.Fatalf("%s: invalid effect PCM (%d bytes): %v", name, len(pcm), err)
-		}
-		t.Logf("%s: %.2f s", name, float64(len(pcm))/4/SampleRate)
-	}
-	if libraries != 26 || len(sounds) != 11 {
-		t.Fatalf("incomplete native sound catalog: %d libraries, %d sounds", libraries, len(sounds))
+	if len(sounds) != 10 {
+		t.Fatalf("incomplete native sound catalog: %d sounds", len(sounds))
 	}
 }
 

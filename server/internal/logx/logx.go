@@ -17,18 +17,28 @@ type Logger struct {
 	file            *os.File
 	name, path      string
 	debug           bool
+	quiet           bool
 	bytes, maxBytes int64
 	backups         int
 }
 
 func New(name string) (*Logger, error) {
+	return openLogger(".", name, false)
+}
+
+// NewLocal writes an installation-owned log without sending records to the
+// controller's stdout. The caller holds the installation's operation lock.
+func NewLocal(root, name string) (*Logger, error) { return openLogger(root, name, true) }
+
+func openLogger(root, name string, quiet bool) (*Logger, error) {
 	if filepath.Base(name) != name {
 		return nil, fmt.Errorf("invalid logger name")
 	}
-	if err := os.MkdirAll("logs", 0700); err != nil {
+	directory := filepath.Join(root, "logs")
+	if err := os.MkdirAll(directory, 0700); err != nil {
 		return nil, err
 	}
-	path := filepath.Join("logs", name+".log")
+	path := filepath.Join(directory, name+".log")
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, err
@@ -46,7 +56,7 @@ func New(name string) (*Logger, error) {
 			return nil, fmt.Errorf("RAPTURE_LOG_MAX_MB must be 1..1024")
 		}
 	}
-	return &Logger{file: file, name: name, path: path, debug: os.Getenv("RAPTURE_DEBUG") == "1", bytes: info.Size(), maxBytes: mb << 20, backups: 3}, nil
+	return &Logger{file: file, name: name, path: path, quiet: quiet, debug: os.Getenv("RAPTURE_DEBUG") == "1", bytes: info.Size(), maxBytes: mb << 20, backups: 3}, nil
 }
 func (l *Logger) rotate() error {
 	if err := l.file.Close(); err != nil {
@@ -95,7 +105,9 @@ func (l *Logger) record(level, message, session string, attrs ...any) {
 	encoded = append(encoded, '\n')
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	os.Stdout.Write(encoded)
+	if !l.quiet {
+		os.Stdout.Write(encoded)
+	}
 	if l.file == nil {
 		return
 	}
@@ -141,6 +153,9 @@ func (t *Tag) Tag() string {
 }
 func (t *Tag) Printf(format string, args ...any) {
 	t.logger.record("info", fmt.Sprintf(format, args...), t.Tag())
+}
+func (t *Tag) Event(message string, attrs ...any) {
+	t.logger.record("info", message, t.Tag(), attrs...)
 }
 func (t *Tag) Debugf(format string, args ...any) {
 	if t.logger.debug {

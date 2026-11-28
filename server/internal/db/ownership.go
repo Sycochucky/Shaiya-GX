@@ -2,15 +2,20 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
 	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/filelock"
-	"sync"
 )
 
 // AcquireWorld enforces one authoritative simulation process per runtime. The
 // OS releases ownership on crash; a new owner removes stale online leases.
 func AcquireWorld(ctx context.Context) (func(), error) {
-	release, err := filelock.Acquire(ctx, config.DatabasePath()+".world.lock")
+	release, err := lockRuntime(ctx, "world")
 	if err != nil {
 		return nil, err
 	}
@@ -19,9 +24,40 @@ func AcquireWorld(ctx context.Context) (func(), error) {
 		release()
 		return nil, err
 	}
-	if _, err = pool.ExecContext(ctx, `DELETE FROM GX_ActiveSessions`); err != nil {
+	cleanupCtx, cancelCleanup := context.WithTimeout(ctx, Timeout)
+	defer cancelCleanup()
+	if _, err = pool.ExecContext(cleanupCtx, `DELETE FROM GX_ActiveSessions`); err != nil {
 		release()
+		return nil, fmt.Errorf("clear stale world sessions: %w", err)
+	}
+	return release, nil
+}
+
+func AcquireLogin(ctx context.Context) (func(), error) {
+	return lockRuntime(ctx, "login")
+}
+
+// AcquireWorldAdministration prevents offline edits from racing World startup.
+func AcquireWorldAdministration(ctx context.Context) (func(), error) {
+	return lockRuntime(ctx, "world")
+}
+
+func lockRuntime(ctx context.Context, service string) (func(), error) {
+	path := config.DatabasePath()
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
+	}
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	} else if real, err := filepath.EvalSymlinks(dir); err == nil {
+		path = filepath.Join(real, filepath.Base(path))
+	}
+	leaseCtx, cancelLease := context.WithTimeout(ctx, time.Second)
+	defer cancelLease()
+	release, err := filelock.Acquire(leaseCtx, path+"."+service+".lock")
+	if err != nil {
+		return nil, fmt.Errorf("acquire %s runtime lease: %w", service, err)
 	}
 	return release, nil
 }

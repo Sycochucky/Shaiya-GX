@@ -209,6 +209,10 @@ type mapShard struct {
 	aiPendingSummons int
 	npcRevision      atomic.Uint64
 	questNPCs        questNPCCatalogCache
+	questMobSpawns   []proto.QuestMobSpawn
+	questEventSpawns map[uint32]proto.QuestMobSpawn
+	questMobRevision atomic.Uint64
+	questMobCatalog  [][]byte
 	mu               sync.Mutex
 	entities         MapEntities
 }
@@ -450,7 +454,7 @@ func DamageMobFrom(mapID uint16, id uint32, damage, attacker uint32) (MobDamageR
 		now := time.Now()
 		if r.Killed {
 			m.died(now)
-			r.RespawnSeconds = uint64(m.respawnDelay / time.Second)
+			r.RespawnSeconds = uint64(m.configuredRespawnDelay(mapID) / time.Second)
 		} else if applied > 0 {
 			r.Speed = m.removeSleep()
 		}
@@ -531,6 +535,7 @@ func TickMobRespawns(viewersByMap map[uint16][][2]float32, maxPerMap int) []enti
 	var out []entityMove
 	now := time.Now()
 	for mapID, viewers := range viewersByMap {
+		bossWindows := tuningForMap(mapID).BossWindows
 		s := shard(mapID)
 		s.mu.Lock()
 		buckets := bucketViewers(viewers)
@@ -541,6 +546,9 @@ func TickMobRespawns(viewersByMap map[uint16][][2]float32, maxPerMap int) []enti
 			}
 			m := &s.entities.Mobs[i]
 			if m.CurrentHP > 0 || m.event != nil {
+				continue
+			}
+			if window, scheduled := bossWindows[m.MobID]; scheduled && !m.aiSummoned && !window.Contains(now) {
 				continue
 			}
 			var x, z float32
@@ -563,7 +571,7 @@ func TickMobRespawns(viewersByMap map[uint16][][2]float32, maxPerMap int) []enti
 					m.navPath = nil
 				}
 				g.alive++
-				g.respawnAt = now.Add(m.respawnDelay)
+				g.respawnAt = now.Add(m.configuredRespawnDelay(mapID))
 			} else {
 				if m.respawnAt.IsZero() || m.respawnAt.After(now) {
 					continue
@@ -668,7 +676,7 @@ func (m *MapMob) died(now time.Time) {
 		h.event("death", m.lua.attackedCount)
 	}
 	if m.group == nil && m.respawnDelay > 0 {
-		m.respawnAt = now.Add(m.respawnDelay)
+		m.respawnAt = now.Add(m.configuredRespawnDelay(m.aiMapID))
 	}
 }
 
@@ -685,7 +693,7 @@ func (m *MapMob) removeCorpse(now time.Time) {
 		return
 	}
 	if g.alive == g.count {
-		delay := m.respawnDelay
+		delay := m.configuredRespawnDelay(m.aiMapID)
 		if m.def != nil && m.def.Attacks[2].Special >= 9 && delay > 0 {
 			delay += time.Duration(rand.IntN(120)-60) * time.Minute
 		}
@@ -1027,6 +1035,14 @@ func AddEntities(mapID uint16, e MapEntities) {
 	s.entities.NPCs = append(s.entities.NPCs, e.NPCs...)
 	if len(e.NPCs) > 0 {
 		s.npcRevision.Add(1)
+	}
+	for _, mob := range e.Mobs {
+		if mob.MobID != 0 {
+			s.questMobSpawns = append(s.questMobSpawns, proto.QuestMobSpawn{MobID: mob.MobID, X: mob.PosX, Z: mob.PosZ})
+		}
+	}
+	if len(e.Mobs) > 0 {
+		s.invalidateQuestMobCatalog()
 	}
 	s.entities.Mobs = append(s.entities.Mobs, e.Mobs...)
 	s.entities.Portals = append(s.entities.Portals, e.Portals...)

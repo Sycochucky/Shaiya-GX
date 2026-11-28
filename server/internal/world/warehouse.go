@@ -2,6 +2,7 @@ package world
 
 import (
 	"encoding/binary"
+	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"math"
 
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
@@ -282,7 +283,11 @@ func (s *Session) handleShopSell(p []byte) {
 	}
 	whole := it.Count == count
 	quest := realType(it.Type) == 27
-	proceeds := uint64(max(def.Sell, 0)) * uint64(count)
+	unitPrice := proto.ScaleVendorUnitPrice(uint32(max(def.Sell, 0)), activeEconomy().VendorSellPercent)
+	if !s.economyAmountMatches(unitPrice) {
+		return
+	}
+	proceeds := uint64(unitPrice) * uint64(count)
 	if !quest && (ch.Money >= db.MoneyCap || uint64(ch.Money)+proceeds > db.MoneyCap) {
 		s.send(buildShopSellResult(1, bag, slot, it.Type, it.TypeID, it.Count, ch.Money), "0x0703 shop sell (gold limit)")
 		return
@@ -308,6 +313,7 @@ func (s *Session) handleShopSell(p []byte) {
 	*s.char = after
 	s.items = items
 	s.syncPlayer()
+	s.goldActivity(before.Money, "NPC shop sale")
 	s.log.Printf("GX Server World sold item %d/%d count=%d proceeds=%d", it.Type, it.TypeID, count, proceeds)
 	s.send(buildShopSellResult(0, bag, slot, it.Type, it.TypeID, remaining, ch.Money), "0x0703 shop sell")
 }

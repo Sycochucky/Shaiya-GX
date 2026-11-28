@@ -2,7 +2,10 @@ package netx
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -23,6 +26,87 @@ func TestRateLimiterBoundsAndRefill(t *testing.T) {
 		t.Fatal("idle reclamation")
 	}
 }
+
+func TestServeShieldChangesAdmissionWithoutDroppingPlayers(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	shield := NewShield()
+	shield.attackStarts = NewRateLimiter(1, 2, time.Hour)
+	var first atomic.Bool
+	firstReady := make(chan struct{})
+	finished := make(chan error, 1)
+	go func() {
+		finished <- Serve(ctx, listener, 64, 64, func(conn net.Conn) {
+			if first.CompareAndSwap(false, true) {
+				close(firstReady)
+				var b [1]byte
+				if _, err := io.ReadFull(conn, b[:]); err == nil {
+					conn.Write(b[:])
+				}
+				return
+			}
+			conn.Write([]byte{1})
+		}, nil, shield)
+	}()
+	t.Cleanup(func() {
+		shield.SetAttack(0)
+		cancel()
+		listener.Close()
+		select {
+		case err := <-finished:
+			if err != nil {
+				t.Errorf("shield server shutdown: %v", err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Error("shield server did not stop")
+		}
+	})
+	existing, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer existing.Close()
+	select {
+	case <-firstReady:
+	case <-time.After(3 * time.Second):
+		t.Fatal("first connection not admitted")
+	}
+	if err := shield.SetAttack(30 * time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		conn, err := net.Dial("tcp", listener.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		var b [1]byte
+		_, err = conn.Read(b[:])
+		conn.Close()
+		if i < 2 && (err != nil || b[0] != 1) {
+			t.Fatalf("admission %d: %v, %v", i, b, err)
+		}
+		if i == 2 && (err == nil || isTimeout(err)) {
+			t.Fatalf("third connection was not rejected promptly: %v", err)
+		}
+	}
+	existing.SetDeadline(time.Now().Add(3 * time.Second))
+	if _, err := existing.Write([]byte{7}); err != nil {
+		t.Fatal(err)
+	}
+	var echoed [1]byte
+	if _, err := io.ReadFull(existing, echoed[:]); err != nil || echoed[0] != 7 {
+		t.Fatalf("existing player disconnected: %v, %v", echoed, err)
+	}
+}
+
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
+}
 func TestServeCancellationDrainsHandler(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -34,7 +118,7 @@ func TestServeCancellationDrainsHandler(t *testing.T) {
 	entered := make(chan struct{})
 	finished := make(chan error, 1)
 	go func() {
-		finished <- Serve(ctx, listener, 2, 1, func(conn net.Conn) { close(entered); var b [1]byte; conn.Read(b[:]) })
+		finished <- Serve(ctx, listener, 2, 1, func(conn net.Conn) { close(entered); var b [1]byte; conn.Read(b[:]) }, nil, nil)
 	}()
 	conn, err := net.Dial("tcp", listener.Addr().String())
 	if err != nil {

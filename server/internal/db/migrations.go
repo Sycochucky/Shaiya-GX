@@ -48,6 +48,9 @@ var removeGrowthModesMigration string
 //go:embed consumable_stacks.sql
 var consumableStacksMigration string
 
+//go:embed forge_hammers.sql
+var forgeHammersMigration string
+
 var migrations = []migration{
 	{1, "atomic_session_handoff", `CREATE TABLE IF NOT EXISTS GX_SessionHandoff(UserUID INTEGER PRIMARY KEY,Identity BLOB NOT NULL,AESMaterial BLOB NOT NULL,SessionID INTEGER NOT NULL,ExpiresAt INTEGER NOT NULL)`},
 	{2, "indexed_account_lookup", `CREATE INDEX IF NOT EXISTS GX_Users_UserID ON PS_UserData_Users_Master(UserID)`},
@@ -226,6 +229,9 @@ var migrations = []migration{
 		  AND AbilityType1=0 AND AbilityValue1=0 AND AbilityType2=0 AND AbilityType3=0
 		  AND EXISTS (SELECT 1 FROM PS_GameDefs_Items
 		              WHERE Type=44 AND TypeID=242 AND Range=250 AND AttackTime=2 AND Special=0)`},
+	{39, "rebalance_lapis_hammers", forgeHammersMigration},
+	{40, "operator_bans", `CREATE TABLE IF NOT EXISTS GX_OperatorAccountBans (UserUID INTEGER PRIMARY KEY, Reason TEXT NOT NULL);
+		CREATE TABLE IF NOT EXISTS GX_OperatorIPBans (Address TEXT PRIMARY KEY NOT NULL, Reason TEXT NOT NULL, CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()))`},
 }
 
 // Base user_version=1 remains compatible with the distributed development seed.

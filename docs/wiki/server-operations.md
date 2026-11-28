@@ -125,7 +125,7 @@ Forge costs use the native ReqIg table without Vg/level discounts or the old
 free-cost environment override. GX World loads `ItemEnchant.ini` from `data/game`. The shipped
 cap is +20. `MaxLevel` configures both equipment types and
 `WeaponMaxLevel` or `DefenseMaxLevel` can override it up to +49.
-Restart GX World after editing the file in GX Studio.
+Back up `ItemEnchant.ini` before editing it. Restart GX World to load the changes.
 The client receives the server bonus tables for its tooltips. See the [feature wiki](wiki/README.md) for exact rules,
 item content fields, extraction, recreation and drop persistence.
 

@@ -110,10 +110,6 @@ func (a *App) stopForAttack() bool {
 func (a *App) confirmAttackStop() {
 	v := a.wv
 	v.attackMoveUntil = max(v.attackMoveUntil, a.clock+float64(attackspeed.MovementPauseMilliseconds)/1000)
-	v.attackPose = v.self != nil && !v.self.PlayingAction(8)
-	if v.attackPose {
-		v.attackActionID = v.self.ActionID()
-	}
 	v.travel, v.autoRun = false, false
 }
 

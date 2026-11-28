@@ -227,10 +227,12 @@ func spawnEventActor(s *mapShard, a *eventActor, id uint16, pos [3]float32, now 
 	a.handled = false
 	m.noTargetUntil = now.Add(5 * time.Second)
 	s.entities.Mobs[a.slot] = m
+	s.setQuestEventSpawn(&m, true)
 	return true
 }
 func removeEventActor(s *mapShard, a *eventActor) {
 	m := &s.entities.Mobs[a.slot]
+	s.setQuestEventSpawn(m, false)
 	m.CurrentHP = 0
 	m.Effects = nil
 	m.aggro = nil

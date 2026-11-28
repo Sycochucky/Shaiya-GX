@@ -87,7 +87,10 @@ def main():
         if mode == b'100644' or mode == b'100755':
             blobs[oid.decode()] = path
     if args.history:
-        for line in git('rev-list', '--objects', '--all').splitlines():
+        # Publication history is limited to refs Git can actually publish.
+        # Codex keeps private recovery snapshots under refs/codex; including
+        # those makes a deleted working-tree artifact look like branch history.
+        for line in git('rev-list', '--objects', '--branches', '--tags', '--remotes').splitlines():
             oid, _, path = line.partition(b' ')
             if path:
                 path = path.decode()

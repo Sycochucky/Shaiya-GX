@@ -76,9 +76,9 @@ func TestMountConfirmationDropsPendingSkillAndIgnoresLateAnimation(t *testing.T)
 	a.revolver.cast = revolverCast{skill: key}
 	a.wv.requestedSkill = &requestedSkillPresentation{key: key, actor: a.wv.self}
 	a.wv.requestedSkills = []*requestedSkillPresentation{a.wv.requestedSkill}
-	a.wv.attackPose, a.wv.attackMoveUntil = true, 11
+	a.wv.attackMoveUntil = 11
 	a.applyWorldPacket(proto.VehicleStatePacket(proto.VehicleState{ID: 1, State: proto.VehiclePassenger, Speed: 4, Seats: 2, Driver: 3}))
-	if a.skills.queuedSkill != nil || a.revolver.cast.skill.ID != 0 || a.wv.approachTarget != 0 || len(a.wv.approachSkill) != 0 || a.wv.travel || a.wv.attackPose || a.wv.attackMoveUntil != 0 || a.wv.requestedSkill != nil || len(a.wv.requestedSkills) != 0 {
+	if a.skills.queuedSkill != nil || a.revolver.cast.skill.ID != 0 || a.wv.approachTarget != 0 || len(a.wv.approachSkill) != 0 || a.wv.travel || a.wv.attackMoveUntil != 0 || a.wv.requestedSkill != nil || len(a.wv.requestedSkills) != 0 {
 		t.Fatal("joining a mount left a pending skill or movement lock")
 	}
 	cast := proto.NewWriter(proto.SkillCastStarted)
@@ -92,7 +92,7 @@ func TestMountConfirmationDropsPendingSkillAndIgnoresLateAnimation(t *testing.T)
 	}
 	a.state.LastSkill = proto.SkillResult{Source: 1, Target: 2, ID: key.ID, Level: key.Level}
 	a.confirmedAnimation(proto.NewWriter(proto.SkillUse).Bytes())
-	if a.wv.attackPose || a.wv.self.ActionActive() || a.wv.attackMoveUntil != 0 {
+	if a.wv.self.ActionActive() || a.wv.attackMoveUntil != 0 {
 		t.Fatal("late skill confirmation affected the rider's presentation")
 	}
 }

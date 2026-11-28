@@ -118,8 +118,6 @@ func TestPacketLayoutsMatchClient(t *testing.T) {
 		{"0x0a0a 00592d90", buildTradeConfirm(1, true), 2},
 		{"0x0d03 u8", guildResult(packet.GuildDisband, 0), 1},
 		{"0x0d04 u32", guildID32(packet.GuildDisbandAgree, 1), 4},
-		{"0x0d05 u32", guildID32(packet.GuildInvite, 1), 4},
-		{"0x0d06 00594740", guildResultID(packet.GuildInviteAnswer, 0, 1), 5},
 		{"0x0d07 u8", guildResult(packet.GuildApply, 0), 1},
 		{"0x0d08 005947c0", buildGuildJoined(1, &guild{ID: 1, Name: "G"}, 9), 31},
 		{"0x0d09 u8", guildResult(packet.GuildLeave, 0), 1},

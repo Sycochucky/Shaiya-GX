@@ -41,7 +41,12 @@ are preserved.
 
 The headless server and console need no Go, Python, Docker, SQL Server or separate SQLite library. Python 3 is optional for administration tools in `tools/`.
 
-Default endpoints are 127.0.0.1:30800 and :30810. Use `RAPTURE_LOGIN_LISTEN`, `RAPTURE_WORLD_LISTEN` and `RAPTURE_PUBLIC_IP` for other addresses. See the [server operation guide](../../docs/server.md).
+Default endpoints are 127.0.0.1:30800 and :30810. Use the desktop controller's
+Network screen or `RAPTURE_LOGIN_LISTEN`, `RAPTURE_WORLD_LISTEN` and
+`RAPTURE_PUBLIC_IP` for other numeric IPv4 endpoints. The controller can find a
+free local port pair and remember several isolated GX installations; public
+firewall/NAT and upstream DDoS protection remain operator responsibilities. See
+the [server operation guide](../../docs/server.md).
 
 ## Seed updates and validation
 

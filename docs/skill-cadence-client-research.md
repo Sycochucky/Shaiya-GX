@@ -64,3 +64,7 @@ data. No gameplay change is made by this note.
 - Skills may be sent up to 150 ms before the deadline (the server keeps the
   latest early request) and the session loop wakes at the exact deadline of a
   held skill, spin combo or auto-attack swing instead of the next 100 ms tick.
+- The server's generated table stores one dedicated instant animation duration
+  per `SkillID`. The selected skill definition still supplies `ReadyTime` for
+  casting. Magic Arrow's instant rank uses the clip floor, while its timed
+  ranks finish through the cast path and the shared action cadence.

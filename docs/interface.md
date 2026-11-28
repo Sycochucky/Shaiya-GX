@@ -10,14 +10,14 @@ The interface is being reconstructed incrementally from original EP5 artwork and
 | Inventory | Equipment, bags, drag, right-click use and equipment swaps, tooltips without zero sale prices and larger full-body preview | Remaining contexts and special dialogs |
 | Weapon enchantments | Original Weapon.Seff enchantments plus four ITM-selected innate EFT glows, equipped and remote models, both dual bindings | Full visual comparison across animations; see [weapon enchantments](weapon-enchantments.md) |
 | Cloaks | Original PC/CTL/3DC loading, equipment slot 7, all body families, native spring modes and animated attachment pins | Body/ground contact adapter and map wind; full physical parity is not yet claimed. Cape emblems (patterns and colours from the emblem NPC) are drawn over the cloth |
-| Status | Allocation, EXP and current/max HP/MP/SP bars | Native graph and full attribute help |
+| Status | Allocation, EXP, current/max HP/MP/SP bars and native hover help for six attributes (SysMsg 5283–5288) | Native graph |
 | Chat | Phoenix geometry, external Tahoma with Unicode fallbacks, channel colours, persistent grey histories, single input row, six-channel picker and original SysMsg messages | Remaining special notices and complete state comparison |
 | Effects | Independently draggable positive/negative strips; 32px icons, 6px gaps, native yellow duration bars and the original white debuff pulse | Full effect categories and all special states |
 | Maps | Native World Map with region previews, ring buttons, expanded-map name, original clock frame with date/seconds and portrait resource text styling and native zone/hover labels, draggable minimap/full map, pan and zoom | Remaining map services and indicator variants |
 | Options | Menu and six subpages; classic glow/brightness/detail/distance sliders, cloak/helmet visibility, audio, mouse, chat, editable hotkeys and monitor resolution selection | Other service controls |
 | Party/raid | Member frames, invitations, leader and selection flows, member effect icons (`0x50abd0`, packets 0x0C04/0x0C05/0x0C0E/0x0C10), union (raid) portrait/slot menus, create/config window and event notices (`0x47ebe0`, `0x48e050`) | Complete badges and visual variants |
-| Player context | Original classic TipBox frame, SysMsg rows, hover, character/target/party picking, whisper focus and supported party/trade/duel/guild actions | Inspect, follow, personal shops and remaining social windows/services |
-| Quests | Original U button, journal artwork, state icons, seven 31px rows, three scrollbars, selection and confirmed abandonment; NPC dialogs/rewards/progress | Native tracker and remaining markers |
+| Player context | Original classic TipBox frame, SysMsg rows, hover, character/target/party picking, whisper focus and supported inspect/party/trade/duel/guild actions | Follow, personal shops and remaining social windows/services |
+| Quests | Original U button, journal artwork, state icons, seven 31px rows, three scrollbars, selection and confirmed abandonment; NPC dialogs/rewards/progress and the native Quest Goal window | Remaining markers |
 | Trade/duels | Wager/item/money interfaces and confirmation flows | Complete comparison across all states |
 | Auction House | Realm-wide NPC market with four tabs, posting, bidding, buyout, claims and watched listings | Legacy visual and protocol details tracked in [Auction House research](auction-house-research.md) |
 | Guild | Original G button, single roster sheet, native columns/rows, sorting, applicants, rank actions and notice editor; directory/creation/ranking flows; Buddy, Block and Search Party with native transport | Complete comparison of rare social states and remaining presentation |
@@ -61,7 +61,19 @@ Visual approval and complete comparison against the original remain ongoing. Opt
 
 The player popup follows `0x47de10`/`0x47e1e0`: text starts at `(10,10)` with 15px rows. Its classic skin uses `TipBox.TGA`, 4px borders and the native `CD1D1F24` background. The `RightMenu_*` feature skin is absent from the local archive. The native minimum width is 90px of content plus borders; longer translated labels expand the width to fit the current font. Existing actions use original SysMsg labels, including party request/kick/leadership/leave (5002–5005), whisper (5007), battle (5008), transaction (5091), guild duel (5339) and raid leadership controls (6507–6509).
 
-Right-click the selected character in the world, the target frame or a party/raid member to open their actions. Right-click the local portrait in a group to leave it. Whisper selects the recipient and focuses the existing chat input. The popup preserves held movement and owns its pointer gestures; changed rows cannot activate an action that replaced the one originally pressed. Group leadership, capacity, faction and guild eligibility filter supported requests; membership, trades and duels still await GX Server responses. Friends/ignore, inspect, follow and personal-shop services are not represented by invented actions.
+Right-click the selected character in the world, the target frame or a party/raid member to open their actions. Right-click the local portrait in a group to leave it. Whisper selects the recipient and focuses the existing chat input. The popup preserves held movement and owns its pointer gestures; changed rows cannot activate an action that replaced the one originally pressed. Group leadership, capacity, faction and guild eligibility filter supported requests; membership, trades and duels still await GX Server responses. Friends/ignore, follow and personal-shop services are not represented by invented actions.
+
+Players join guilds by applying through the guild directory and receiving approval from the guild.
+
+Choose **Inspect** from an ally's context menu. The inspection requires three
+units of 3D distance and closes when the player leaves that range or disappears.
+The panel uses `interface/inspect.png` from the loose data pack, displays a
+full-body preview and shows the original equipment slots 0–12. Their tooltips
+use the server-confirmed item quality, linked lapis, recreation and enchantment.
+World validates the faction, map instance, target and distance. Allied GMs
+can inspect one another. The inspection
+request uses native `0x0307`. GX adds the target ID after the native response
+records so a late reply cannot open a different player's panel.
 
 ## Cloaks and combat presentation
 
@@ -69,7 +81,7 @@ Cloaks use original archive files directly, without converted or recreated meshe
 
 The CPU solver reproduces native directed springs, masses, forces, Euler integration and both cloth modes. Synthetic one-step tests compare outputs with the original executable. Real-archive GL checks load all 3,072 body/fit/model combinations and simulate/render all 16 body families. The current runtime uses the native no-contact branch; body/ground contacts and map wind remain incomplete. Cape emblem decals are rendered on a 3x3 cloth patch (see [emblem research](emblem-research.md)).
 
-Attacking or using a targeted skill turns toward the current target immediately and publishes the heading before the action packet. Targets outside weapon or skill range start an approach that updates as they move. A double click keeps the basic attack queued until it can be requested in range. Monster picking uses the original EP5 camera-facing rectangle, sized by Monster.SData Size and scaled MON height. Movement keys and clicks on walkable ground interrupt basic attacks and end the chase while keeping the target selected. Changing targets or issuing a new action also replaces the current request. This uses existing movement collision handling rather than a new pathfinding system. Results and resource changes remain server-owned.
+Attacking or using a targeted skill turns toward the current target immediately and publishes the heading before the action packet. Targets outside weapon or skill range start an approach that updates as they move. A double click keeps the basic attack queued until it can be requested in range. Monster picking uses the original EP5 camera-facing rectangle, sized by Monster.SData Size and scaled MON height. Movement keys and clicks on walkable ground stop repeated basic attacks and end the chase while keeping the target selected. A confirmed swing keeps playing during the server movement pause. Held movement resumes once the pause ends, and the swing blends into locomotion after its last frame. While seated, only keyboard movement can stand the character for travel. Ground clicks leave the character seated. Changing targets or issuing a new action also replaces the current request. This uses existing movement collision handling rather than a new pathfinding system. Results and resource changes remain server-owned.
 
 Floating numbers use `count.tga` digit cells of 26×32, the Critical region at `(260,0,156,32)` and Miss at `(416,0,96,32)`. Phoenix parameters are a one-second lifetime, 0.3-unit rise per second, 0.2-unit digit width and 1.1875 height ratio. Critical digits are 1.5 times wider; healing is native RGB `00FF00` (digit renderer `004274ff`). Numbers detach from the target's displayed position, retain world scale under camera movement and expire from a queue capped at 128 entries. Attack, skill, drain and periodic result packets supply the displayed values; ordinary HP snapshots do not invent healing events. A lethal basic attack with two contact markers starts the monster’s death animation at the first impact and presents the second damage number at its own marker.
 
@@ -93,7 +105,7 @@ The WLD placement group selects how VANI textures use alpha. Group A writes dept
 
 The login logo stays visible during server selection and disappears with the login scenery.
 
-Chat uses runtime `sysmsg-uni.txt` entries, including channel templates 353/354/355/370 and channel names 5086–5089/5377/5388. The formatter replaces native placeholders once; message bodies cannot introduce more placeholders. Normal messages use the native `name : message` format. Combat, experience, acquired gold/items, item use, learned skills, level changes, party invitations/membership, quest outcomes, trade and supported guild lifecycle notices use their original message IDs. Diagnostic commands retain explanatory fallback text where no native equivalent has been connected. Special service and third-party combat notices remain incomplete; ordinary speech bubbles follow confirmed chat echoes.
+Chat uses runtime `sysmsg-uni.txt` entries, including channel templates 353/354/355/370 and channel names 5086–5089/5377/5388. The formatter replaces native placeholders once; message bodies cannot introduce more placeholders. Normal messages use the native `name : message` format. Combat, experience, acquired gold/items, item use, learned skills, level changes, party invitations/membership, quest kill progress and outcomes, trade and supported guild lifecycle notices use their original message IDs. Diagnostic commands retain explanatory fallback text where no native equivalent has been connected. Special service and third-party combat notices remain incomplete; ordinary speech bubbles follow confirmed chat echoes. Quest kill progress uses SysMsg 349–352 for PvP and monster objectives. The updated objective uses a generic notice if its monster name is unavailable. Equipment refusals show SysMsg 229 with the item name in the upper system chat.
 
 The chat retains the chosen flat Phoenix-style plates while using recovered native geometry. Histories are 350px wide with an eight-pixel gap and default heights of 112/144px. They now fit seven/nine 16px rows; the newest text uses the bottom complete font cell instead of leaving an empty row. A full cell, descenders and one-pixel shadow are clipped inside each flat frame. The background is native ARGB `9A1D1F24`; text uses the external primary font at the native English 15px cell height with Unicode/emoji fallbacks.
 
@@ -160,7 +172,7 @@ Profanity, system notices and in-game item links are outside the content checks.
 
 ## Item details, cooldowns and cursors
 
-Item properties use original SysMsg labels, yellow titles/base bonuses, orange remake values and white prices. Recovery amounts on consumable families are no longer shown as permanent equipment bonuses. Classes, stack metadata and extra attribute requirements have been removed from the tooltip. Original inline description controls and confirmed gem sockets remain. Full modifier-key/rarity presentation still needs comparison.
+Item properties use original SysMsg labels, yellow titles/base bonuses, orange remake values and white prices. Recovery amounts on consumable families are no longer shown as permanent equipment bonuses. Classes, stack metadata and extra attribute requirements have been removed from the tooltip. Original inline description controls and confirmed gem sockets remain. Full modifier-key/rarity presentation still needs comparison. Hovering gear in a bag also shows the equipped piece from the corresponding slot beside it, with the same tooltip layout and its own bonuses and sockets. Mounts display a single tooltip.
 
 K has nine rows in one column: icons at `(46,78+43*i)`, names at `(88,81+43*i)`, requirements at y=97+43*i, and 32px learn buttons at `(278,84+43*i)` with 22px hit regions. Original SysMsg labels and red unmet requirements replace the compact two-column labels. Learning, scrolling, drag/drop, tooltips and skill use share those rows.
 
@@ -189,17 +201,30 @@ bars keep the original left click (hotkeys are unchanged). Accessory pairs choos
 server-authoritative. Provisional inventory instructions/waiting messages are
 removed, and items with no sale value omit that line entirely.
 
+Physical skill releases use the original animation cue and the equipped weapon's
+ranged release. Wind Spin and Enhance Wind Spin use their dedicated spin sound.
+A direct melee skill's confirmed weapon hit, damage number, and eligible
+target reaction follow the ALT contact markers. One result with two contacts divides
+its damage presentation between them. A lethal hit starts the monster's death
+at first contact.
+
+Spell impact audio uses separate target and area selectors. The primary area
+announcement places the cue at the caster or target center. Secondary player
+results can display recipient effects without replaying the release or area
+sound. Visual effect limits do not discard the spell cue.
+
 Monsters use Monster.SData normal/chase timing and attack animation fields.
 Movement and confirmed attacks interrupt idle variations. If a hit draws aggro,
 the chase interrupts the damage reaction. The run cycle continues across brief
 gaps between chase steps, and walking ends on arrival. Selecting a monster
 updates its health and speed without restarting its movement. Damage reactions
 cannot interrupt attacks or locomotion, and attack facing follows the victim. Monster skill results use their own 0x060b/c/d layouts,
-including the attack-slot byte, level-one definition lookup and sequence-two
-native impact route. Wire level100 is a marker. Repeated recipients of one area
-attack do not restart its animation/audio. Speed changes and target snapshots
-retain the monster's current server modifiers. Full per-monster comparison is
-still ongoing.
+including the attack-slot byte and level-one `NpcSkill.SData` lookup via wire
+level 100. Audio uses that record's visual selector. The starting cast uses
+the target sound table. A secondary result can use the area table when its
+target recipe is absent and the original handler allows the fallback.
+Recipient packets leave the caster's attack animation and sound running.
+Speed changes and target snapshots retain the monster's server modifiers.
 
 The original debuff overlay (`0x4bff80`/`0x4c02d0`) uses a one-second triangular white pulse
 from zero to 127/255 alpha and back to zero. Icon hit regions and authoritative buff
@@ -299,6 +324,10 @@ switching Off releases them. Shadows and clipped reflections remain unjittered.
 **Water Surface Effect** changes reflection/refraction work, not the visibility
 of the surface. With the option disabled, the original animated WTR water stays
 visible and the extra reflection scene and refraction capture are skipped.
+Above water, GX can reuse the reflection image for less than 1/30 s while
+the camera and capture settings match. Waves and refraction update each frame.
+Camera movement, temporal jitter and underwater views use a new capture.
+Refraction copies only the area covered by the water when its bounds are known.
 Re-enabling the option restores the advanced path, including when a reflection
 target already exists from an earlier frame.
 
@@ -354,6 +383,8 @@ Allocated points return to the unspent pool.
 The kill progress strip shows kills divided by the next claim threshold;
 the death-benefit strip shows the next claim level divided by 31. Their
 native widths are 153px and 200px, using the red and violet atlas strips.
+The death count shows deaths divided by the next claim threshold. Each track
+shows **All rewards claimed** once its last reward has been collected.
 
 Diving below the swimming surface starts a 30-second oxygen bar. It uses the
 cast bar's shape and drains from full to empty. At the surface or on dry land
@@ -622,13 +653,21 @@ UI, shadow or transparent emitter pass cannot make the next actor ignore terrain
 or leave its first material without depth writes. The regression includes the
 native Windtail Forest Wood Spirit model (ID 2025) and other Windtail creatures.
 
+## Quest tracker
+
+Click a quest in the U journal to open the EP5.4 Quest Goal window (`quest_mini`). Only a press that creates the window toggles the clicked quest; an open window is left as it is. It stays visible when the journal closes. Each title is green, or yellow when the quest is ready to turn in, with remaining minutes for timed quests. Click a title to expand or collapse its objectives: PvP kills, monster kills and bag items, shown with the original SysMsg rows 438-440. Four rows are visible; scroll for more and drag the frame to move it. Expansion is kept per quest until the quest ends. The window opens 512 px left of the journal, and the Remember Layout setting saves its position separately.
+
 ## Map-wide quest availability
 
 Quest giver and ready turn-in markers cover the complete map independently of
 NPC visibility range. Their eligibility is cached and refreshed on quest,
 character, relevant inventory, catalog or minimum-time changes; moving the
 camera or player does not rescan every quest. Distant NPCs remain metadata, not
-3D entities. Party and nearby creature-objective positions stay live overlays.
+3D entities. Unfinished monster objectives mark spawn sites across the current
+map, including event spawns while enabled. The compact minimap clips markers to
+its visible area. Objective markers use `radar_part.png` when present, with
+`radar_party.png` for older packs. Changing maps resets the spawn catalog, and
+finishing or abandoning the quest clears its markers.
 
 Cooldowns use a red sweep and centered yellow seconds across item/skill icons,
 without flashing when ready. Reuse timing remains server-confirmed.
@@ -697,6 +736,8 @@ Its supplied width/height are interior dimensions, not the complete outer size.
 Full-map character coordinates sit four pixels higher above the map surface.
 
 ## Status fields and potion quantities
+
+The main attribute grid shows confirmed server totals, including equipped gear and active lapis. The allocation sheet uses base attributes and shows draft points until they are confirmed.
 
 Stat in the Status (T) window shows the equipped upper armor's effective intrinsic/active-lapis
 element, using the original SysMsg names and tier, or SysMsg 5270 for neutral.

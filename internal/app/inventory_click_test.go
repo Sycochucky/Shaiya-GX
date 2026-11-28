@@ -3,6 +3,8 @@ package app
 import (
 	"testing"
 
+	"github.com/Spelunkern/Shaiya-GX/internal/data/sdata"
+
 	"github.com/Spelunkern/Shaiya-GX/internal/platform"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"github.com/Spelunkern/Shaiya-GX/internal/ui"
@@ -29,6 +31,41 @@ func TestInventoryEquipmentTypesAndNoZeroPrice(t *testing.T) {
 	}
 	if debuffFlash(.25) != float32(63)/255 || debuffFlash(1.25) != float32(63)/255 {
 		t.Fatal("debuff pulse must use elapsed seconds")
+	}
+}
+
+func TestInventoryComparisonByEquipmentFamily(t *testing.T) {
+	a := inputApp()
+	a.items = make(map[sdata.ItemKey]*sdata.Item)
+	for _, tc := range []struct {
+		name                        string
+		bagType, equippedType, slot uint8
+	}{
+		{"weapon", 1, 5, 5},
+		{"helmet", 16, 31, 0},
+		{"armor", 17, 32, 1},
+		{"leggings", 18, 33, 2},
+		{"gloves", 20, 35, 3},
+		{"boots", 21, 36, 4},
+		{"shield", 24, 39, 7},
+		{"cloak", 19, 34, 6},
+		{"necklace", 23, 38, 8},
+		{"ring", 22, 37, 9},
+		{"bracelet", 40, 41, 11},
+		{"mount", 42, 42, 13},
+	} {
+		a.items[sdata.ItemKey{Type: tc.equippedType, TypeID: 1}] = &sdata.Item{Type: tc.equippedType, TypeID: 1, Name: tc.name}
+		a.state.Inventory[[2]uint8{0, tc.slot}] = proto.InventoryItem{Type: tc.equippedType, TypeID: 1, Count: 1}
+		tip := a.inventoryComparison(1, tc.bagType)
+		if tc.bagType == 42 {
+			if len(tip.tooltip) != 0 {
+				t.Fatal("mounts must use a single tooltip")
+			}
+			continue
+		}
+		if len(tip.tooltip) == 0 || tip.tooltip[0].text != tc.name {
+			t.Errorf("%s: missing equipped tooltip: %v", tc.name, tip.tooltip)
+		}
 	}
 }
 

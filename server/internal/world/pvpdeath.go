@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	"github.com/Spelunkern/Shaiya-GX/internal/proto"
 	"github.com/Spelunkern/Shaiya-GX/internal/pvprank"
 	"math"
@@ -85,19 +86,18 @@ func pvpExp(deadLevel, killerLevel uint16) uint32 {
 }
 
 // pvpKill is a kill credited to a user's session (KillPCTo).
-type pvpKill struct{ VictimID uint32 }
-
-func (p *ConnectedPlayer) QueuePvPKill(k pvpKill) {
+func (p *ConnectedPlayer) QueuePvPKill(rank uint32) {
 	p.mailMu.Lock()
 	p.pvpKillCount = min(satAdd(p.pvpKillCount, 1), pvpKillCap)
+	p.pvpRankCount = min(satAdd(p.pvpRankCount, rank), pvpKillCap)
 	p.mailMu.Unlock()
 }
-func (p *ConnectedPlayer) takePvPKillCount() uint32 {
+func (p *ConnectedPlayer) takePvPKillCount() (uint32, uint32) {
 	p.mailMu.Lock()
 	defer p.mailMu.Unlock()
-	n := p.pvpKillCount
-	p.pvpKillCount = 0
-	return n
+	count, rank := p.pvpKillCount, p.pvpRankCount
+	p.pvpKillCount, p.pvpRankCount = 0, 0
+	return count, rank
 }
 
 // QueueItemGrant hands an item straight to a user (ItemGet).
@@ -125,7 +125,7 @@ func (s *Session) tickPvP() {
 	if s.player == nil || s.char == nil {
 		return
 	}
-	s.killPCToCount(s.player.takePvPKillCount())
+	s.applyPvPKillCounts(s.player.takePvPKillCount())
 	for _, it := range s.player.TakeItemGrants() {
 		adds, left, err := s.giveItem(&it, it.Count, maxStackOf(it.Type, it.TypeID))
 		if err != nil {
@@ -148,6 +148,11 @@ func (s *Session) tickPvP() {
 // killPCTo is CUser::KillPCTo on this (the killing) user.
 func (s *Session) killPCTo() { s.killPCToCount(1) }
 func (s *Session) killPCToCount(count uint32) {
+	rank := uint32(min(uint64(count)*uint64(rewardRatesForMap(s.char.MapID).PvPKills), pvpKillCap))
+	s.applyPvPKillCounts(count, rank)
+}
+
+func (s *Session) applyPvPKillCounts(count, rank uint32) {
 	if count == 0 {
 		return
 	}
@@ -159,7 +164,7 @@ func (s *Session) killPCToCount(count uint32) {
 		return
 	}
 	remaining := pvpKillCap - ch.Kills
-	added := uint32(min(uint64(count)*uint64(rewardRates.PvPKills), uint64(remaining)))
+	added := min(rank, remaining)
 	ch.Kills += added
 	s.persist()
 	addKillCountBatch(s.faction, min(count, remaining), s.log) // Actual kills for the killer's country.
@@ -205,6 +210,8 @@ func (s *Session) deathByUser() {
 	if s.duelDeath(killer) || s.guildDuelDeath(killer) {
 		return // PvPGetDeathType 4/5: PvPChkLoseDeath, no rewards
 	}
+	s.activity("kill.pvp", fmt.Sprintf("%s defeated %s", killer.CharacterName, ch.Name),
+		"killer", killer.CharacterName, "killer_id", killer.CharacterID, "victim_id", ch.ID)
 	partyMu.Lock()
 	pt := partyOf(killer)
 	var members []*ConnectedPlayer
@@ -212,9 +219,10 @@ func (s *Session) deathByUser() {
 		members = append(members, pt.members...)
 	}
 	partyMu.Unlock()
+	rank := rewardRatesForMap(ch.MapID).PvPKills
 	// Killing a player gives no experience: only the kill itself is credited.
 	if len(members) == 0 {
-		s.killPCFrom(killer)
+		s.killPCFrom(killer, rank)
 		s.notifyKill(killer)
 		return
 	}
@@ -228,9 +236,9 @@ func (s *Session) deathByUser() {
 	}
 	for i, m := range near {
 		if i == 0 {
-			s.killPCFrom(m)
+			s.killPCFrom(m, rank)
 		} else {
-			m.QueuePvPKill(pvpKill{VictimID: ch.ID})
+			m.QueuePvPKill(rank)
 		}
 		s.notifyKill(m)
 	}
@@ -246,9 +254,9 @@ func (s *Session) notifyKill(killer *ConnectedPlayer) {
 
 // killPCFrom is CUser::KillPCFrom: the killer's KillPCTo, then this
 // user's death count.
-func (s *Session) killPCFrom(killer *ConnectedPlayer) {
+func (s *Session) killPCFrom(killer *ConnectedPlayer, rank uint32) {
 	ch := s.char
-	killer.QueuePvPKill(pvpKill{VictimID: ch.ID})
+	killer.QueuePvPKill(rank)
 	if ch.Deaths >= pvpDeathCap {
 		return
 	}

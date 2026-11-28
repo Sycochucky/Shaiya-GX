@@ -76,13 +76,3 @@ func (a *App) playCharacterDamageVoice(id uint32, result uint8, hp uint16) {
 		a.playCharacterVoice(id, voiceDamage)
 	}
 }
-
-func (a *App) playSkillDamageVoice() {
-	r := a.state.LastSkill
-	if r.HP == 0 || r.Result > 1 || a.wv.physicalSkillQueued {
-		return
-	}
-	if skill, ok := a.skillDefinition(r.ID, r.Level); ok && (skill.Effect == 1 || skill.Effect == 3 || skill.Effect == 5) {
-		a.playCharacterDamageVoice(r.Target, r.Result, r.HP)
-	}
-}

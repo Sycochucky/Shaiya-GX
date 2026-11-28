@@ -11,6 +11,8 @@ type ItemPatch struct {
 	Remove              bool
 	ReqVG               uint16
 	Description         string
+	Name                string
+	Icon                *uint8
 	Stack               uint8
 	Special             *uint8
 	ClearSkill          bool
@@ -42,13 +44,19 @@ func PatchItemDefinitions(raw []byte, patches map[ItemKey]ItemPatch) ([]byte, er
 				return nil, c.err
 			}
 			key := ItemKey{Type: body[0], TypeID: body[1]}
-			if patch, ok := patches[key]; ok && patch.Remove {
+			patch, ok := patches[key]
+			if ok && patch.Remove {
 				found[key] = true
 				kept--
 				continue
 			}
-			out = append(out, plain[start:nameEnd]...)
-			if patch, ok := patches[key]; ok {
+			if patch.Name != "" {
+				out = binary.LittleEndian.AppendUint32(out, uint32(len(patch.Name)))
+				out = append(out, patch.Name...)
+			} else {
+				out = append(out, plain[start:nameEnd]...)
+			}
+			if ok {
 				found[key] = true
 				if patch.PreserveDescription {
 					out = append(out, plain[nameEnd:descEnd]...)
@@ -58,6 +66,9 @@ func PatchItemDefinitions(raw []byte, patches map[ItemKey]ItemPatch) ([]byte, er
 				}
 				if patch.ClearSkill {
 					body[32], body[33] = 0, 0 // Range and AttackTime
+				}
+				if patch.Icon != nil {
+					body[3] = *patch.Icon
 				}
 				if patch.Special != nil {
 					body[35] = *patch.Special

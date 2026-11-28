@@ -43,7 +43,14 @@ func TestQuestKillProgress(t *testing.T) {
 	}
 	s := &Session{log: l.Tagged("test"), logger: l, char: &db.Character{ID: id}}
 	s.quests = []*activeQuest{{ID: 1, def: def, startAt: time.Now()}}
-	for range 7 {
+	s.player = RegisterPlayer(*s.char, nil, false, s.faction, s.out, l, s)
+	t.Cleanup(s.player.Unregister)
+	s.player.QueueQuestKill(2008)
+	s.drainRewards(s.player)
+	if q := s.findQuest(1); q == nil || q.counters[0] != 1 {
+		t.Fatal("active quest missed a kill immediately after player registration")
+	}
+	for range 6 {
 		s.questKill(2008)
 	}
 	s.questKill(9999)

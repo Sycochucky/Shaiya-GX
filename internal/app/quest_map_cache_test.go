@@ -147,3 +147,70 @@ func BenchmarkQuestMapCached(b *testing.B) {
 		a.questMapMarkers(1000, buffer[:0])
 	}
 }
+
+func TestQuestMobMarkersUseMapCatalogAndConfirmedQuestLifecycle(t *testing.T) {
+	a := inputApp()
+	a.state.SelfID, a.state.MapID = 42, 1
+	a.questDefs = []sdata.Quest{{EndType: 2, MobIDs: [2]uint16{100, 200}, MobCounts: [2]uint8{1, 2}}}
+	a.state.Quests = map[uint16]proto.ActiveQuest{1: {ID: 1}}
+	apply := func(w *proto.Writer) {
+		t.Helper()
+		if _, err := a.state.Apply(w.Bytes()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog := func(mapID uint16, flags uint8, mobID uint16, x, z float32) {
+		w := proto.NewWriter(proto.GXQuestMobs)
+		w.U16(mapID)
+		w.U8(flags)
+		w.U16(1)
+		w.U16(mobID)
+		w.F32(x)
+		w.F32(z)
+		apply(w)
+	}
+	catalog(1, proto.QuestNPCBegin, 100, 900, 800)
+	if got := a.questMapMarkers(1000, nil); len(got) != 0 {
+		t.Fatal("partial catalog appeared", got)
+	}
+	catalog(1, proto.QuestNPCEnd, 200, 950, 850)
+	if got := a.questMapMarkers(1000, nil); len(got) != 2 || got[0].U != .9 || got[1].U != .95 || len(a.state.Entities) != 0 {
+		t.Fatal("distant spawns must appear without world entities", got)
+	}
+	counter := proto.NewWriter(proto.QuestCounter)
+	counter.U16(1)
+	counter.U8(0)
+	counter.U8(1)
+	apply(counter)
+	if got := a.questMapMarkers(1000, nil); len(got) != 1 || got[0].U != .95 {
+		t.Fatal("filled objective retained markers", got)
+	}
+	end := proto.NewWriter(proto.QuestEnd)
+	end.U32(0)
+	end.U16(1)
+	end.Raw(make([]byte, 14))
+	apply(end)
+	if got := a.questMapMarkers(1000, nil); len(got) != 0 {
+		t.Fatal("ended quest retained markers", got)
+	}
+	a.state.Quests[1] = proto.ActiveQuest{ID: 1}
+	a.state.QuestMapRevision++
+	if got := a.questMapMarkers(1000, nil); len(got) != 2 {
+		t.Fatal("restarted quest lost map spawns", got)
+	}
+	teleport := proto.NewWriter(proto.CharacterMapTeleport)
+	teleport.U32(42)
+	teleport.U16(2)
+	teleport.F32(0)
+	teleport.F32(0)
+	teleport.F32(0)
+	apply(teleport)
+	catalog(1, proto.QuestNPCBegin|proto.QuestNPCEnd, 100, 900, 800)
+	if got := a.questMapMarkers(1000, nil); len(got) != 0 || a.state.MapQuestMobsReady {
+		t.Fatal("old map marker returned after teleport", got)
+	}
+	catalog(2, proto.QuestNPCBegin|proto.QuestNPCEnd, 100, 700, 600)
+	if got := a.questMapMarkers(1000, nil); len(got) != 1 || got[0].U != .7 {
+		t.Fatal("new map markers missing", got)
+	}
+}

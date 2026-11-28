@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"github.com/Spelunkern/Shaiya-GX/internal/authwire"
@@ -70,12 +71,16 @@ func SetAccountPassword(name, secret string) error {
 		if _, err := tx.ExecContext(c, `UPDATE PS_UserData_Users_Master SET Pw=? WHERE UserUID=?`, hash, uid); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(c, `INSERT INTO GX_AccountSecurity(UserUID,Version) VALUES(?,2) ON CONFLICT(UserUID) DO UPDATE SET Version=Version+1`, uid); err != nil {
-			return err
-		}
-		_, err := tx.ExecContext(c, `DELETE FROM GX_SessionHandoff WHERE UserUID=?`, uid)
-		return err
+		return revokeCredentialTx(c, tx, uint32(uid))
 	})
+}
+
+func revokeCredentialTx(c context.Context, tx *sql.Tx, uid uint32) error {
+	if _, err := tx.ExecContext(c, `INSERT INTO GX_AccountSecurity(UserUID,Version) VALUES(?,2) ON CONFLICT(UserUID) DO UPDATE SET Version=Version+1`, uid); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(c, `DELETE FROM GX_SessionHandoff WHERE UserUID=?`, uid)
+	return err
 }
 
 // UpgradeLegacyPasswords hashes passwords still stored in the legacy format.

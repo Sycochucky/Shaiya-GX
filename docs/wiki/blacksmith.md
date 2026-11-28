@@ -76,18 +76,19 @@ A recognized linking hammer has real item family 26 and `Special=36`;
 
 | Hammer | ReqVg / added percentage points |
 |---|---:|
-| Lv1 | 5 |
-| Lv2 | 10 |
-| Lv3 | 15 |
-| Lv4 | 20 |
-| Lv5 | 25 |
-| Lv6 | 30 |
-| Lv7 | 40 |
-| Common Linking Hammer | 20 |
-| Operator's Exclusive | 100 |
+| Lv1 | 1 |
+| Lv2 | 2 |
+| Lv3 | 3 |
+| Lv4 | 4 |
+| Lv5 | 5 |
+| Lv6 | 6 |
+| Lv7 | 7 |
+| Common Linking Hammer | 10 |
+| Operator's Exclusive | 20 |
+| GM Linking Hammer (100/192) | 100 |
 
-For example, ReqIg 31 gives 41% before blessing. A common hammer makes that 61%.
-The operator hammer reaches 100%. These are the current content values, editable
+For example, ReqIg 31 gives 41% before blessing. A common hammer makes that 51%.
+The Cash Mall GM Linking Hammer guarantees a valid link attempt. The values are editable
 in SQL and the matching client definition; see [item data](item-data.md).
 
 A valid attempt consumes gold, one lapis and one selected hammer whether it
@@ -161,8 +162,8 @@ choose it. If no occupied socket is currently selected, the first occupied one
 is used. Each attempt processes **one** lapis, not all sockets.
 
 A recognized extraction hammer has real family 26 and `Special=58`.
-Its ReqVg is the direct percentage, clamped to 0–100. Small Extraction Hammer
-currently has 30%; Large Extraction Hammer has 90%. Character level, Vg,
+Its ReqVg is the direct percentage, clamped to 0–100. The Cash Mall GM
+Extraction Hammer (100/191) has a 100% success rate. Character level, Vg,
 blessing and linking hammer bonuses do not modify extraction hammer success.
 
 The server checks the socket, hammer, gold and room for the recovered lapis

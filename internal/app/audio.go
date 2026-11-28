@@ -140,16 +140,16 @@ func (a *App) confirmedSound(p []byte) {
 	case proto.SkillCastStarted:
 		r := a.state.LastCast
 		a.playSkillSound(r.Source, r.ID, r.Level, true)
-	case proto.SkillUse, proto.SkillUseNoTarget, proto.SkillUserDrain, proto.SkillMobDrain, proto.SkillPartyMember, proto.SkillMobOther:
+	case proto.SkillUse, proto.SkillUseNoTarget, proto.SkillUserDrain, proto.SkillMobDrain:
 		r := a.state.LastSkill
-		a.playSkillDamageVoice()
 		a.playSkillHitSound(r)
 		a.playSkillHealSound(r)
 		if r.Result <= 4 && !(r.Result == 3 && r.Target == 0) {
 			a.playSkillSound(r.Source, r.ID, r.Level, false)
 		}
+	case proto.SkillPartyMember, proto.SkillMobOther:
+		a.playSkillHitSound(a.state.LastSkill)
 	case proto.MobSkillUse, proto.MobSkillDrain, proto.MobSkillOther:
-		a.playSkillDamageVoice()
 		r := a.state.LastSkill
 		if r.HP > 0 {
 			a.playMobHitSound(r.Target, r.Result)
@@ -188,14 +188,31 @@ func (a *App) playSkillSound(source uint32, id uint16, level uint8, preparing bo
 	}
 	a.skillSoundEvents[key] = a.clock
 	name := scene.SkillActionSound(action)
-	if !preparing && (id == 38 || id == 156) {
-		name = "ef_in_spin01.ogg"
-	}
 	a.playSound(name, pos[0], pos[2])
 	if !preparing {
-		for _, extra := range scene.SkillReleaseSounds(d.Animation, d.Attack, d.Effect, a.playerWeapon(source)) {
+		for _, extra := range skillReleaseSounds(id, d, a.playerWeapon(source)) {
 			a.playSound(extra, pos[0], pos[2])
 		}
+	}
+}
+
+func skillReleaseSounds(id uint16, d sdata.Skill, weapon uint8) []string {
+	// These actions return before the normal physical release cue.
+	switch id {
+	case 38, 156, 341:
+		return []string{"ef_in_spin01.ogg"}
+	case 56:
+		return nil
+	}
+	return scene.SkillReleaseSounds(d.Animation, d.Attack, d.Effect, weapon)
+}
+
+func (a *App) playEntitySound(target uint32, file string) {
+	if a.sound == nil || file == "" || target == 0 {
+		return
+	}
+	if pos, ok := a.effectPosition(target); ok {
+		a.playSound(file, pos[0], pos[2])
 	}
 }
 

@@ -48,6 +48,8 @@ def merge(source, destination):
         if not path.is_file():
             continue
         relative = path.relative_to(source)
+        if source.name.startswith('gx-client-') and relative.parts[0] == 'Studio':
+            continue
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():

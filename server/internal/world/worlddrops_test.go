@@ -23,16 +23,20 @@ func TestWorldDropRollsUseInclusiveRangesAndIndependentExactChances(t *testing.T
 		dropCatalog.mu.Unlock()
 	})
 	for _, tt := range []struct {
-		rolls []uint64
-		drops []int64
+		percent uint32
+		rolls   []uint64
+		drops   []int64
 	}{
-		{[]uint64{0, 9999}, []int64{1, 2}},
-		{[]uint64{1, 10000}, nil},
+		{100, []uint64{99, 999_999}, []int64{1, 2}},
+		{100, []uint64{100, 1_000_000}, nil},
+		{150, []uint64{149, 1_499_999}, []int64{1, 2}},
+		{150, []uint64{150, 1_500_000}, nil},
+		{0, []uint64{0, 0}, nil},
 	} {
 		var got []int64
 		n := 0
-		rollWorldDrops(69, func(limit uint64) uint64 {
-			if limit != 10_000_000_000 || n >= len(tt.rolls) {
+		rollWorldDrops(69, tt.percent, func(limit uint64) uint64 {
+			if limit != worlddrops.RollRange*100 || n >= len(tt.rolls) {
 				t.Fatal("unexpected random draw")
 			}
 			roll := tt.rolls[n]

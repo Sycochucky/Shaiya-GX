@@ -14,11 +14,17 @@ import (
 
 const logReadLimit int64 = 256 << 10
 
+const operatorLog Service = "gx_operator"
+
 type LogEntry struct {
-	Time    time.Time
-	Level   string
-	Service Service
-	Message string
+	Time                   time.Time
+	Level                  string
+	Service                Service
+	Message                string
+	Activity               string
+	MapID                  *uint16
+	AccountID, CharacterID uint32
+	Character              string
 }
 
 type logPosition struct {
@@ -40,7 +46,7 @@ func NewLogReader(root string) *LogReader {
 func (r *LogReader) Poll() ([]LogEntry, error) {
 	var entries []LogEntry
 	var errs []error
-	for _, service := range Services() {
+	for _, service := range append(Services(), operatorLog) {
 		path := filepath.Join(r.root, "logs", string(service)+".log")
 		next, records, err := readLog(path, service, r.positions[service])
 		if err != nil {
@@ -110,12 +116,17 @@ func readLogRecords(f *os.File, service Service, size, offset int64) (int64, []L
 			return start, entries, nil
 		}
 		var wire struct {
-			Time    time.Time `json:"time"`
-			Level   string    `json:"level"`
-			Message string    `json:"message"`
+			Time        time.Time `json:"time"`
+			Level       string    `json:"level"`
+			Activity    string    `json:"activity"`
+			MapID       *uint16   `json:"map_id"`
+			AccountID   uint32    `json:"account_id"`
+			CharacterID uint32    `json:"character_id"`
+			Character   string    `json:"character"`
+			Message     string    `json:"message"`
 		}
 		if (!first || start == offset) && json.Unmarshal(line, &wire) == nil && wire.Message != "" {
-			entries = append(entries, LogEntry{Time: wire.Time, Level: wire.Level, Service: service, Message: wire.Message})
+			entries = append(entries, LogEntry{Time: wire.Time, Level: wire.Level, Service: service, Message: wire.Message, Activity: wire.Activity, MapID: wire.MapID, AccountID: wire.AccountID, CharacterID: wire.CharacterID, Character: wire.Character})
 		}
 		first = false
 		start += int64(len(line) + 1)

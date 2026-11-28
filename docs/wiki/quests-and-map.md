@@ -45,8 +45,11 @@ and confirmed character/progress/inventory state. Starting and finishing quests
 still use the native server requests and the real NPC interaction requirements.
 The map marker is not an authorization to accept a quest remotely.
 
-Party positions and nearby creature-objective indicators remain live overlays.
-Their movement does not invalidate the cached map-wide NPC quest availability.
+Party positions remain live overlays. Creature objectives mark spawn sites
+throughout the current map until the objective is filled, the quest ends or
+the player changes maps. The compact minimap shows only the part in view.
+The creature marker uses `radar_part.png` with `radar_party.png` as the
+fallback for existing data packs.
 Quest markers remain individually present with stable paint order, including
 nearby overlapping markers.
 
@@ -60,6 +63,10 @@ nearby overlapping markers.
 | Flags | `u8`: begin = 1, end = 2 |
 | Record count | `u16` |
 | Each record | NPC type `u8`, definition ID `u16`, X `f32`, Z `f32` |
+
+`0x7F2C` uses the same header and flags for monster spawn sites. A record
+contains the monster definition ID (`u16`), X (`f32`) and Z (`f32`).
+The server sends a new snapshot on map entry and when event spawn sites change.
 
 All numeric fields are little-endian. Chunks stay within native frame limits.
 The client assembles a replacement snapshot and publishes it only when the end

@@ -187,7 +187,16 @@ func verifyNativeChat(t *testing.T, a, b *App, pump func(func() bool)) {
 	if !a.playerContext.open {
 		t.Fatal("player context did not open for whisper")
 	}
-	row := len(a.contextActions(b.state.SelfID)) - 1
+	row := -1
+	for i, action := range a.contextActions(b.state.SelfID) {
+		if action.label == "Whisper" {
+			row = i
+			break
+		}
+	}
+	if row < 0 {
+		t.Fatal("player context did not offer whisper")
+	}
 	x, y := a.playerContext.x+10, a.playerContext.y+ui.PlayerMenuTextInset+row*contextRowHeight+5
 	a.worldControls(&platform.Input{MouseX: x, MouseY: y, Pressed: true, MouseDown: true}, 1024, 734)
 	a.worldControls(&platform.Input{MouseX: x, MouseY: y, Clicked: true}, 1024, 734)

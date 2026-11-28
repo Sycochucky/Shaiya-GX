@@ -73,9 +73,11 @@ func TestBlessingPvPRelicDatabaseAndResetLifecycle(t *testing.T) {
 	if kcWorld[0].count != 0 {
 		t.Fatal("kill cap credited country")
 	}
-	oldRates := rewardRates
-	t.Cleanup(func() { rewardRates = oldRates })
-	rewardRates.PvPKills = 4
+	oldRates := rewardRates.Load()
+	t.Cleanup(func() { rewardRates.Store(oldRates) })
+	rates := currentRewardRates()
+	rates.PvPKills = 4
+	rewardRates.Store(&rates)
 	s.char.Kills = 0
 	s.killPCToCount(2)
 	if s.char.Kills != 8 || kcWorld[0].count != 2 {

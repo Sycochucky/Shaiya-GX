@@ -8,7 +8,7 @@ import (
 // loot, NPCs and panels, so a consumed click never becomes a terrain command.
 func (a *App) moveToGround(in *platform.Input, width, height int) {
 	v := a.wv
-	if !a.clientSettings().UseMouse || a.scene3d == nil || v.world == nil {
+	if a.state.Self.Sitting || v.sitPending || !a.clientSettings().UseMouse || a.scene3d == nil || v.world == nil {
 		return
 	}
 	origin, direction, ok := clickRay(in.MouseX, in.MouseY, width, height, a.scene3d.View.Mul(a.scene3d.Proj))

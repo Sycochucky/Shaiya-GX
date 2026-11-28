@@ -21,18 +21,11 @@ func SkillActionSound(action int) string {
 	return ""
 }
 
-// SkillReleaseSounds lists the extra cues Game.exe plays when a skill is
-// released, besides the cast/release action cue (EP5.4 0x57cd80 and 0x57d7c0,
-// the same strings exist in EP4). The animation byte 100..110 of a damaging
-// skill selects ch_skill001/003/004/005/008 (101, 105, 106 and 108..110 are
-// silent); a debuff with the physical attack kind always uses ch_skill001;
-// every physical skill released with a javelin, bow or crossbow adds
-// ef_cst_crobow01. The weapon is the caster's item type.
+// SkillReleaseSounds follows the physical release branches at 0x57cf21
+// and 0x57f10e. The animation selects the cue before checking the equipped
+// weapon for the additional projectile release sound.
 func SkillReleaseSounds(animation uint16, attack, effect, weapon uint8) []string {
-	if effect == 3 && attack == 1 {
-		return []string{"ch_skill001.ogg"}
-	}
-	if (effect != 1 && effect != 3 && effect != 5) || attack == 0 {
+	if (effect != 1 && effect != 3 && effect != 5) || (attack != 1 && attack != 2) {
 		return nil
 	}
 	var out []string
@@ -48,11 +41,9 @@ func SkillReleaseSounds(animation uint16, attack, effect, weapon uint8) []string
 	case 107:
 		out = append(out, "ch_skill008.ogg")
 	}
-	if attack == 1 || attack == 2 {
-		switch weaponKind(weapon) {
-		case 11, 13, 14:
-			out = append(out, "ef_cst_crobow01.ogg")
-		}
+	switch weaponKind(weapon) {
+	case 11, 13, 14:
+		out = append(out, "ef_cst_crobow01.ogg")
 	}
 	return out
 }

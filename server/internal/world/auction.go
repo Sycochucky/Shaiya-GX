@@ -209,7 +209,9 @@ func (s *Session) collectAuction(req proto.AuctionRequest) (string, error) {
 				s.items = append(s.items, item)
 				s.send(buildAddItem(&item), "auction item claimed")
 			} else {
+				before := s.char.Money
 				s.char.Money += claim.Gold
+				s.goldActivity(before, "auction proceeds")
 				s.send(buildSetMoney(s.char.Money), "auction gold claimed")
 			}
 		}, func(change db.CharacterChange) error {

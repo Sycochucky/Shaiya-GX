@@ -103,6 +103,21 @@ a five-second final drain. Overflow aborts that connection instead of silently
 dropping authoritative messages. Partial input frames are also budgeted before
 application ticks/dispatch.
 
+GX Shield is a local, time-limited admission mode in GX Server Control. Standard
+limits remain active. Under Attack reduces each source to 30 new connections per
+minute and 16 concurrent connections (or the lower configured ordinary limit).
+It affects new connections only. Login also charges a separate per-source budget
+before RSA decryption, using the configured login-attempt count. At most 32 RSA
+exchanges run simultaneously. The dashboard
+uses the authenticated loopback control channel to set the mode on both cores.
+Its automatic trigger requires 64 global-capacity rejections from at least four
+source IPs within ten seconds;
+the automatic mode lasts ten minutes. Manual mode lasts 30 minutes and can be
+reversed. Restarting a core resets its mode to standard. The admission limits
+do not protect against link saturation or replace upstream TCP DDoS mitigation.
+GX uses the socket's remote IP; it does not parse PROXY protocol. A TCP proxy
+that hides client addresses places all players in the same per-IP budget.
+
 ## Gameplay queue policy
 
 | Queue/state | Bound / behavior |
@@ -148,6 +163,7 @@ a public listener.
 | `/healthz` | GET | Loopback; ready response while process context is active, stopping returns 503 |
 | `/metrics` | GET | Loopback; bounded Prometheus text, observes pool/WAL state |
 | `/shutdown` | POST | Exact bearer token; accepts cancellation for graceful stop |
+| `/shield?minutes=N` | POST | Exact bearer token; 0 returns to standard, 1–60 enables temporary Under Attack admission |
 | `/debug/pprof/…` | GET | Available only with `RAPTURE_PPROF=1`; same bearer token, duration capped at 30 s |
 
 Health here is service-lifecycle health, not a gameplay round-trip or backup
@@ -163,6 +179,7 @@ service is introduced.
 |---|---|
 | `gx_connections_active` | Current admitted sockets in that core process |
 | `gx_connections_accepted_total`, `gx_connections_rejected_total` | Admission activity/refusal; correlate with legitimate shared-NAT load |
+| `gx_shield_under_attack`, `gx_shield_rejected_total`, `gx_shield_automatic_activations_total` | Temporary admission mode, its additional rejects and automatic activations |
 | `gx_network_output_bytes_pending` | Aggregate queued/in-flight output pressure |
 | `gx_network_output_overflows_total` | Slow-client/backpressure disconnects |
 | `gx_player_mailbox_overflows_total` | Gameplay mailbox pressure |

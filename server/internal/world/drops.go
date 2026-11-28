@@ -1,15 +1,18 @@
 package world
 
 import (
-	"github.com/Spelunkern/Shaiya-GX/internal/catalogfiles"
+	"fmt"
+	"math"
 	"math/rand/v2"
 	"path/filepath"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/Spelunkern/Shaiya-GX/internal/catalogfiles"
 	"github.com/Spelunkern/Shaiya-GX/internal/mapgeometry"
 	"github.com/Spelunkern/Shaiya-GX/internal/worlddrops"
+	"github.com/Spelunkern/Shaiya-GX/server/internal/config"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/db"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/logx"
 )
@@ -109,7 +112,21 @@ func pickGradeItem(grade uint16) *db.ItemDef {
 	if len(list) == 0 {
 		return nil
 	}
-	e := list[rand.IntN(len(list))]
+	return takeCatalogDrop(list[rand.IntN(len(list))])
+}
+
+func pickExactDrop(def *db.ItemDef) *db.ItemDef {
+	dropCatalog.mu.Lock()
+	defer dropCatalog.mu.Unlock()
+	for _, e := range dropCatalog.grades[def.Grade] {
+		if e.def.Type == def.Type && e.def.TypeID == def.TypeID {
+			return takeCatalogDrop(e)
+		}
+	}
+	return nil
+}
+
+func takeCatalogDrop(e *gradeEntry) *db.ItemDef {
 	if e.limited {
 		now := time.Now()
 		if now.Before(e.nextAt) {
@@ -124,13 +141,13 @@ func pickGradeItem(grade uint16) *db.ItemDef {
 	return e.def
 }
 
-func rollWorldDrops(level uint16, roll func(uint64) uint64, drop func(worlddrops.Rule)) {
+func rollWorldDrops(level uint16, percent uint32, roll func(uint64) uint64, drop func(worlddrops.Rule)) {
 	dropCatalog.mu.Lock()
 	rules := dropCatalog.worldRules
 	dropCatalog.mu.Unlock()
 	for _, rule := range rules {
 		if level >= rule.MinLevel && level <= rule.MaxLevel && rule.DropChance > 0 &&
-			roll(worlddrops.RollRange) < rule.DropChance {
+			rollScaledDrop(rule.DropChance, worlddrops.RollRange, percent, roll) {
 			drop(rule)
 		}
 	}
@@ -180,11 +197,14 @@ func floorMobDrop(g *mapgeometry.Geometry, origin, candidate mapgeometry.Positio
 //
 // With two or more party members in range, the gold is split evenly among
 // them instead of dropped (at least 1 each).
-func rollMobDrops(mapID uint16, mob *MapMob, ownerID, killerID uint32, party []*ConnectedPlayer, log logPrinter) []MapItem {
+func rollMobDrops(mapID uint16, mob *MapMob, ownerID, killerID uint32, party []*ConnectedPlayer, rates config.RewardRates, log logPrinter) []MapItem {
 	defs := db.MustDefs()
 	var packets []MapItem
 	place := func(def *db.ItemDef, money uint32) {
 		x, y, z := mobDropPosition(mob)
+		if def != nil {
+			activityForMap(realMap(mapID)).drops.Add(1)
+		}
 		if def != nil && len(party) >= 1 {
 			// Universal loot: a party or raid's item goes straight into one member's bag.
 			item := newDroppedItem(def)
@@ -206,46 +226,64 @@ func rollMobDrops(mapID uint16, mob *MapMob, ownerID, killerID uint32, party []*
 		if d.ItemOrder < 1 || d.ItemOrder > 9 {
 			continue
 		}
-		var roll uint32
-		if d.ItemOrder < 7 {
-			roll = rand.Uint32N(100)
-		} else {
-			roll = rand.Uint32N(1_000_000)
-		}
-		if roll >= d.DropRate {
+		if !rollMonsterDrop(d, rates.MobDropPercent, rand.Uint64N) {
 			continue
 		}
 		if def := pickGradeItem(d.Grade); def != nil {
 			place(def, 0)
+			logActivity(log, "loot.drop", fmt.Sprintf("%s dropped (monster %d)", def.Name, mob.MobID),
+				"map_id", realMap(mapID), "character_id", ownerID, "mob_id", mob.MobID, "item_type", def.Type, "item_id", def.TypeID, "source", "monster")
 			log.Printf("GX Server World mob drop mob_id=%d order=%d grade=%d item=%d/%d", mob.MobID, d.ItemOrder, d.Grade, def.Type, def.TypeID)
 		}
 	}
-	rollWorldDrops(mob.Level, rand.Uint64N, func(rule worlddrops.Rule) {
+	rollWorldDrops(mob.Level, rates.WorldDropPercent, rand.Uint64N, func(rule worlddrops.Rule) {
 		if def := pickGradeItem(rule.Grade); def != nil {
 			place(def, 0)
+			logActivity(log, "loot.drop", fmt.Sprintf("%s dropped (event rule %d)", def.Name, rule.Index),
+				"map_id", realMap(mapID), "character_id", ownerID, "mob_id", mob.MobID, "item_type", def.Type, "item_id", def.TypeID, "source", "event", "rule", rule.Index)
 			log.Printf("GX Server World world drop mob_id=%d rule=%d grade=%d item=%d/%d", mob.MobID, rule.Index, rule.Grade, def.Type, def.TypeID)
 		}
 	})
+	rollScopedDrops(mapID, mob, ownerID, rates.WorldDropPercent, place, log)
 	if grbKill(mapID, mob, killerID) {
 		return packets
 	}
-	if rand.IntN(100) < 30 {
-		amount := mob.MoneyMin
-		if mob.MoneyMax > 0 {
-			amount += rand.Uint32N(mob.MoneyMax)
-		}
-		switch {
-		case amount == 0:
-		case len(party) > 1:
+	if amount := rollMonsterGold(mob, rates.MobGoldPercent, rates.MobGoldChance, rand.Uint32N); amount > 0 {
+		if len(party) > 1 {
 			share := max(amount/uint32(len(party)), 1)
 			for _, m := range party {
 				m.QueueGold(share)
 			}
-		default:
+		} else {
 			place(nil, amount)
 		}
 	}
 	return packets
+}
+
+func rollMonsterDrop(drop db.MobDrop, percent uint32, roll func(uint64) uint64) bool {
+	var span uint64 = 100
+	if drop.ItemOrder >= 7 {
+		span = 1_000_000
+	}
+	return rollScaledDrop(uint64(drop.DropRate), span, percent, roll)
+}
+
+func rollScaledDrop(chance, span uint64, percent uint32, roll func(uint64) uint64) bool {
+	// Expand the native range so fractional probabilities survive scaling.
+	span *= 100
+	return roll(span) < min(chance*uint64(percent), span)
+}
+
+func rollMonsterGold(mob *MapMob, percent, chance uint32, roll func(uint32) uint32) uint32 {
+	if roll(100) >= chance {
+		return 0
+	}
+	amount := uint64(mob.MoneyMin)
+	if mob.MoneyMax > 0 {
+		amount += uint64(roll(mob.MoneyMax))
+	}
+	return uint32(min(amount*uint64(percent)/100, math.MaxUint32))
 }
 
 func newDroppedItem(def *db.ItemDef) db.Item {

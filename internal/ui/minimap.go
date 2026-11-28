@@ -59,15 +59,15 @@ type MapAction struct {
 }
 
 type Minimap struct {
-	WorldAvailable, WorldReturn                                                bool
-	worldButton, mapButton                                                     Button
-	Position, FullPosition                                                     WindowPosition
-	Caption, MapName                                                           string
-	plate                                                                      *render.Texture
-	frame, arrow, party, questStart, questEnd, enemy, top, bottom, left, right *render.Texture
-	relics                                                                     [3]*render.Texture
-	relicPortal                                                                *render.Texture
-	alarm                                                                      *render.Texture
+	WorldAvailable, WorldReturn                                                   bool
+	worldButton, mapButton                                                        Button
+	Position, FullPosition                                                        WindowPosition
+	Caption, MapName                                                              string
+	plate                                                                         *render.Texture
+	frame, arrow, party, questStart, questEnd, questMob, top, bottom, left, right *render.Texture
+	relics                                                                        [3]*render.Texture
+	relicPortal                                                                   *render.Texture
+	alarm                                                                         *render.Texture
 	// Alarm is the native pulse timer (0x4c6550): 0..2 seconds-halves, 0 when idle.
 	Alarm   float32
 	buttons [3]Button
@@ -77,9 +77,15 @@ type Minimap struct {
 func NewMinimap(t Textures) (*Minimap, error) {
 	ld := &loader{t: t}
 	m := &Minimap{frame: ld.get("main_map.png"), arrow: ld.get("arrow.png"), party: ld.get("radar_party.png"),
-		questStart: ld.get("radar_queststart.png"), questEnd: ld.get("radar_questend.png"), enemy: ld.get("radar_enemy.png"),
+		questStart: ld.get("radar_queststart.png"), questEnd: ld.get("radar_questend.png"),
 		top: ld.get("map_up.png"), bottom: ld.get("map_bottom.png"),
 		left: ld.get("map_left.png"), right: ld.get("map_right.png")}
+	m.questMob = m.party
+	if optional, ok := t.(interface{ OptionalInterface(string) *render.Texture }); ok {
+		if tex := optional.OptionalInterface("radar_part.png"); tex != nil {
+			m.questMob = tex
+		}
+	}
 	// Original minimap/map initializers 0x4c5bf0/0x4c0720.
 	if tex, err := t.Interface("main_map_alarm.png"); err == nil {
 		m.alarm = tex
@@ -194,7 +200,7 @@ func (m *Minimap) drawMarkers(s *render.Sprites, markers []MapMarker, view UV, x
 		case MapQuestEnd:
 			texture = m.questEnd
 		case MapQuestObjective:
-			texture = m.enemy
+			texture = m.questMob
 		case MapRelicPortal:
 			texture, size = m.relicPortal, 32
 		case MapRelicNeutral, MapRelicLight, MapRelicFury:
@@ -238,7 +244,7 @@ func (m *Minimap) drawSmallMarkers(s *render.Sprites, markers []MapMarker, view 
 		case MapQuestEnd:
 			texture = m.questEnd
 		case MapQuestObjective:
-			texture = m.enemy
+			texture = m.questMob
 		case MapRelicPortal:
 			texture, size = m.relicPortal, 32
 		case MapRelicNeutral, MapRelicLight, MapRelicFury:

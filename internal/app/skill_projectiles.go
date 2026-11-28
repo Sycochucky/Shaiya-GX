@@ -11,6 +11,7 @@ type skillProjectile struct {
 	target     uint32
 	sequence   int
 	impact     string
+	sound      string
 	pos        render.V3
 	age, speed float32
 	delay      float32
@@ -33,8 +34,9 @@ type skillImpact struct {
 // caster logical Y+0.7 (feet+1.6), wait 12 keys at default 30/s, then
 // speed=initial distance*5. Time already spent in release is not waited twice.
 // HP and other gameplay outcomes have already been applied from the server.
-func (a *App) startSkillProjectile(r proto.SkillResult, file, impact string) {
+func (a *App) startSkillProjectile(r proto.SkillResult, file, impact, sound string) {
 	if len(a.wv.projectiles) >= 32 {
+		a.playEntitySound(r.Target, sound)
 		return
 	}
 	source, ok := a.effectPosition(r.Source)
@@ -46,13 +48,14 @@ func (a *App) startSkillProjectile(r proto.SkillResult, file, impact string) {
 	}
 	x := a.loadSkillEffect(file, int(r.Level)-1)
 	if x == nil {
+		a.playEntitySound(r.Target, sound)
 		return
 	}
 	elapsed := float32(0)
 	if actor := a.playerActor(r.Source); actor != nil && actor.ActionActive() {
 		elapsed = actor.Time
 	}
-	p := skillProjectile{target: r.Target, sequence: int(r.Level) - 1, impact: impact, pos: source.Add(render.V3{0, 1.6, 0}), instance: x, delay: .4, age: elapsed, follow: r.ID >= 164 && r.ID <= 167}
+	p := skillProjectile{target: r.Target, sequence: int(r.Level) - 1, impact: impact, sound: sound, pos: source.Add(render.V3{0, 1.6, 0}), instance: x, delay: .4, age: elapsed, follow: r.ID >= 164 && r.ID <= 167}
 	target, _ := a.effectPosition(r.Target)
 	target[1] += .9
 	flightElapsed := max(0, elapsed-p.delay)
@@ -66,6 +69,7 @@ func (a *App) startSkillProjectile(r proto.SkillResult, file, impact string) {
 			if p.speed > 0 {
 				travel = distance / p.speed
 			}
+			a.playEntitySound(r.Target, p.sound)
 			a.startSkillImpactAt(r.Target, impact, p.sequence, max(0, flightElapsed-travel))
 			return
 		}
@@ -141,6 +145,7 @@ func (a *App) updateResolvedEffects() {
 				if p.follow {
 					p.instance.FinishMeteor()
 				}
+				a.playEntitySound(p.target, p.sound)
 				a.startSkillImpact(p.target, p.impact, p.sequence)
 			}
 			p.setTransform(render.Basis(p.pos, dir, render.V3{0, 1, 0}))

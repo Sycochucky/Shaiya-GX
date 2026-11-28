@@ -119,7 +119,8 @@ func (s *Session) applyTeleport(mapID uint16, x, y, z float32, label string, gmD
 		s.endGMGuildRanking(false)
 	}
 	s.clearView(mapID == ch.MapID)
-	changedMap := mapID != ch.MapID
+	previousMap := ch.MapID
+	changedMap := mapID != previousMap
 	ch.MapID, ch.PosX, ch.PosY, ch.PosZ = mapID, x, y, z
 	s.movement = playerMovement{geometry: g, mapID: mapID, ladder: s.movement.ladder}
 	if err := s.initPlayerMovement(time.Now()); err != nil {
@@ -132,6 +133,7 @@ func (s *Session) applyTeleport(mapID uint16, x, y, z float32, label string, gmD
 		s.player.UpdateMotion(0, 0)
 	}
 	if changedMap {
+		s.noteDungeonExit(previousMap)
 		s.refreshMapCurses(true)
 	}
 	s.savePosition()

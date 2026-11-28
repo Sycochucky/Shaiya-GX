@@ -506,6 +506,7 @@ func (s *Session) startQuest(q *questDef, id uint16, npcID uint32) {
 	}
 	s.items = after
 	s.quests = append(s.quests, aq)
+	s.syncQuestIDs(s.player)
 	if s.player != nil {
 		s.player.UpdateItems(s.items)
 	}
@@ -722,7 +723,7 @@ func (s *Session) awardQuest(q *activeQuest, variant uint8, ctx uint32) {
 		return
 	}
 	res := q.def.Results[variant]
-	exp := config.ScaleEXP(res.Exp, rewardRates.QuestEXPPercent)
+	exp := config.ScaleEXP(res.Exp, rewardRatesForMap(s.char.MapID).QuestEXPPercent)
 	change := db.CharacterChange{Before: *s.char, After: *s.char, ItemsBefore: s.items, ItemsAfter: append([]db.Item(nil), s.items...)}
 	var packets [][]byte
 	if q.def.EndType == 1 {
@@ -780,6 +781,7 @@ func (s *Session) awardQuest(q *activeQuest, variant uint8, ctx uint32) {
 		s.send(p, "quest committed item")
 	}
 	if res.Money != 0 {
+		s.goldActivity(change.Before.Money, "quest reward")
 		s.send(buildSetMoney(s.char.Money), "0x0213 quest gold")
 	}
 	w := packet.New(packet.QuestEnd)
@@ -820,6 +822,7 @@ func (s *Session) removeQuestFromMemory(q *activeQuest, success uint8) {
 	for i, active := range s.quests {
 		if active == q {
 			s.quests = append(s.quests[:i], s.quests[i+1:]...)
+			s.syncQuestIDs(s.player)
 			break
 		}
 	}
@@ -985,14 +988,14 @@ func questItemDrop(mob *MapMob, recipients []*ConnectedPlayer) *db.ItemDef {
 	return nil
 }
 
-// syncQuestIDs publishes the active quest ids for other sessions' loot.
-func (s *Session) syncQuestIDs() {
-	if s.player == nil {
+// syncQuestIDs publishes committed quest membership for mob rewards.
+func (s *Session) syncQuestIDs(player *ConnectedPlayer) {
+	if player == nil {
 		return
 	}
 	ids := make([]uint16, 0, len(s.quests))
 	for _, q := range s.quests {
 		ids = append(ids, q.ID)
 	}
-	s.player.setQuests(ids)
+	player.setQuests(ids)
 }

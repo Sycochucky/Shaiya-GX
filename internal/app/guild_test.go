@@ -9,53 +9,6 @@ import (
 	"github.com/Spelunkern/Shaiya-GX/internal/ui"
 )
 
-func TestGuildInvitationPromptAndExpiry(t *testing.T) {
-	a := inputApp()
-	a.guildMessage, _ = ui.NewMessage(inputTextures{})
-	a.state.Entities[5] = &game.Entity{ID: 5, Kind: game.KindUser, Shape: &proto.UserShape{Name: "Ally"}}
-	a.state.Guild.InviteID, a.state.Guild.InviteSerial = 5, 1
-	if !a.updateGuildInvite(&platform.Input{}, 1024, 768) || !a.guildMessage.Visible || a.guildMessage.Text != "Ally invites you to a guild. Join?" {
-		t.Fatal("invitation not presented")
-	}
-	a.clock = 31
-	if a.updateGuildInvite(&platform.Input{}, 1024, 768) || a.guildMessage.Visible || a.state.Guild.InviteID != 0 {
-		t.Fatal("expired invitation retained")
-	}
-	a.state.Guild.InviteID, a.state.Guild.InviteSerial = 5, 2
-	a.guild.expires = a.clock + 30
-	a.updateGuildInvite(&platform.Input{}, 1024, 768)
-	a.state.Guild.ID = 42
-	if a.updateGuildInvite(&platform.Input{}, 1024, 768) || a.guildMessage.Visible {
-		t.Fatal("prompt remained after guild join")
-	}
-}
-
-func TestGuildContextInvitationRequiresAdmin(t *testing.T) {
-	a := inputApp()
-	a.state.SelfID = 1
-	a.state.Entities[2] = &game.Entity{ID: 2, Kind: game.KindUser}
-	a.state.Guild.ID, a.state.Guild.Rank = 42, 9
-	hasInvite := func() bool {
-		for _, action := range a.contextActions(2) {
-			if action.label == "Invite to guild" {
-				return true
-			}
-		}
-		return false
-	}
-	if hasInvite() {
-		t.Fatal("ordinary member can invite")
-	}
-	a.state.Guild.Rank = 2
-	if !hasInvite() {
-		t.Fatal("admin missing invitation action")
-	}
-	a.state.Guild.Members = map[uint32]proto.GuildMember{2: {ID: 2}}
-	if hasInvite() {
-		t.Fatal("invitation offered to current member")
-	}
-}
-
 func TestGuildRosterControlsAndCapture(t *testing.T) {
 	a := inputApp()
 	a.guildUI, _ = ui.NewGuildPanel(inputTextures{})

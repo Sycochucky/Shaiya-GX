@@ -1,6 +1,7 @@
 package world
 
 import (
+	"fmt"
 	"github.com/Spelunkern/Shaiya-GX/server/internal/netx"
 	"time"
 
@@ -563,6 +564,19 @@ func rewardKill(killer *ConnectedPlayer, killerID uint32, mapID uint16, m *MapMo
 		}
 	}
 	eventMobDestroyed(killer, mapID, m, log)
+	if killerID != 0 {
+		activityForMap(realMap(mapID)).kills.Add(1)
+		actor := fmt.Sprintf("Character %d", killerID)
+		if killer != nil {
+			actor = killer.CharacterName
+		}
+		mobName := fmt.Sprintf("monster %d", m.MobID)
+		if def := db.MustDefs().Mobs[m.MobID]; def != nil {
+			mobName = def.Name
+		}
+		logActivity(log, "kill.monster", fmt.Sprintf("%s killed %s", actor, mobName),
+			"character", actor, "character_id", killerID, "map_id", realMap(mapID), "mob_id", m.MobID, "mob_entity_id", m.ID)
+	}
 	var party []*ConnectedPlayer
 	if killer != nil {
 		party = partyMembersNear(killer, mapID, m.PosX, m.PosZ)
@@ -583,7 +597,8 @@ func rewardKill(killer *ConnectedPlayer, killerID uint32, mapID uint16, m *MapMo
 	if killer != nil {
 		rewards, perfect = killRewards(killer, mapID, m.Level, base)
 	}
-	for _, it := range rollMobDrops(mapID, m, lootByID, killerID, lootParty, log) {
+	rates := rewardRatesForMap(mapID)
+	for _, it := range rollMobDrops(mapID, m, lootByID, killerID, lootParty, rates, log) {
 		dispatchItemEnter(mapID, &it, "0x0401 mob drop")
 	}
 	questRecipients := party
@@ -599,13 +614,13 @@ func rewardKill(killer *ConnectedPlayer, killerID uint32, mapID uint16, m *MapMo
 	}
 	if killer == nil {
 		if base > 0 {
-			grantOfflineKillExp(killerID, m.MobID, m.Level, uint32(base), log)
+			grantOfflineKillExp(killerID, m.MobID, m.Level, uint32(base), rates.MobEXPPercent, log)
 		}
 		return
 	}
 	for _, reward := range rewards {
 		reward.member.QueueQuestKill(m.MobID)
-		if amount := config.ScaleEXP(reward.exp, rewardRates.MobEXPPercent); amount > 0 {
+		if amount := config.ScaleEXP(reward.exp, rates.MobEXPPercent); amount > 0 {
 			reward.member.QueueExp(amount, perfect)
 		}
 	}
@@ -668,13 +683,13 @@ func buildLevelUp(op packet.Opcode, ch *db.Character) []byte {
 }
 
 // grantOfflineKillExp credits a DoT kill to a caster who went offline.
-func grantOfflineKillExp(characterID uint32, mobID, mobLevel uint16, mobExp uint32, log logPrinter) {
+func grantOfflineKillExp(characterID uint32, mobID, mobLevel uint16, mobExp, expRate uint32, log logPrinter) {
 	ch, err := db.CharacterByID(characterID)
 	if err != nil {
 		return
 	}
 	scaled := uint32(float64(mobExperience(mobLevel, uint16(min(mobExp, 65535)), ch.Level)) * 1.2)
-	levels, credited := applyExpGain(&ch, config.ScaleEXP(scaled, rewardRates.MobEXPPercent))
+	levels, credited := applyExpGain(&ch, config.ScaleEXP(scaled, expRate))
 	if credited == 0 && levels == 0 {
 		return
 	}

@@ -1031,8 +1031,8 @@ func TestUserAttack(t *testing.T) {
 		t.Fatal("PvP kill counter exceeded native cap")
 	}
 	enemy.char.Deaths = pvpDeathCap - 1
-	enemy.killPCFrom(attacker.player)
-	enemy.killPCFrom(attacker.player)
+	enemy.killPCFrom(attacker.player, rewardRatesForMap(enemy.char.MapID).PvPKills)
+	enemy.killPCFrom(attacker.player, rewardRatesForMap(enemy.char.MapID).PvPKills)
 	if enemy.char.Deaths != pvpDeathCap {
 		t.Fatal("PvP death counter exceeded native cap")
 	}

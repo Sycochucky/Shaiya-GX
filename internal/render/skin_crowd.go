@@ -22,6 +22,55 @@ type SkinGroup struct {
 	Count    int
 }
 
+// CrowdPalettes owns the append-only bone buffer used by the scene's camera
+// passes. Reset starts a new store before subsequent draw calls use it.
+type CrowdPalettes struct {
+	Matrices []M4
+	buffer   uint32
+	capacity int
+	uploaded int
+}
+
+func (p *CrowdPalettes) Reset() {
+	p.Matrices = p.Matrices[:0]
+	p.uploaded = 0
+}
+
+func (p *CrowdPalettes) bind() int {
+	size := len(p.Matrices) * 64
+	if size == 0 {
+		return 0
+	}
+	if p.buffer == 0 {
+		gl.CreateBuffers(1, &p.buffer)
+	}
+	if p.uploaded == 0 || size > p.capacity {
+		capacity := p.capacity
+		if size > capacity {
+			capacity = max(size, min(64<<20, 2*capacity))
+		}
+		gl.NamedBufferData(p.buffer, capacity, nil, gl.STREAM_DRAW)
+		removeGPUBytes(uint64(p.capacity))
+		addGPUBytes(uint64(capacity))
+		p.capacity, p.uploaded = capacity, 0
+	}
+	written := size - p.uploaded
+	if written > 0 {
+		gl.NamedBufferSubData(p.buffer, p.uploaded, written, unsafe.Pointer(&p.Matrices[p.uploaded/64]))
+		p.uploaded = size
+	}
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 5, p.buffer)
+	return written
+}
+
+func (p *CrowdPalettes) Delete() {
+	if p.buffer != 0 {
+		gl.DeleteBuffers(1, &p.buffer)
+		removeGPUBytes(uint64(p.capacity))
+	}
+	*p = CrowdPalettes{}
+}
+
 func (s *Scene3D) CrowdSkinInstance(world M4) SkinInstance {
 	view := s.modelView(world)
 	return SkinInstance{World: world, View: view, Projection: view.Mul(s.depthProjection(s.Proj))}
@@ -35,24 +84,22 @@ func (k *Skinner) uploadCrowdBuffer(i int, size int, data unsafe.Pointer) {
 	removeGPUBytes(k.crowdBytes[i])
 	k.crowdBytes[i] = uint64(size)
 	addGPUBytes(k.crowdBytes[i])
-	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, uint32(4+i), k.crowdBuffers[i])
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, [...]uint32{4, 6}[i], k.crowdBuffers[i])
 }
 
-func (k *Skinner) uploadCrowdInstances(instances []SkinInstance, palettes []M4) {
+func (k *Skinner) uploadCrowdInstances(instances []SkinInstance) {
 	k.uploadCrowdBuffer(0, len(instances)*int(unsafe.Sizeof(instances[0])), unsafe.Pointer(&instances[0]))
-	if len(palettes) != 0 {
-		k.uploadCrowdBuffer(1, len(palettes)*64, unsafe.Pointer(&palettes[0]))
-	}
 }
 
 // DrawCrowd preserves independent skeletal palettes while sharing material and
 // draw state. Callers queue only opaque or alpha-tested world characters.
-func (k *Skinner) DrawCrowd(s *Scene3D, groups []SkinGroup, instances []SkinInstance, palettes []M4, ambient float32) {
+func (k *Skinner) DrawCrowd(s *Scene3D, groups []SkinGroup, instances []SkinInstance, palettes *CrowdPalettes, ambient float32) int {
 	if len(instances) == 0 {
-		return
+		return 0
 	}
 	k.Begin(s, ambient)
-	k.uploadCrowdInstances(instances, palettes)
+	k.uploadCrowdInstances(instances)
+	written := palettes.bind()
 	gl.FrontFace(gl.CW)
 	gl.CullFace(gl.BACK)
 	for _, group := range groups {
@@ -76,6 +123,7 @@ func (k *Skinner) DrawCrowd(s *Scene3D, groups []SkinGroup, instances []SkinInst
 	gl.Uniform1i(k.uCrowdBase, 0)
 	gl.Disable(gl.CULL_FACE)
 	gl.FrontFace(gl.CCW)
+	return written
 }
 
 // RigidInstanceVisible applies the ordinary model's per-mesh occlusion test

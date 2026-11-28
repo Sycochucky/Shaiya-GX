@@ -60,7 +60,14 @@ func TestDungeonClickMoveSelectsFloorGL(t *testing.T) {
 	if a.wv.world.HasTerrain() {
 		t.Fatal("map 15 should be a dungeon")
 	}
-	a.moveToGround(&platform.Input{MouseX: W / 2, MouseY: H/2 + 120, Clicked: true}, W, H)
+	groundClick := &platform.Input{MouseX: W / 2, MouseY: H/2 + 120, Clicked: true}
+	a.state.Self.Sitting = true
+	a.moveToGround(groundClick, W, H)
+	if a.wv.travel || a.wv.travelEffect != nil || a.wv.sitPending {
+		t.Fatal("a floor click started travel while seated")
+	}
+	a.state.Self.Sitting = false
+	a.moveToGround(groundClick, W, H)
 	d := a.wv.destination
 	if !a.wv.travel || d[1] > a.wv.pos[1]+.5 || d.Sub(a.wv.pos).Len() > 40 {
 		t.Fatalf("destination %v travel %v from %v", d, a.wv.travel, a.wv.pos)
@@ -122,7 +129,8 @@ func TestDungeonClickMoveSelectsFloorGL(t *testing.T) {
 	click := &platform.Input{MouseX: x, MouseY: y, Clicked: true}
 	a.state.Target = 7
 	a.keepChasing(a.state.Target)
-	v.attackMoveUntil = a.clock + 1
+	recovery := a.clock + 1
+	v.attackMoveUntil = recovery
 	a.gameMenu.Settings.UseMouse = false
 	a.moveToGround(click, W, H)
 	if v.travel || v.travelEffect != nil || !v.attackSent {
@@ -133,12 +141,12 @@ func TestDungeonClickMoveSelectsFloorGL(t *testing.T) {
 	if !v.travel || v.destination.Sub(goal).Len() > .1 || v.travelEffect == nil || v.travelEffect.Origin != v.destination {
 		t.Fatal("field click behavior changed", goal, v.destination)
 	}
-	if v.attackSent || v.engagedID != 0 || v.approachTarget != 0 || v.attackMoveUntil != 0 || a.state.Target != 7 {
+	if v.attackSent || v.engagedID != 0 || v.approachTarget != 0 || v.attackMoveUntil != recovery || a.state.Target != 7 {
 		t.Fatal("ground click did not abandon the attack while keeping its target selected")
 	}
 	a.state.LastAttack = proto.AttackResult{Source: a.state.SelfID, Target: 7}
 	a.confirmedAnimation(proto.NewWriter(proto.CharacterMobAutoAttack).Bytes())
-	if !v.travel || v.attackMoveUntil != 0 {
+	if !v.travel || v.attackMoveUntil != recovery {
 		t.Fatal("late swing stopped ground travel")
 	}
 }

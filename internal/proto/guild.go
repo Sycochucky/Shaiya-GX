@@ -132,16 +132,6 @@ func DecodeGuildCreate(p []byte) (GuildJoin, string, error) {
 	return v, remark, r.Err()
 }
 
-func GuildInvitePacket(id uint32) []byte { return idPacket(GuildInvite, id) }
-func GuildAnswerPacket(accept bool) []byte {
-	w := NewWriter(GuildInviteAnswer)
-	if accept {
-		w.U8(1)
-	} else {
-		w.U8(0)
-	}
-	return w.Bytes()
-}
 func GuildLeavePacket() []byte   { return NewWriter(GuildLeave).Bytes() }
 func GuildDisbandPacket() []byte { return NewWriter(GuildDisband).Bytes() }
 func GuildDisbandAnswerPacket(accept bool) []byte {
